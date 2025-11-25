@@ -1,0 +1,25 @@
+compnet.kz {
+    encode gzip
+
+    # Корневая директория Laravel (В КОНТЕЙНЕРЕ!)
+    root * /var/www/html/public
+
+    # Vite и статические файлы
+    @static {
+        path /build/* /assets/* /favicon.ico
+    }
+    handle @static {
+        file_server
+    }
+
+    # Laravel backend через PHP-FPM
+    php_fastcgi app_comp:9000
+
+    # Laravel fallback (должно быть ПОСЛЕ php_fastcgi!)
+    try_files {path} {path}/ /index.php
+
+    # Раздача оставшихся файлов
+    file_server
+
+    tls almuko.m@gmail.com
+}

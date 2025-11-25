@@ -1,0 +1,49 @@
+services:
+  app_jusu_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: app_jusu_dev
+    restart: always
+    volumes:
+      - ./:/var/www/html
+    ports:
+      - "9000:9000"
+    networks:
+      - jusu_net
+
+  vite_jusu_dev:
+    image: node:22
+    container_name: vite_jusu_dev
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - app_jusu_dev
+    networks:
+      - jusu_net
+
+  mysql_jusu_dev:
+    image: mysql:8
+    container_name: mysql_jusu_dev
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: jusu
+      MYSQL_USER: jusu
+      MYSQL_PASSWORD: jusu
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+    networks:
+      - jusu_net
+
+networks:
+  jusu_net:
+
+volumes:
+  mysqldata:

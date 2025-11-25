@@ -1,0 +1,54 @@
+/*
+Template Name: Driven
+File: Layout CSS
+Author: TemplatesOnWeb
+Author URI: https://www.templateonweb.com/
+Licence: <a href="https://www.templateonweb.com/license">Website Template Licence</a>
+*/
+/*********************login****************/
+.login_1 {
+box-shadow: 0px 0px 8px 1px #d7d6d6;
+padding: 30px;
+width:40%;
+margin-left:auto;
+margin-right:auto;
+}
+#login{
+padding-top:40px;
+padding-bottom:40px;
+ }
+.login_1 .form-control {
+background: none;
+height: 50px;
+font-size: 16px;
+color: #999;
+border-radius:0;
+}
+/*********************login_end****************/
+
+
+@media screen and (max-width : 767px){
+.login_1 {
+width:100%;
+padding:15px;
+}
+ }
+@media (min-width:768px) and (max-width:991px) {
+.login_1 {
+width:60%;
+}
+ }
+@media (min-width:992px) and (max-width:1200px) {
+
+ }
+/*Мои настройки almuko*/
+.login_1 .btn-group {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* уменьши это значение, если нужно плотнее */
+    margin-top: 20px;
+}
+
+.login_1 .btn-group .btn {
+    padding: 10px 20px;
+}

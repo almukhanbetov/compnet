@@ -1,0 +1,156 @@
+body, h1, h2, h3, h4, h5, h6, a, p, button, label, input, select, textarea {
+    font-family: 'Inter', 'Segoe UI', sans-serif !important;
+    color: #333;
+}
+
+/* Если хочешь, чтобы заголовки были жирнее */
+h1, h2, h3 {
+    font-weight: 700;
+    color: #176c61; /* стиль бренда */
+}
+
+/* Если нужно убрать “системный” синий цвет ссылок */
+a {
+    color: #176c61;
+    text-decoration: none;
+}
+a:hover {
+    color: #0f4d44;
+    text-decoration: underline;
+}
+.sidebar {
+    height: 100vh;
+}
+
+.nav-link {
+    color: #333;
+    padding: 10px 14px;
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: #f1f5f4;
+    color: #176c61;
+}
+
+.nav-link.active {
+    background-color: #176c61 !important;
+    color: #fff !important;
+}
+
+.card {
+    border-radius: 1rem;
+}
+
+.table {
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.btn-success {
+    background-color: #176c61;
+    border-color: #176c61;
+}
+
+.btn-success:hover {
+    background-color: #13594f;
+    border-color: #13594f;
+}
+.form-control,
+.form-select {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    border-width: 1.2px;
+    border-color: #c4dfd2;
+    transition: all 0.2s ease-in-out;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #176c61;
+    box-shadow: 0 0 0 0.12rem rgba(23,108,97,0.15);
+}
+
+.form-label {
+    color: #163f3c;
+    font-size: 0.88rem;
+}
+
+.card {
+    background-color: #fff;
+    border-radius: 1rem;
+    border: 1px solid #e6ece9;
+}
+
+textarea {
+    resize: none;
+}
+
+.btn-success {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+/* Миниатюры */
+/* Контейнер миниатюры */
+.preview-wrapper {
+    position: relative;
+    display: inline-block;
+    margin: 4px;
+    transition: all 0.2s ease-in-out;
+}
+
+.preview-thumb {
+    width: 95px;
+    height: 95px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #cfe6db;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 0.25s ease-in-out;
+    cursor: pointer;
+}
+
+.preview-thumb.loaded {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.preview-thumb:hover {
+    transform: scale(1.05);
+    border-color: #176c61;
+}
+
+/* Кнопка удаления (🗑) */
+.delete-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 6px;
+    padding: 3px 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.preview-wrapper:hover .delete-btn {
+    opacity: 1;
+}
+
+.delete-btn:hover {
+    background: #176c61;
+    color: #fff;
+}
+.invalid-feedback {
+    color: #c0392b; /* мягко-красный */
+    font-size: 0.85rem;
+    margin-top: 2px;
+}
+.form-select.is-invalid {
+    border-color: #e57373 !important;
+}

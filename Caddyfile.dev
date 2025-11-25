@@ -1,0 +1,5 @@
+http://localhost {
+    root * /var/www/html/public
+    php_fastcgi app_jusu_dev:9000
+    file_server
+}

@@ -1,0 +1,57 @@
+services:
+  app:
+    image: almuko/comp-app:latest
+    container_name: app_comp
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - comp_appcode:/var/www/html   # <-- ОБЯЗАТЕЛЬНО
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - appnet
+  db:
+    image: mysql:8
+    container_name: mysql_comp
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - comp_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-u${DB_USERNAME}", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - appnet
+  caddy:
+    image: caddy:2
+    container_name: caddy_comp
+    restart: always
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./comp_caddy_data:/data
+      - ./comp_caddy_config:/config
+      - comp_appcode:/var/www/html
+    networks:
+      - appnet
+
+networks:
+  appnet:
+
+volumes:
+  comp_mysql_data:
+  comp_caddy_data:
+  comp_caddy_config:
+  comp_appcode:
