@@ -1,0 +1,71 @@
+name: 🚀 Deploy comp App via Docker to VPS
+on:
+  push:
+    branches: ["main"]
+env:
+  REGISTRY: docker.io
+  APP_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/comp-app
+  IMAGE_TAG: latest
+  REMOTE_DIR: /home/almuko/comp
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1) Забираем код
+      - name: 🧩 Checkout repo
+        uses: actions/checkout@v4
+      # 2) Логинимся в Docker Hub
+      - name: 🔐 Docker login
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # 3) Собираем & пушим Docker image (с Vite build!)
+      - name: 🏗️ Build & Push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.APP_IMAGE }}:${{ env.IMAGE_TAG }}
+      # 4) Деплой на VPS
+      - name: 🚀 Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22122
+          script: |
+            echo "→ Create dir"
+            mkdir -p ${{ env.REMOTE_DIR }}
+            cd ${{ env.REMOTE_DIR }}
+            echo "→ Save .env"
+            cat > .env << 'EOF'
+            ${{ secrets.APP_ENV_FILE }}
+            EOF
+
+            echo "→ Save Caddyfile"
+            cat > Caddyfile << 'EOF'
+            ${{ secrets.CADDYFILE }}
+            EOF
+
+            echo "→ Save docker-compose.prod.yml"
+            cat > docker-compose.prod.yml << 'EOF'
+            ${{ secrets.DOCKER_COMPOSE }}
+            EOF
+
+            echo "→ Pull image"
+            docker pull ${{ env.APP_IMAGE }}:${{ env.IMAGE_TAG }}
+
+            echo "→ Restart containers"
+            docker compose -f docker-compose.prod.yml down || true
+            docker compose -f docker-compose.prod.yml up -d --force-recreate
+
+            echo "→ Wait for MySQL healthcheck"
+            sleep 40
+
+            echo "→ Run migrations"
+            docker compose -f docker-compose.prod.yml exec app_comp php artisan migrate --force
+
+            echo "→ DONE!"
