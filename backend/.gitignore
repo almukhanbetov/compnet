@@ -1,0 +1,21 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Go build artifacts
+/bin/
+/tmp/
+*.exe
+*.test
+*.out
+
+# Go workspace/tool caches
+/vendor/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

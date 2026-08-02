@@ -1,0 +1,12 @@
+# PostgreSQL with pgxpool
+- Read `DATABASE_URL` from environment.
+- Create one application-wide `pgxpool.Pool`.
+- Ping on startup, close on shutdown.
+- Parameterized SQL only.
+- Explicit column lists; never `SELECT *`.
+- Pass `context.Context` everywhere.
+- Use transactions for multi-step writes.
+- Map `pgx.ErrNoRows` to domain not-found.
+- Store money as BIGINT tenge, never float.
+- Use `TIMESTAMPTZ` and UTC.
+- Index foreign keys, slugs, status, email/phone and created_at where queried.

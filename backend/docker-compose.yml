@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: compnet-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Zxcvbnm123
+      POSTGRES_DB: compnet_db
+    volumes:
+      - compnet_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d compnet_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5442:5432"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: compnet-backend
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+
+    container_name: compnet-frontend
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+
+    ports:
+      - "3000:3000"
+
+volumes:
+  compnet_postgres_data:
