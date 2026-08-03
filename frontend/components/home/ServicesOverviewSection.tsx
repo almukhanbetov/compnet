@@ -12,8 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
-import { servicesOverview } from "@/data/servicesOverview";
-import type { ServiceOverviewIcon } from "@/types/serviceOverview";
+import type { ServiceOverview, ServiceOverviewIcon } from "@/types/serviceOverview";
 
 const serviceIcons: Record<ServiceOverviewIcon, LucideIcon> = {
   Globe,
@@ -22,7 +21,11 @@ const serviceIcons: Record<ServiceOverviewIcon, LucideIcon> = {
   Bot,
 };
 
-export default function ServicesOverviewSection() {
+interface ServicesOverviewSectionProps {
+  items: ServiceOverview[];
+}
+
+export default function ServicesOverviewSection({ items }: ServicesOverviewSectionProps) {
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
@@ -33,7 +36,7 @@ export default function ServicesOverviewSection() {
         />
 
         <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2">
-          {servicesOverview.map((service, index) => {
+          {items.map((service, index) => {
             const Icon = serviceIcons[service.icon];
 
             return (

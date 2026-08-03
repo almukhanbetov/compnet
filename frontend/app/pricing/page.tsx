@@ -8,6 +8,7 @@ import PriceFactors from "@/components/pricing/PriceFactors";
 import WorkFormats from "@/components/pricing/WorkFormats";
 import PricingProcess from "@/components/pricing/PricingProcess";
 import PricingFaq from "@/components/pricing/PricingFaq";
+import { fetchPricingCards } from "@/lib/api/content";
 
 export const metadata: Metadata = {
   title: "Цены на разработку | COMPNET",
@@ -15,14 +16,18 @@ export const metadata: Metadata = {
     "Ориентировочная стоимость разработки сайтов, web- и мобильных приложений, AI-решений, backend и поддержки в COMPNET.",
 };
 
-export default function PricingPage() {
+export const dynamic = "force-dynamic";
+
+export default async function PricingPage() {
+  const pricingCards = await fetchPricingCards();
+
   return (
     <>
       <Header />
 
       <main>
         <PricingHero />
-        <PricingGrid />
+        <PricingGrid items={pricingCards} />
         <PriceFactors />
         <WorkFormats />
         <PricingProcess />

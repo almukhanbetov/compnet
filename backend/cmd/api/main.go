@@ -17,6 +17,7 @@ import (
 	"github.com/almukha/compnet-backend/internal/http/handler"
 	"github.com/almukha/compnet-backend/internal/http/router"
 	"github.com/almukha/compnet-backend/internal/repository/postgres"
+	contentsvc "github.com/almukha/compnet-backend/internal/service/content"
 	projectrequestsvc "github.com/almukha/compnet-backend/internal/service/projectrequest"
 )
 
@@ -51,9 +52,14 @@ func run() error {
 	projectRequestService := projectrequestsvc.NewService(projectRequestRepo)
 	projectRequestHandler := handler.NewProjectRequestHandler(projectRequestService)
 
+	contentRepo := postgres.NewContentRepository(pool)
+	contentService := contentsvc.NewService(contentRepo)
+	contentHandler := handler.NewContentHandler(contentService)
+
 	engine := router.New(router.Deps{
 		Health:             healthHandler,
 		ProjectRequest:     projectRequestHandler,
+		Content:            contentHandler,
 		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
 	})
 

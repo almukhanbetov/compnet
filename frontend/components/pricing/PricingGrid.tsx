@@ -3,14 +3,18 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { CheckCircle2, Clock, ArrowRight, Info } from "lucide-react";
-import { pricingCardItems } from "@/data/pricingPage";
+import type { PricingCardItem } from "@/types/pricingPage";
 
-export default function PricingGrid() {
+interface PricingGridProps {
+  items: PricingCardItem[];
+}
+
+export default function PricingGrid({ items }: PricingGridProps) {
   return (
     <section className="px-6 py-8 md:py-12">
       <div className="mx-auto max-w-[1440px]">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {pricingCardItems.map((item, index) => (
+          {items.map((item, index) => (
             <motion.div
               key={item.id}
               initial={{ opacity: 0, y: 16 }}

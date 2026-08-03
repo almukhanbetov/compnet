@@ -4,21 +4,22 @@ import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import PortfolioFilters from "@/components/portfolio/PortfolioFilters";
 import PortfolioCard from "@/components/portfolio/PortfolioCard";
-import { portfolioCaseStudies } from "@/data/portfolioPage";
-import type { PortfolioFilterValue } from "@/types/portfolioPage";
+import type { PortfolioCaseStudy, PortfolioFilterValue } from "@/types/portfolioPage";
 
-export default function PortfolioGrid() {
+interface PortfolioGridProps {
+  projects: PortfolioCaseStudy[];
+}
+
+export default function PortfolioGrid({ projects }: PortfolioGridProps) {
   const [activeFilter, setActiveFilter] = useState<PortfolioFilterValue>("Все");
 
   const filteredProjects = useMemo(() => {
     if (activeFilter === "Все") {
-      return portfolioCaseStudies;
+      return projects;
     }
 
-    return portfolioCaseStudies.filter(
-      (project) => project.category === activeFilter,
-    );
-  }, [activeFilter]);
+    return projects.filter((project) => project.category === activeFilter);
+  }, [projects, activeFilter]);
 
   return (
     <section className="px-6 py-8 md:py-12">

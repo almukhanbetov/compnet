@@ -1,6 +1,10 @@
 import ServiceDetailSection from "@/components/home/ServiceDetailSection";
-import { webDevelopmentDetail } from "@/data/serviceDetails";
+import type { ServiceDetail } from "@/types/serviceDetail";
 
-export default function WebDevelopmentSection() {
-  return <ServiceDetailSection detail={webDevelopmentDetail} />;
+interface WebDevelopmentSectionProps {
+  detail: ServiceDetail;
+}
+
+export default function WebDevelopmentSection({ detail }: WebDevelopmentSectionProps) {
+  return <ServiceDetailSection detail={detail} />;
 }

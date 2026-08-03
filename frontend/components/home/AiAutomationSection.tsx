@@ -1,6 +1,10 @@
 import ServiceDetailSection from "@/components/home/ServiceDetailSection";
-import { aiAutomationDetail } from "@/data/serviceDetails";
+import type { ServiceDetail } from "@/types/serviceDetail";
 
-export default function AiAutomationSection() {
-  return <ServiceDetailSection detail={aiAutomationDetail} reversed />;
+interface AiAutomationSectionProps {
+  detail: ServiceDetail;
+}
+
+export default function AiAutomationSection({ detail }: AiAutomationSectionProps) {
+  return <ServiceDetailSection detail={detail} reversed />;
 }

@@ -13,21 +13,34 @@ import FaqSection from "@/components/home/FaqSection";
 import CtaSection from "@/components/home/CtaSection";
 import ContactSection from "@/components/home/ContactSection";
 import FloatingChatButton from "@/components/home/FloatingChatButton";
+import {
+  fetchServicesOverview,
+  fetchPricingCards,
+  fetchTestimonials,
+} from "@/lib/api/content";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const [servicesOverview, pricingCards, testimonials] = await Promise.all([
+    fetchServicesOverview(),
+    fetchPricingCards(),
+    fetchTestimonials(),
+  ]);
+
   return (
     <>
       <Header />
       <main>
         <Hero />
         <WhatWeCreateSection />
-        <ServicesOverviewSection />
-        <PricingSection />
+        <ServicesOverviewSection items={servicesOverview} />
+        <PricingSection items={pricingCards} />
         <TechStackSection />
         <HowItWorksSection />
         <PortfolioSection />
         <FeaturesSection />
-        <TestimonialsSection />
+        <TestimonialsSection items={testimonials} />
         <FaqSection />
         <CtaSection />
         <ContactSection />

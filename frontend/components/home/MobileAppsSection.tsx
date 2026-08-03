@@ -1,6 +1,10 @@
 import ServiceDetailSection from "@/components/home/ServiceDetailSection";
-import { mobileAppsDetail } from "@/data/serviceDetails";
+import type { ServiceDetail } from "@/types/serviceDetail";
 
-export default function MobileAppsSection() {
-  return <ServiceDetailSection detail={mobileAppsDetail} />;
+interface MobileAppsSectionProps {
+  detail: ServiceDetail;
+}
+
+export default function MobileAppsSection({ detail }: MobileAppsSectionProps) {
+  return <ServiceDetailSection detail={detail} />;
 }

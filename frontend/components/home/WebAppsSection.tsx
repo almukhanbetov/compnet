@@ -1,6 +1,10 @@
 import ServiceDetailSection from "@/components/home/ServiceDetailSection";
-import { webAppsDetail } from "@/data/serviceDetails";
+import type { ServiceDetail } from "@/types/serviceDetail";
 
-export default function WebAppsSection() {
-  return <ServiceDetailSection detail={webAppsDetail} reversed tinted />;
+interface WebAppsSectionProps {
+  detail: ServiceDetail;
+}
+
+export default function WebAppsSection({ detail }: WebAppsSectionProps) {
+  return <ServiceDetailSection detail={detail} reversed tinted />;
 }

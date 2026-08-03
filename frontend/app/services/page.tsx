@@ -5,8 +5,13 @@ import WebAppsSection from "@/components/home/WebAppsSection";
 import MobileAppsSection from "@/components/home/MobileAppsSection";
 import AiAutomationSection from "@/components/home/AiAutomationSection";
 import CtaSection from "@/components/home/CtaSection";
+import { fetchServiceDetailsBySlug } from "@/lib/api/content";
 
-export default function ServicesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ServicesPage() {
+  const details = await fetchServiceDetailsBySlug();
+
   return (
     <>
       <Header />
@@ -32,10 +37,10 @@ export default function ServicesPage() {
           </div>
         </section>
 
-        <WebDevelopmentSection />
-        <WebAppsSection />
-        <MobileAppsSection />
-        <AiAutomationSection />
+        <WebDevelopmentSection detail={details["web-development"]} />
+        <WebAppsSection detail={details["web-apps"]} />
+        <MobileAppsSection detail={details["mobile-apps"]} />
+        <AiAutomationSection detail={details["ai-automation"]} />
         <CtaSection />
       </main>
 

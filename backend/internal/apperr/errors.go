@@ -46,6 +46,11 @@ func BadRequest(message string) *Error {
 	return &Error{Code: CodeBadRequest, Message: message}
 }
 
+// NotFound builds a 404-mapped error.
+func NotFound(message string) *Error {
+	return &Error{Code: CodeNotFound, Message: message}
+}
+
 // Internal builds a 500-mapped error. The wrapped err is logged server-side
 // and never shown to the client.
 func Internal(err error) *Error {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { CheckCircle2, Clock } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
-import { pricingCardItems } from "@/data/pricingPage";
+import type { PricingCardItem } from "@/types/pricingPage";
 
 const teaserIds = [
   "price-landing",
@@ -15,11 +15,13 @@ const teaserIds = [
   "price-ai-solution",
 ];
 
-const pricingItems = pricingCardItems.filter((item) =>
-  teaserIds.includes(item.id),
-);
+interface PricingSectionProps {
+  items: PricingCardItem[];
+}
 
-export default function PricingSection() {
+export default function PricingSection({ items }: PricingSectionProps) {
+  const pricingItems = items.filter((item) => teaserIds.includes(item.id));
+
   return (
     <section className="border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">

@@ -4,9 +4,13 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { Star, Quote, ArrowRight } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
-import { testimonials } from "@/data/testimonials";
+import type { Testimonial } from "@/types/testimonial";
 
-export default function TestimonialsSection() {
+interface TestimonialsSectionProps {
+  items: Testimonial[];
+}
+
+export default function TestimonialsSection({ items }: TestimonialsSectionProps) {
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
@@ -28,7 +32,7 @@ export default function TestimonialsSection() {
         </div>
 
         <div className="mt-14 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {testimonials.map((testimonial, index) => (
+          {items.map((testimonial, index) => (
             <motion.div
               key={testimonial.id}
               initial={{ opacity: 0, y: 16 }}

@@ -13,6 +13,7 @@ import (
 type Deps struct {
 	Health         *handler.HealthHandler
 	ProjectRequest *handler.ProjectRequestHandler
+	Content        *handler.ContentHandler
 	// CORSAllowedOrigins will be used once CORS middleware is introduced.
 	CORSAllowedOrigins []string
 }
@@ -31,6 +32,13 @@ func New(deps Deps) *gin.Engine {
 
 	v1 := engine.Group("/api/v1")
 	v1.POST("/project-requests", deps.ProjectRequest.Create)
+
+	v1.GET("/services", deps.Content.ListServices)
+	v1.GET("/services/:slug", deps.Content.GetService)
+	v1.GET("/pricing", deps.Content.ListPricing)
+	v1.GET("/portfolio", deps.Content.ListPortfolio)
+	v1.GET("/portfolio/:slug", deps.Content.GetPortfolioCase)
+	v1.GET("/testimonials", deps.Content.ListTestimonials)
 
 	return engine
 }
