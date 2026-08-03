@@ -29,8 +29,22 @@ async function getJSON<T>(path: string): Promise<T> {
   return body.data;
 }
 
+/**
+ * Same as getJSON, but never throws: a backend hiccup on one content
+ * section (services/pricing/portfolio/testimonials) degrades that section
+ * to `fallback` instead of crashing the whole page's SSR render.
+ */
+async function getJSONOrDefault<T>(path: string, fallback: T): Promise<T> {
+  try {
+    return await getJSON<T>(path);
+  } catch (err) {
+    console.error(`content: ${path} failed, using fallback`, err);
+    return fallback;
+  }
+}
+
 export async function fetchServicesOverview(): Promise<ServiceOverview[]> {
-  const items = await getJSON<ApiServiceOverview[]>("/api/v1/services");
+  const items = await getJSONOrDefault<ApiServiceOverview[]>("/api/v1/services", []);
   return items.map((item) => ({
     id: item.slug,
     title: item.title,
@@ -54,21 +68,32 @@ function mapServiceDetail(item: ApiServiceDetail): ServiceDetail {
   };
 }
 
-export async function fetchServiceDetail(slug: string): Promise<ServiceDetail> {
-  const item = await getJSON<ApiServiceDetail>(`/api/v1/services/${slug}`);
-  return mapServiceDetail(item);
+export async function fetchServiceDetail(slug: string): Promise<ServiceDetail | null> {
+  try {
+    const item = await getJSON<ApiServiceDetail>(`/api/v1/services/${slug}`);
+    return mapServiceDetail(item);
+  } catch (err) {
+    console.error(`content: service detail "${slug}" failed`, err);
+    return null;
+  }
 }
 
 /** Fetches all four service details keyed by slug, for pages that render
- * every section at once (homepage, /services). */
+ * every section at once (homepage, /services). A slug whose fetch fails is
+ * simply omitted from the result — callers should render each section
+ * conditionally rather than assume every slug is present. */
 export async function fetchServiceDetailsBySlug(): Promise<Record<string, ServiceDetail>> {
   const slugs = ["web-development", "web-apps", "mobile-apps", "ai-automation"];
   const details = await Promise.all(slugs.map((slug) => fetchServiceDetail(slug)));
-  return Object.fromEntries(details.map((detail) => [detail.id, detail]));
+  return Object.fromEntries(
+    details
+      .filter((detail): detail is ServiceDetail => detail !== null)
+      .map((detail) => [detail.id, detail]),
+  );
 }
 
 export async function fetchPricingCards(): Promise<PricingCardItem[]> {
-  const items = await getJSON<ApiPricingCard[]>("/api/v1/pricing");
+  const items = await getJSONOrDefault<ApiPricingCard[]>("/api/v1/pricing", []);
   return items.map((item) => ({
     id: `price-${item.project_type}`,
     title: item.title,
@@ -102,7 +127,7 @@ function mapPortfolioCase(item: ApiPortfolioCase): PortfolioCaseStudy {
 }
 
 export async function fetchPortfolioCases(): Promise<PortfolioCaseStudy[]> {
-  const items = await getJSON<ApiPortfolioCase[]>("/api/v1/portfolio");
+  const items = await getJSONOrDefault<ApiPortfolioCase[]>("/api/v1/portfolio", []);
   return items.map(mapPortfolioCase);
 }
 
@@ -116,7 +141,7 @@ export async function fetchPortfolioCase(slug: string): Promise<PortfolioCaseStu
 }
 
 export async function fetchTestimonials(): Promise<Testimonial[]> {
-  const items = await getJSON<ApiTestimonial[]>("/api/v1/testimonials");
+  const items = await getJSONOrDefault<ApiTestimonial[]>("/api/v1/testimonials", []);
   return items.map((item) => ({
     id: item.id,
     name: item.name,

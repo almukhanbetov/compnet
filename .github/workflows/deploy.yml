@@ -51,7 +51,10 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'http://89.207.254.215:8080' }}
+            # Bare origin, no /api suffix: fetch code already builds full
+            # paths like /api/v1/services — adding /api here doubles it
+            # (https://compnet.kz/api + /api/v1/services -> 404).
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'https://compnet.kz' }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/compnet-frontend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/compnet-frontend:${{ github.sha }}

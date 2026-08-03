@@ -37,10 +37,16 @@ export default async function ServicesPage() {
           </div>
         </section>
 
-        <WebDevelopmentSection detail={details["web-development"]} />
-        <WebAppsSection detail={details["web-apps"]} />
-        <MobileAppsSection detail={details["mobile-apps"]} />
-        <AiAutomationSection detail={details["ai-automation"]} />
+        {details["web-development"] && (
+          <WebDevelopmentSection detail={details["web-development"]} />
+        )}
+        {details["web-apps"] && <WebAppsSection detail={details["web-apps"]} />}
+        {details["mobile-apps"] && (
+          <MobileAppsSection detail={details["mobile-apps"]} />
+        )}
+        {details["ai-automation"] && (
+          <AiAutomationSection detail={details["ai-automation"]} />
+        )}
         <CtaSection />
       </main>
 
