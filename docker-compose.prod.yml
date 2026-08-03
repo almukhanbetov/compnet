@@ -1,0 +1,81 @@
+# Production stack for COMPNET (VPS 89.207.254.215, /var/www/compnet).
+#
+# Isolated from any other project on the same VPS: fixed compose project
+# name, compnet-prefixed container/network/volume names, PostgreSQL never
+# published, backend/frontend bound to 127.0.0.1 only (Nginx proxies from
+# there once configured — see .claude/skills/17-nginx-domain-ssl).
+#
+# Images are pulled from Docker Hub (built and pushed by
+# .github/workflows/deploy.yml) — this file does not build anything itself.
+name: compnet
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: compnet-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - compnet_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks: [compnet-network]
+
+  backend:
+    image: ${DOCKERHUB_USERNAME}/compnet-backend:latest
+    container_name: compnet-backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      APP_PORT: "8080"
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [compnet-network]
+
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/compnet-frontend:latest
+    container_name: compnet-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [compnet-network]
+
+volumes:
+  compnet_postgres_data:
+    name: compnet_postgres_data
+
+networks:
+  compnet-network:
+    name: compnet-network
+    driver: bridge
