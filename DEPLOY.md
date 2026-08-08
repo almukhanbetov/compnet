@@ -100,6 +100,13 @@ docker compose -p compnet --env-file .env -f docker-compose.prod.yml ps
 
 ## 4. Apply database migrations
 
+As of the `deploy.yml` workflow, this step runs **automatically on every
+push to `main`**: it copies `backend/migrations` to the VPS via
+`appleboy/scp-action`, then runs `goose ... up` right after
+`docker compose up -d`, before the health checks. Nothing below is needed
+for a normal deploy — it's here for first-time bootstrap and manual
+recovery (e.g. if the automated step ever needs to be re-run by hand).
+
 Migrations are **never** run automatically inside the backend (`goose` is a
 CLI tool, not a runtime dependency of the Go binary). PostgreSQL is not
 published to the host, so run `goose` from a throwaway container attached to
@@ -114,8 +121,14 @@ docker run --rm \
   -e GOOSE_DRIVER=postgres \
   -e GOOSE_DBSTRING="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@compnet-postgres:5432/${POSTGRES_DB}?sslmode=disable" \
   -v "$(pwd)/migrations:/migrations" \
-  ghcr.io/pressly/goose:latest -dir /migrations up
+  golang:1.25-alpine \
+  sh -c 'go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir /migrations up'
 ```
+
+`ghcr.io/pressly/goose` is not a public image (pulls fail with `denied`,
+reproducible even outside the VPS) — do not use it. The `golang:1.25-alpine`
+route above builds `goose` from source on the fly instead; it's slower
+(pulls the Go module graph each run) but always works.
 
 This requires the `migrations/` directory to be present at
 `/var/www/compnet/migrations` — copy it once from the repo:
