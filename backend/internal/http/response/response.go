@@ -33,6 +33,11 @@ func OK(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Envelope{Data: data, Meta: nil})
 }
 
+// OKWithMeta writes a 200 response carrying both data and meta.
+func OKWithMeta(c *gin.Context, data, meta any) {
+	c.JSON(http.StatusOK, Envelope{Data: data, Meta: meta})
+}
+
 // Created writes a 201 response with the standard success envelope.
 func Created(c *gin.Context, data any) {
 	c.JSON(http.StatusCreated, Envelope{Data: data, Meta: nil})
