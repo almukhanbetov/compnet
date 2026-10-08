@@ -12,7 +12,6 @@ import TestimonialsSection from "@/components/home/TestimonialsSection";
 import FaqSection from "@/components/home/FaqSection";
 import CtaSection from "@/components/home/CtaSection";
 import ContactSection from "@/components/home/ContactSection";
-import FloatingChatButton from "@/components/home/FloatingChatButton";
 import {
   fetchServicesOverview,
   fetchPricingCards,
@@ -46,7 +45,6 @@ export default async function HomePage() {
         <ContactSection />
       </main>
       <Footer />
-      <FloatingChatButton />
     </>
   );
 }

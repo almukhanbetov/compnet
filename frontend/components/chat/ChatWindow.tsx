@@ -1,179 +1,189 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
-import { Paperclip, Send, Smile } from "lucide-react";
+import { forwardRef, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Loader2, RefreshCw, UserRound, WifiOff, X } from "lucide-react";
+import ChatComposer from "@/components/chat/ChatComposer";
+import ChatContactForm from "@/components/chat/ChatContactForm";
 import MessageBubble from "@/components/chat/MessageBubble";
-import type { AdminContact, ChatMessage } from "@/types/message";
+import { useCountdown } from "@/components/chat/useCountdown";
+import type { useVisitorChat } from "@/components/chat/useVisitorChat";
+import { workingHours } from "@/data/contactPage";
+
+type VisitorChat = ReturnType<typeof useVisitorChat>;
 
 interface ChatWindowProps {
-  contact: AdminContact;
-  messages: ChatMessage[];
-  isTyping: boolean;
-  awaitingCallback: boolean;
-  onSend: (text: string) => void;
-  onSubmitCallback: (name: string, phone: string) => void;
+  chat: VisitorChat;
+  titleId: string;
+  onClose: () => void;
 }
 
-const fieldClass =
-  "w-full rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-slate-500 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20";
+const weekdayHours = workingHours[0];
 
-export default function ChatWindow({
-  contact,
-  messages,
-  isTyping,
-  awaitingCallback,
-  onSend,
-  onSubmitCallback,
-}: ChatWindowProps) {
-  const [draft, setDraft] = useState("");
-  const [callbackName, setCallbackName] = useState("");
-  const [callbackPhone, setCallbackPhone] = useState("");
+const ChatWindow = forwardRef<HTMLTextAreaElement, ChatWindowProps>(function ChatWindow(
+  { chat, titleId, onClose },
+  composerRef,
+) {
+  const [isContactOpen, setIsContactOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const rateLimitSeconds = useCountdown(chat.rateLimitedUntil);
+
+  // Keep the newest message in view unless the visitor scrolled up to read.
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (el) {
+      stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    }
+  };
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages.length, isTyping, awaitingCallback]);
-
-  const handleSendSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const text = draft.trim();
-    if (!text) {
-      return;
+    const el = scrollRef.current;
+    if (el && stickToBottomRef.current) {
+      el.scrollTo({ top: el.scrollHeight });
     }
-    onSend(text);
-    setDraft("");
+  }, [chat.messages]);
+
+  const handleSend = (text: string) => {
+    stickToBottomRef.current = true;
+    chat.send(text);
   };
 
-  const handleCallbackSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const name = callbackName.trim();
-    const phone = callbackPhone.trim();
-    if (!name || !phone) {
-      return;
-    }
-    onSubmitCallback(name, phone);
-    setCallbackName("");
-    setCallbackPhone("");
-  };
+  const hasContact = chat.contact.contact.length > 0;
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-3 border-b border-[var(--text-primary)]/10 px-5 py-4">
-        <span className="relative shrink-0">
-          <span
-            className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${contact.avatarGradientFrom} ${contact.avatarGradientTo} text-xs font-semibold text-white`}
-          >
-            {contact.avatarInitials}
-          </span>
-          {contact.status === "online" ? (
-            <span
-              aria-hidden="true"
-              className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--surface)] bg-emerald-400"
-            />
-          ) : null}
+    <div className="flex h-full flex-col">
+      <div className="flex items-start gap-3 border-b border-[var(--text-primary)]/10 px-4 py-3.5 sm:px-5">
+        <span
+          aria-hidden="true"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-xs font-bold text-white"
+        >
+          CN
         </span>
-
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-100 light:text-slate-900">
-            {contact.name}
-          </p>
-          <p className="text-xs text-slate-400 light:text-slate-600">
-            {contact.status === "online" ? "В сети" : contact.role}
-          </p>
+        <div className="min-w-0 flex-1">
+          <h2 id={titleId} className="truncate text-sm font-semibold text-slate-100 light:text-slate-900">
+            Чат с COMPNET
+          </h2>
+          {weekdayHours ? (
+            <p className="text-xs text-slate-400 light:text-slate-600">
+              Отвечаем в рабочее время: {weekdayHours.label.toLowerCase()} {weekdayHours.value}
+            </p>
+          ) : null}
         </div>
+        {chat.hasConversation ? (
+          <button
+            type="button"
+            onClick={() => setIsContactOpen((prev) => !prev)}
+            aria-expanded={isContactOpen}
+            aria-label={hasContact ? "Изменить контакт для связи" : "Оставить контакт для связи"}
+            title={hasContact ? "Изменить контакт" : "Оставить контакт"}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-slate-300 light:text-slate-700 transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+          >
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Закрыть чат"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-slate-300 light:text-slate-700 transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-5">
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
+      {chat.connection === "offline" && chat.loadState !== "error" ? (
+        <div role="status" className="flex items-center gap-2 border-b border-amber-400/20 bg-amber-400/10 px-4 py-2 text-xs text-amber-200 light:text-amber-800">
+          <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          Нет связи с сервером. Переподключаемся…
+        </div>
+      ) : null}
 
-        {isTyping ? (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.05] px-4 py-3">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
-            </div>
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label="Сообщения"
+        className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5"
+      >
+        {chat.loadState === "loading" ? (
+          <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-400 light:text-slate-600">
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            Загружаем переписку…
           </div>
         ) : null}
-      </div>
 
-      {awaitingCallback ? (
-        <form
-          onSubmit={handleCallbackSubmit}
-          className="space-y-3 border-t border-[var(--text-primary)]/10 p-4"
-        >
-          <p className="text-xs text-slate-400 light:text-slate-600">
-            Оставьте контакты — с вами свяжутся:
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              type="text"
-              value={callbackName}
-              onChange={(event) => setCallbackName(event.target.value)}
-              placeholder="Ваше имя"
-              aria-label="Ваше имя"
-              className={fieldClass}
-            />
-            <input
-              type="tel"
-              value={callbackPhone}
-              onChange={(event) => setCallbackPhone(event.target.value)}
-              placeholder="Номер телефона"
-              aria-label="Номер телефона"
-              className={fieldClass}
-            />
+        {chat.loadState === "error" ? (
+          <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-slate-400 light:text-slate-600">
+            <WifiOff className="h-5 w-5" aria-hidden="true" />
+            <p>Не удалось загрузить переписку.<br />Повторяем автоматически.</p>
             <button
-              type="submit"
-              disabled={!callbackName.trim() || !callbackPhone.trim()}
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+              type="button"
+              onClick={chat.retryLoad}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-3.5 py-2 text-xs font-medium text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
             >
-              Отправить
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              Повторить сейчас
             </button>
           </div>
-        </form>
+        ) : null}
+
+        {chat.loadState === "ready" && chat.messages.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+            <p className="text-sm font-medium text-slate-200 light:text-slate-800">
+              Здравствуйте! Напишите ваш вопрос.
+            </p>
+            <p className="text-xs leading-5 text-slate-400 light:text-slate-600">
+              Менеджер ответит здесь. Переписка сохранится в этом браузере — можно закрыть окно и вернуться позже.
+            </p>
+          </div>
+        ) : null}
+
+        {chat.loadState !== "loading" &&
+          chat.messages.map((message) => (
+            <MessageBubble
+              key={message.key}
+              message={message}
+              retryDisabled={rateLimitSeconds > 0}
+              onRetry={chat.retry}
+              onDiscard={chat.discard}
+            />
+          ))}
+      </div>
+
+      {chat.hasConversation && !hasContact && !isContactOpen && chat.messages.length > 0 ? (
+        <div className="border-t border-[var(--text-primary)]/10 px-4 py-2 text-xs text-slate-400 light:text-slate-600">
+          Хотите, чтобы мы ответили, даже если вы уйдёте?{" "}
+          <button
+            type="button"
+            onClick={() => setIsContactOpen(true)}
+            className="font-medium text-cyan-300 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 light:text-cyan-700"
+          >
+            Оставить контакт
+          </button>
+        </div>
+      ) : null}
+
+      {isContactOpen ? (
+        <ChatContactForm initial={chat.contact} onSave={chat.saveContact} onDone={() => setIsContactOpen(false)} />
       ) : (
-        <form
-          onSubmit={handleSendSubmit}
-          className="flex items-center gap-2 border-t border-[var(--text-primary)]/10 p-4"
-        >
-          <button
-            type="button"
-            aria-label="Прикрепить файл (заглушка)"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-slate-400 light:text-slate-500 transition hover:bg-[var(--text-primary)]/10"
-          >
-            <Paperclip className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="Эмодзи (заглушка)"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-slate-400 light:text-slate-500 transition hover:bg-[var(--text-primary)]/10"
-          >
-            <Smile className="h-4 w-4" aria-hidden="true" />
-          </button>
-
-          <input
-            type="text"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Напишите сообщение"
-            aria-label="Текст сообщения"
-            disabled={isTyping}
-            className={`min-w-0 flex-1 ${fieldClass} disabled:opacity-60`}
-          />
-
-          <button
-            type="submit"
-            aria-label="Отправить сообщение"
-            disabled={!draft.trim() || isTyping}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-          >
-            <Send className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </form>
+        <>
+          <ChatComposer ref={composerRef} rateLimitSeconds={rateLimitSeconds} onSend={handleSend} />
+          {!chat.hasConversation ? (
+            <p className="px-4 pb-3 text-[11px] leading-4 text-slate-500 sm:px-5">
+              Отправляя сообщение, вы соглашаетесь с{" "}
+              <Link href="/privacy" className="underline underline-offset-2 hover:text-slate-300 light:hover:text-slate-700">
+                политикой конфиденциальности
+              </Link>
+              .
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   );
-}
+});
+
+export default ChatWindow;

@@ -6,7 +6,10 @@ package apierr
 import (
 	"errors"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -35,10 +38,27 @@ func Write(c *gin.Context, err error) {
 		response.Error(c, http.StatusNotFound, string(appErr.Code), appErr.Message)
 	case apperr.CodeConflict:
 		response.Error(c, http.StatusConflict, string(appErr.Code), appErr.Message)
+	case apperr.CodeUnauthorized:
+		response.Error(c, http.StatusUnauthorized, string(appErr.Code), appErr.Message)
+	case apperr.CodeForbidden:
+		response.Error(c, http.StatusForbidden, string(appErr.Code), appErr.Message)
+	case apperr.CodeRateLimit:
+		WriteRateLimited(c, appErr.RetryAfter)
 	default:
 		if appErr.Err != nil {
 			log.Printf("apierr: internal error: %v", appErr.Err)
 		}
 		response.Error(c, http.StatusInternalServerError, string(apperr.CodeInternal), "internal server error")
 	}
+}
+
+// WriteRateLimited writes a 429 with a Retry-After header (whole seconds,
+// at least 1) so well-behaved clients back off for the right amount of time.
+func WriteRateLimited(c *gin.Context, retryAfter time.Duration) {
+	seconds := int(math.Ceil(retryAfter.Seconds()))
+	if seconds < 1 {
+		seconds = 1
+	}
+	c.Header("Retry-After", strconv.Itoa(seconds))
+	response.Error(c, http.StatusTooManyRequests, string(apperr.CodeRateLimit), "слишком много запросов, попробуйте позже")
 }

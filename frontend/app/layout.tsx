@@ -4,6 +4,7 @@ import { MotionConfig } from "motion/react";
 import "./globals.css";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import ChatWidgetLoader from "@/components/chat/ChatWidgetLoader";
 
 export const metadata: Metadata = {
   title: "COMPNET AI Platform",
@@ -38,7 +39,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body>
         <MotionConfig reducedMotion="user">
           <ThemeProvider>
-            <LocaleProvider>{children}</LocaleProvider>
+            <LocaleProvider>
+              {children}
+              <ChatWidgetLoader />
+            </LocaleProvider>
           </ThemeProvider>
         </MotionConfig>
       </body>

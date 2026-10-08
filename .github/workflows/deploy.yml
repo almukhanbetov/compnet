@@ -49,11 +49,16 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
+          # Build-time values (Next.js inlines NEXT_PUBLIC_* into the bundle).
+          # NEXT_PUBLIC_API_URL: bare origin, no /api suffix — fetch code
+          # already builds full paths like /api/v1/services, adding /api
+          # here doubles it (https://compnet.kz/api + /api/v1/services -> 404).
+          # NEXT_PUBLIC_CHAT_WIDGET_ENABLED: visitor chat widget, off unless
+          # the repository variable is exactly "true".
+          # (Kept as YAML comments: lines inside the block below are args.)
           build-args: |
-            # Bare origin, no /api suffix: fetch code already builds full
-            # paths like /api/v1/services — adding /api here doubles it
-            # (https://compnet.kz/api + /api/v1/services -> 404).
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'https://compnet.kz' }}
+            NEXT_PUBLIC_CHAT_WIDGET_ENABLED=${{ vars.NEXT_PUBLIC_CHAT_WIDGET_ENABLED == 'true' && 'true' || 'false' }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/compnet-frontend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/compnet-frontend:${{ github.sha }}
@@ -81,6 +86,19 @@ jobs:
           target: "${{ secrets.VPS_PATH }}/migrations"
           strip_components: 2
 
+      # Keep the VPS copy of the compose file in sync with the repository,
+      # so new settings (e.g. TRUSTED_PROXIES) actually reach the containers.
+      # Local deviations on the VPS belong in override files, never here.
+      - name: Copy compose file to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "docker-compose.prod.yml"
+          target: "${{ secrets.VPS_PATH }}"
+
       - name: Deploy COMPNET over SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -107,33 +125,59 @@ jobs:
 
             # -p compnet fixes the compose project name so this stack can
             # never collide with an unrelated project on the same VPS.
-            docker compose -p compnet \
-              --env-file .env \
-              -f docker-compose.prod.yml \
-              pull
+            compose() {
+              docker compose -p compnet --env-file .env -f docker-compose.prod.yml "$@"
+            }
 
-            docker compose -p compnet \
-              --env-file .env \
-              -f docker-compose.prod.yml \
-              up -d --remove-orphans
+            # Fails fast (before touching anything) if a required .env value
+            # such as TRUSTED_PROXIES or CORS_ALLOWED_ORIGINS is missing.
+            compose config --quiet
+
+            compose pull
+
+            echo "----- Database: start / wait healthy -----"
+            compose up -d postgres
+            for i in $(seq 1 30); do
+              [ "$(docker inspect -f '{{.State.Health.Status}}' compnet-postgres)" = healthy ] && break
+              sleep 2
+            done
+            [ "$(docker inspect -f '{{.State.Health.Status}}' compnet-postgres)" = healthy ]
+
+            # Values for pg_dump/goose; never echoed.
+            set -a; source .env; set +a
+
+            echo "----- Database backup (before migrations) -----"
+            umask 077
+            mkdir -p backups
+            BACKUP="backups/compnet-predeploy-$(date +%Y%m%d-%H%M%S)-${{ github.sha }}.dump"
+            # Written under a .partial name and renamed only once verified,
+            # so a failed dump never leaves a file that looks like a backup.
+            # Any failure here stops the deploy (set -e) before migrations.
+            docker exec compnet-postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc > "$BACKUP.partial"
+            # A backup only counts if it is non-empty and readable by pg_restore.
+            test -s "$BACKUP.partial"
+            docker exec -i compnet-postgres pg_restore --list < "$BACKUP.partial" > /dev/null
+            mv "$BACKUP.partial" "$BACKUP"
+            echo "backup ok: $BACKUP ($(du -h "$BACKUP" | cut -f1))"
 
             echo "----- Database migrations -----"
-
             # goose is a CLI tool, not a runtime dependency of the backend
-            # binary, so migrations never run automatically inside the app
-            # container. ghcr.io/pressly/goose is not a public image (pulls
-            # come back "denied"), so build goose from source on the fly
-            # instead and run it as a throwaway container on the same
-            # network as postgres.
-            source .env
-
+            # binary, so migrations never run inside the app container.
+            # ghcr.io/pressly/goose is not a public image (pulls come back
+            # "denied"), so goose is built from source in a throwaway
+            # container on the same network as postgres. Pinned version.
+            # Migrations run before the new images start: they are additive,
+            # so the still-running old backend keeps working meanwhile.
             docker run --rm \
               --network compnet-network \
               -e GOOSE_DRIVER=postgres \
               -e GOOSE_DBSTRING="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@compnet-postgres:5432/${POSTGRES_DB}?sslmode=disable" \
-              -v "$(pwd)/migrations:/migrations" \
+              -v "$(pwd)/migrations:/migrations:ro" \
               golang:1.25-alpine \
-              sh -c 'go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir /migrations up'
+              sh -c 'go install github.com/pressly/goose/v3/cmd/goose@v3.27.3 && goose -dir /migrations up && goose -dir /migrations status'
+
+            echo "----- Start new images -----"
+            compose up -d --remove-orphans
 
             # Dangling-image cleanup only (no -a, no volumes) — never
             # touches other projects' images or any named volume.
@@ -141,16 +185,14 @@ jobs:
 
             echo "----- Containers -----"
 
-            docker compose -p compnet \
-              --env-file .env \
-              -f docker-compose.prod.yml \
-              ps
+            compose ps
 
             echo "----- Backend health -----"
 
             sleep 10
 
             curl --fail --show-error http://127.0.0.1:8080/health
+            curl --fail --show-error http://127.0.0.1:8080/ready
 
             echo "----- Frontend health -----"
 
