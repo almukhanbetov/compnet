@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
+import { track } from "@/lib/analytics/tracker";
 import { Info, MessageCircle, MonitorSmartphone, Phone, Smartphone, TrendingUp, type LucideIcon } from "lucide-react";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { companyPhone, whatsappLink } from "@/data/contacts";
@@ -23,9 +25,28 @@ const reveal = {
 export default function PromoSection() {
   const { t } = useLocale();
   const promo = t.promo;
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // promo_view: the offer was really on screen (half of it, once per page view).
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          track("promo_view");
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <section
+      ref={sectionRef}
       id="promo"
       aria-labelledby="promo-title"
       className="scroll-mt-24 px-4 py-16 sm:px-6 md:py-24"

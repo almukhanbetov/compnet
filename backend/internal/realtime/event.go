@@ -102,6 +102,8 @@ type Frame struct {
 	Body            string `json:"body"`
 	LastMessageID   int64  `json:"last_message_id"`
 	IsTyping        bool   `json:"is_typing"`
+	// AnalyticsSessionID (visitor send_message only): see dto.SendChatMessageRequest.
+	AnalyticsSessionID string `json:"analytics_session_id"`
 }
 
 // encode marshals an event once, so a broadcast to many clients does not

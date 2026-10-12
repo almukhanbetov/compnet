@@ -13,6 +13,9 @@ import (
 // at most ~8 KiB of UTF-8 plus JSON overhead.
 const chatMaxBodyBytes = 16 << 10
 
+// analyticsMaxBodyBytes caps an event batch (20 small events + context).
+const analyticsMaxBodyBytes = 16 << 10
+
 // Deps holds everything the router needs to register routes.
 type Deps struct {
 	Health         *handler.HealthHandler
@@ -25,6 +28,10 @@ type Deps struct {
 	ManagerChat   *handler.ManagerChatHandler
 	// Realtime serves the visitor and manager WebSockets.
 	Realtime *handler.RealtimeHandler
+	// Analytics: public event intake and the managers' statistics.
+	Analytics *handler.AnalyticsHandler
+	// AnalyticsIPLimiter bounds event batches per client IP.
+	AnalyticsIPLimiter middleware.Limiter
 	// StaffAuth authenticates every manager request from its session cookie.
 	StaffAuth middleware.Authenticator
 	// ManagerIPLimiter bounds all manager API requests per IP (login has
@@ -79,6 +86,16 @@ func New(deps Deps) (*gin.Engine, error) {
 	// is sent with the handshake.
 	chatGroup.GET("/ws", deps.Realtime.Visitor)
 
+	// Event intake: write-only (nothing can be read back here), allowed
+	// origins only, small bodies, per-IP rate limit.
+	analyticsGroup := v1.Group("/analytics",
+		middleware.RateLimitByIP(deps.AnalyticsIPLimiter),
+		middleware.RequireAllowedOrigin(deps.CORSAllowedOrigins),
+		middleware.MaxBodyBytes(analyticsMaxBodyBytes),
+	)
+	analyticsGroup.POST("/events", deps.Analytics.Ingest)
+	analyticsGroup.GET("/config", deps.Analytics.Config)
+
 	manager := v1.Group("/manager",
 		middleware.NoStore(),
 		middleware.RateLimitByIP(deps.ManagerIPLimiter),
@@ -97,6 +114,9 @@ func New(deps Deps) (*gin.Engine, error) {
 	staffOnly.PATCH("/conversations/:id", deps.ManagerChat.UpdateConversation)
 	staffOnly.GET("/unread-count", deps.ManagerChat.UnreadCount)
 	staffOnly.GET("/ws", deps.Realtime.Manager)
+	// Statistics: staff session + a role with analytics rights.
+	staffOnly.GET("/analytics/report", deps.Analytics.Report)
+	staffOnly.GET("/analytics/sessions/:id", deps.Analytics.Session)
 
 	return engine, nil
 }

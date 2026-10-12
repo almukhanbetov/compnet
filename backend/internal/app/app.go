@@ -17,6 +17,7 @@ import (
 	"github.com/almukha/compnet-backend/internal/realtime"
 	"github.com/almukha/compnet-backend/internal/repository/postgres"
 	"github.com/almukha/compnet-backend/internal/security"
+	analyticssvc "github.com/almukha/compnet-backend/internal/service/analytics"
 	chatsvc "github.com/almukha/compnet-backend/internal/service/chat"
 	"github.com/almukha/compnet-backend/internal/service/chatevents"
 	contentsvc "github.com/almukha/compnet-backend/internal/service/content"
@@ -33,6 +34,7 @@ type Limiters struct {
 	LoginIP           staffauth.Limiter  // login attempts per IP (successful included)
 	LoginEmail        staffauth.Limiter  // login attempts per target email
 	ManagerIP         middleware.Limiter // all manager API requests per IP
+	AnalyticsIP       middleware.Limiter // analytics event batches per IP
 }
 
 // DefaultLimiters are the production limits.
@@ -44,6 +46,8 @@ func DefaultLimiters() Limiters {
 		LoginIP:           ratelimit.New(5, 15*time.Minute, 5),
 		LoginEmail:        ratelimit.New(5, 15*time.Minute, 5),
 		ManagerIP:         ratelimit.New(300, time.Minute, 100),
+		// A browser flushes every few seconds and on page hide.
+		AnalyticsIP: ratelimit.New(60, time.Minute, 30),
 	}
 }
 
@@ -60,6 +64,9 @@ type App struct {
 	// one backend process (see docs/CHAT_REALTIME.md); call Hub.Shutdown on
 	// server shutdown, http.Server.Shutdown does not close hijacked conns.
 	Hub *realtime.Hub
+	// Analytics owns the retention cleanup (Analytics.Purge), run by the
+	// caller as a periodic job.
+	Analytics *analyticssvc.Service
 }
 
 // NewStaffAuthService builds the staff authentication service (also used
@@ -83,7 +90,16 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 		rtLimits = *opts.Realtime
 	}
 
-	projectRequestHandler := handler.NewProjectRequestHandler(projectrequestsvc.NewService(postgres.NewProjectRequestRepository(pool)))
+	analyticsService := analyticssvc.NewService(postgres.NewAnalyticsRepository(pool), analyticssvc.Options{
+		Enabled:          cfg.Analytics.Enabled,
+		RetentionDays:    cfg.Analytics.RetentionDays,
+		AllowLocal:       cfg.Analytics.AllowLocal,
+		GA4MeasurementID: cfg.Analytics.GA4MeasurementID,
+	})
+
+	projectRequestService := projectrequestsvc.NewService(postgres.NewProjectRequestRepository(pool))
+	projectRequestService.SetConversionRecorder(analyticsService)
+	projectRequestHandler := handler.NewProjectRequestHandler(projectRequestService)
 	contentHandler := handler.NewContentHandler(contentsvc.NewService(postgres.NewContentRepository(pool)))
 
 	hub := realtime.NewHub(rtLimits)
@@ -95,6 +111,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 		Messages:        limiters.ChatMessages,
 	})
 	chatService.SetPublisher(publisher)
+	chatService.SetConversionRecorder(analyticsService)
 	chatHandler := handler.NewChatHandler(chatService, handler.ChatCookieSettings{
 		Secure:   cfg.Cookie.Secure,
 		SameSite: cfg.Cookie.SameSite,
@@ -124,6 +141,8 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 		ManagerAuth:        managerAuthHandler,
 		ManagerChat:        managerChatHandler,
 		Realtime:           realtimeHandler,
+		Analytics:          handler.NewAnalyticsHandler(analyticsService),
+		AnalyticsIPLimiter: limiters.AnalyticsIP,
 		StaffAuth:          staffAuthService,
 		ManagerIPLimiter:   limiters.ManagerIP,
 		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
@@ -132,5 +151,5 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{Engine: engine, Hub: hub}, nil
+	return &App{Engine: engine, Hub: hub, Analytics: analyticsService}, nil
 }

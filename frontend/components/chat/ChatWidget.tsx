@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { MessageCircle, X } from "lucide-react";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import ChatWindow from "@/components/chat/ChatWindow";
+import { track } from "@/lib/analytics/tracker";
 import { fill } from "@/lib/i18n";
 import { useVisitorChat } from "@/components/chat/useVisitorChat";
 import { useMediaQuery, useVisualViewport } from "@/components/chat/useBrowserState";
@@ -135,7 +136,14 @@ export default function ChatWidget() {
         <button
           ref={launcherRef}
           type="button"
-          onClick={() => (isOpen ? close() : setIsOpen(true))}
+          onClick={() => {
+            if (isOpen) {
+              close();
+            } else {
+              setIsOpen(true);
+              track("chat_open");
+            }
+          }}
           aria-label={launcherLabel}
           aria-expanded={isOpen}
           aria-controls={isOpen ? panelId : undefined}

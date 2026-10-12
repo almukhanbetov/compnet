@@ -23,6 +23,7 @@ import {
   VISITOR_PAUSE_HIDDEN_MS,
 } from "@/lib/chat/config";
 import { RealtimeError } from "@/lib/chat/realtime";
+import { analyticsSessionId } from "@/lib/analytics/tracker";
 import { uuidV4 } from "@/lib/chat/uuid";
 import { useDocumentVisible } from "@/components/chat/useBrowserState";
 import { useRealtime } from "@/components/chat/useRealtime";
@@ -469,7 +470,12 @@ export function useVisitorChat(isOpen: boolean) {
     async (clientMessageId: string, body: string): Promise<"done" | "fallback"> => {
       if (!socketBoundRef.current || !realtimeOpenRef.current) return "fallback";
       try {
-        const ack = await realtime.request({ type: "send_message", client_message_id: clientMessageId, body });
+        const ack = await realtime.request({
+          type: "send_message",
+          client_message_id: clientMessageId,
+          body,
+          analytics_session_id: analyticsSessionId(),
+        });
         const data = ack.data as AckData<ApiChatMessage>;
         setMessages((prev) => mergeMessages(prev, [data.message]));
         setConnection("online");
@@ -514,13 +520,13 @@ export function useVisitorChat(isOpen: boolean) {
 
       let result: ChatApiResult<{ data: ApiChatMessage }> | null = null;
       if (failure === null) {
-        result = await sendMessage(clientMessageId, body);
+        result = await sendMessage(clientMessageId, body, analyticsSessionId());
         if (result.kind === "not_found") {
           // The session vanished (cookie expired or cleared): start a new
           // one and retry with the same client_message_id.
           markConversation(false);
           failure = await ensureSession();
-          result = failure === null ? await sendMessage(clientMessageId, body) : null;
+          result = failure === null ? await sendMessage(clientMessageId, body, analyticsSessionId()) : null;
         }
       }
 

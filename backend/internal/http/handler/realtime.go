@@ -139,7 +139,7 @@ func (h *RealtimeHandler) visitorFrames(token string) realtime.FrameHandler {
 		case "send_message":
 			res, err := h.visitor.SendMessage(ctx, chatsvc.SendMessageInput{
 				Token:   token,
-				Request: dto.SendChatMessageRequest{ClientMessageID: f.ClientMessageID, Body: f.Body},
+				Request: dto.SendChatMessageRequest{ClientMessageID: f.ClientMessageID, Body: f.Body, AnalyticsSessionID: f.AnalyticsSessionID},
 			})
 			if err != nil {
 				cl.SendEvent(errorEvent(f, err))

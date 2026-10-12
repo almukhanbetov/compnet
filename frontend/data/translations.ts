@@ -7,6 +7,7 @@ import { pricingTranslations } from "@/data/i18n/pricing";
 import { portfolioTranslations } from "@/data/i18n/portfolio";
 import { chatTranslations } from "@/data/i18n/chat";
 import { managerTranslations } from "@/data/i18n/manager";
+import { consentTranslations } from "@/data/i18n/consent";
 
 export const localeOptions: LocaleOption[] = [
   { value: "kk", label: "Қазақша", shortLabel: "KZ" },
@@ -23,6 +24,7 @@ export const translations: Record<Locale, Translations> = {
     portfolio: portfolioTranslations.kk,
     chat: chatTranslations.kk,
     manager: managerTranslations.kk,
+    consent: consentTranslations.kk,
     header: {
       nav: {
         services: "Қызметтер",
@@ -115,6 +117,7 @@ export const translations: Record<Locale, Translations> = {
     portfolio: portfolioTranslations.ru,
     chat: chatTranslations.ru,
     manager: managerTranslations.ru,
+    consent: consentTranslations.ru,
     header: {
       nav: {
         services: "Услуги",
@@ -207,6 +210,7 @@ export const translations: Record<Locale, Translations> = {
     portfolio: portfolioTranslations.en,
     chat: chatTranslations.en,
     manager: managerTranslations.en,
+    consent: consentTranslations.en,
     header: {
       nav: {
         services: "Services",

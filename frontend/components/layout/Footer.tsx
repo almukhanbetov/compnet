@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CookieSettingsButton from "@/components/analytics/CookieSettingsButton";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { companyPhone } from "@/data/contacts";
 import { getServerTranslations } from "@/lib/i18n.server";
@@ -68,6 +69,11 @@ export default async function Footer() {
                     </Link>
                   </li>
                 ))}
+                {column.title === f.legal ? (
+                  <li>
+                    <CookieSettingsButton className="inline-block -my-1.5 py-1.5 text-left text-sm text-slate-400 transition hover:text-cyan-300 light:text-slate-600 light:hover:text-cyan-700" />
+                  </li>
+                ) : null}
               </ul>
             </div>
           ))}

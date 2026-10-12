@@ -25,14 +25,32 @@ type Repository interface {
 	) (projectrequest.ProjectRequest, projectrequest.Estimate, error)
 }
 
+// ConversionRecorder links a saved request to the visitor's analytics
+// session (internal/service/analytics). Best effort, never fails the request.
+type ConversionRecorder interface {
+	LeadCreated(ctx context.Context, analyticsSessionID, requestID string)
+}
+
+type noRecorder struct{}
+
+func (noRecorder) LeadCreated(context.Context, string, string) {}
+
 // Service implements the project-request use cases.
 type Service struct {
-	repo Repository
+	repo        Repository
+	conversions ConversionRecorder
 }
 
 // NewService builds a Service backed by the given Repository.
 func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{repo: repo, conversions: noRecorder{}}
+}
+
+// SetConversionRecorder enables linking requests to analytics sessions.
+func (s *Service) SetConversionRecorder(r ConversionRecorder) {
+	if r != nil {
+		s.conversions = r
+	}
 }
 
 // CreateProjectRequest validates the input, recomputes the price estimate
@@ -127,6 +145,10 @@ func (s *Service) CreateProjectRequest(
 	savedRequest, savedEstimate, err := s.repo.Create(ctx, request, features, estimate)
 	if err != nil {
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Internal(err)
+	}
+	// Saved: only now does it count as a request in the statistics.
+	if req.AnalyticsSessionID != "" {
+		s.conversions.LeadCreated(ctx, req.AnalyticsSessionID, savedRequest.ID)
 	}
 
 	return savedRequest, savedEstimate, nil
