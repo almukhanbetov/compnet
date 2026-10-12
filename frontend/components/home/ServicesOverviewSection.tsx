@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import Link from "next/link";
 import { motion } from "motion/react";
 import {
@@ -26,13 +27,14 @@ interface ServicesOverviewSectionProps {
 }
 
 export default function ServicesOverviewSection({ items }: ServicesOverviewSectionProps) {
+  const { t } = useLocale();
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Основные услуги"
-          title="Чем мы можем помочь вашему бизнесу"
-          description="Четыре ключевых направления разработки — подробности и остальные услуги на отдельной странице."
+          eyebrow={t.home.servicesOverview.eyebrow}
+          title={t.home.servicesOverview.title}
+          description={t.home.servicesOverview.description}
         />
 
         <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -78,7 +80,7 @@ export default function ServicesOverviewSection({ items }: ServicesOverviewSecti
                   href="/services"
                   className="mt-5 -mb-1 inline-flex items-center gap-2 py-1 text-sm font-semibold text-cyan-300 light:text-cyan-700 transition hover:text-cyan-200"
                 >
-                  Подробнее об услуге
+                  {t.common.serviceDetails}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </motion.div>

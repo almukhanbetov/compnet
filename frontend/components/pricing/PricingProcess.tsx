@@ -1,5 +1,7 @@
 "use client";
 
+import { byId, fill } from "@/lib/i18n";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { motion } from "motion/react";
 import {
   Search,
@@ -24,17 +26,19 @@ const processIcons: Record<PricingProcessIcon, LucideIcon> = {
 };
 
 export default function PricingProcess() {
+  const { t } = useLocale();
   return (
     <section className="border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Процесс"
-          title="Как формируется цена"
-          description="Прозрачный путь от первого брифа до утверждённой сметы и старта работ."
+          eyebrow={t.pricing.process.eyebrow}
+          title={t.pricing.process.title}
+          description={t.pricing.process.description}
         />
 
         <div className="mt-14 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {pricingProcessSteps.map((step, index) => {
+          {pricingProcessSteps.map((original, index) => {
+            const step = { ...original, ...byId(t.pricing.process.items, original.id) };
             const Icon = processIcons[step.icon];
 
             return (
@@ -51,7 +55,7 @@ export default function PricingProcess() {
                 </span>
 
                 <span className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500 light:text-slate-600">
-                  Шаг {step.number}
+                  {fill(t.common.step, { n: String(step.number) })}
                 </span>
                 <p className="mt-1.5 text-lg font-semibold text-slate-100 light:text-slate-900">
                   {step.title}

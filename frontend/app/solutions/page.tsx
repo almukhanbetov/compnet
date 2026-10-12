@@ -1,19 +1,13 @@
 import type { Metadata } from "next";
 import PlaceholderPage from "@/components/layout/PlaceholderPage";
+import { getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Решения | COMPNET",
-  description:
-    "Готовые архитектурные решения для CRM-систем, маркетплейсов, систем бронирования и AI-автоматизации от COMPNET.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.solutions;
+}
 
-export default function SolutionsPage() {
-  return (
-    <PlaceholderPage
-      eyebrow="Решения"
-      title="Решения"
-      description="Готовые архитектурные решения для CRM-систем, маркетплейсов, систем бронирования и AI-автоматизации — адаптируем под задачи вашего бизнеса."
-      showDiscussCta
-    />
-  );
+export default async function SolutionsPage() {
+  const { common } = await getServerTranslations();
+
+  return <PlaceholderPage {...common.placeholders.solutions} showDiscussCta />;
 }

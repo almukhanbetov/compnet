@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
 import PlaceholderPage from "@/components/layout/PlaceholderPage";
+import { getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Вход в аккаунт | COMPNET",
-  description: "Вход в личный кабинет COMPNET.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.login;
+}
 
-export default function LoginPage() {
-  return (
-    <PlaceholderPage
-      eyebrow="Вход"
-      title="Вход в аккаунт"
-      description="Настоящая форма авторизации подключится, когда в проекте появится backend."
-    />
-  );
+export default async function LoginPage() {
+  const { common } = await getServerTranslations();
+
+  return <PlaceholderPage {...common.placeholders.login} />;
 }

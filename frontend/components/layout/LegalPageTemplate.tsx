@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Info } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { getServerTranslations } from "@/lib/i18n.server";
 
 interface LegalSection {
   heading: string;
@@ -15,12 +16,14 @@ interface LegalPageTemplateProps {
   sections: LegalSection[];
 }
 
-export default function LegalPageTemplate({
+export default async function LegalPageTemplate({
   eyebrow,
   title,
   intro,
   sections,
 }: LegalPageTemplateProps) {
+  const { common } = await getServerTranslations();
+
   return (
     <>
       <Header />
@@ -54,8 +57,7 @@ export default function LegalPageTemplate({
               aria-hidden="true"
             />
             <p className="text-sm leading-6 text-cyan-100 light:text-cyan-900">
-              Демонстрационная версия документа. Перед публикацией требуется
-              юридическая проверка.
+              {common.legalNotice}
             </p>
           </div>
 
@@ -77,7 +79,7 @@ export default function LegalPageTemplate({
               href="/"
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-6 py-3.5 font-semibold transition hover:bg-[var(--text-primary)]/10"
             >
-              На главную
+              {common.toHome}
             </Link>
           </div>
         </div>

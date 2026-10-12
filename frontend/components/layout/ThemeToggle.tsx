@@ -2,16 +2,18 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLocale();
   const isLight = theme === "light";
 
   return (
     <button
       type="button"
       onClick={toggleTheme}
-      aria-label={isLight ? "Включить тёмную тему" : "Включить светлую тему"}
+      aria-label={isLight ? t.common.themeToDark : t.common.themeToLight}
       aria-pressed={isLight}
       className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10"
     >

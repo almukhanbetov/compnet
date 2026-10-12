@@ -1,42 +1,13 @@
 import type { Metadata } from "next";
 import LegalPageTemplate from "@/components/layout/LegalPageTemplate";
+import { getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Политика конфиденциальности | COMPNET",
-  description:
-    "Политика конфиденциальности COMPNET — демонстрационная версия документа о работе с персональными данными.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.privacy;
+}
 
-const sections = [
-  {
-    heading: "Какие данные мы собираем",
-    body: "При заполнении формы заявки мы можем получать имя, телефон, email и описание задачи. Аналитические данные о посещениях собираются в обезличенном виде.",
-  },
-  {
-    heading: "Как мы используем данные",
-    body: "Данные используются для связи с клиентом по заявке, подготовки коммерческого предложения и улучшения качества сервиса.",
-  },
-  {
-    heading: "Передача данных третьим лицам",
-    body: "Мы не продаём и не передаём личные данные третьим лицам, за исключением случаев, предусмотренных законодательством.",
-  },
-  {
-    heading: "Хранение и защита данных",
-    body: "Данные хранятся в защищённом виде и удаляются по запросу пользователя или по истечении срока, необходимого для обработки заявки.",
-  },
-  {
-    heading: "Права пользователя",
-    body: "Вы можете запросить удаление, изменение или уточнение своих данных, написав нам на почту, указанную в разделе «Контакты».",
-  },
-];
+export default async function PrivacyPage() {
+  const { common } = await getServerTranslations();
 
-export default function PrivacyPage() {
-  return (
-    <LegalPageTemplate
-      eyebrow="Конфиденциальность"
-      title="Политика конфиденциальности"
-      intro="Мы уважаем конфиденциальность посетителей сайта. Ниже — демонстрационное описание того, какие данные и как мы бы обрабатывали в реальном продукте."
-      sections={sections}
-    />
-  );
+  return <LegalPageTemplate {...common.legal.privacy} />;
 }

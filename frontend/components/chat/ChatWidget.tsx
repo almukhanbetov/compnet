@@ -4,7 +4,9 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { MessageCircle, X } from "lucide-react";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import ChatWindow from "@/components/chat/ChatWindow";
+import { fill } from "@/lib/i18n";
 import { useVisitorChat } from "@/components/chat/useVisitorChat";
 import { useMediaQuery, useVisualViewport } from "@/components/chat/useBrowserState";
 
@@ -22,6 +24,7 @@ const FOCUSABLE =
  * everything at z-[60].
  */
 export default function ChatWidget() {
+  const { t } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useMediaQuery(MOBILE_QUERY);
   const chat = useVisitorChat(isOpen);
@@ -93,10 +96,10 @@ export default function ChatWidget() {
 
   const unread = chat.unreadCount;
   const launcherLabel = isOpen
-    ? "Закрыть чат"
+    ? t.chat.launcher.close
     : unread > 0
-      ? `Открыть чат с менеджером, непрочитанных сообщений: ${unread}`
-      : "Открыть чат с менеджером";
+      ? fill(t.chat.launcher.openUnread, { count: String(unread) })
+      : t.chat.launcher.open;
 
   const mobileStyle: CSSProperties | undefined =
     isMobile && viewport ? { height: viewport.height, top: viewport.offsetTop } : undefined;

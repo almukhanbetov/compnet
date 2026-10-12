@@ -1,5 +1,7 @@
 "use client";
 
+import { byId } from "@/lib/i18n";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { useState } from "react";
 import { motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
@@ -7,6 +9,7 @@ import SectionHeading from "@/components/ui/SectionHeading";
 import { pricingFaqItems } from "@/data/pricingPage";
 
 export default function PricingFaq() {
+  const { t } = useLocale();
   const [openId, setOpenId] = useState<string | null>(
     pricingFaqItems[0]?.id ?? null,
   );
@@ -15,13 +18,14 @@ export default function PricingFaq() {
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-3xl">
         <SectionHeading
-          eyebrow="FAQ"
-          title="Частые вопросы о цене"
-          description="Если ответа нет здесь — уточните детали в переписке, поможем разобраться."
+          eyebrow={t.pricing.faq.eyebrow}
+          title={t.pricing.faq.title}
+          description={t.pricing.faq.description}
         />
 
         <div className="mt-12 space-y-3">
-          {pricingFaqItems.map((item) => {
+          {pricingFaqItems.map((original) => {
+            const item = { ...original, ...byId(t.pricing.faq.items, original.id) };
             const isOpen = item.id === openId;
 
             return (

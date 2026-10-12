@@ -141,6 +141,10 @@ export interface ContactPageTranslations {
       network: string;
       unexpected: string;
       config: string;
+      nameTooLong: string;
+      descriptionTooLong: string;
+      /** Shown for a backend validation error without a specific translation. */
+      invalid: string;
     };
     /** {id}, {min}, {max}, {duration} are filled in by the form. */
     success: {
@@ -188,6 +192,12 @@ export interface ContactPageTranslations {
 }
 
 export interface Translations {
+  common: import("@/data/i18n/common").CommonTranslations;
+  home: import("@/data/i18n/home").HomeTranslations;
+  catalog: import("@/data/i18n/catalog").CatalogTranslations;
+  pricing: import("@/data/i18n/pricing").PricingTranslations;
+  portfolio: import("@/data/i18n/portfolio").PortfolioTranslations;
+  chat: import("@/data/i18n/chat").ChatTranslations;
   header: HeaderTranslations;
   hero: HeroTranslations;
   promo: PromoTranslations;

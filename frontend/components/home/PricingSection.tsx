@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { CheckCircle2, Clock } from "lucide-react";
@@ -20,15 +21,16 @@ interface PricingSectionProps {
 }
 
 export default function PricingSection({ items }: PricingSectionProps) {
+  const { t } = useLocale();
   const pricingItems = items.filter((item) => teaserIds.includes(item.id));
 
   return (
     <section className="border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Цены"
-          title="Ориентировочная стоимость по типам проектов"
-          description="Цена зависит от объёма задач — ниже стартовые ориентиры по каждому направлению."
+          eyebrow={t.home.pricing.eyebrow}
+          title={t.home.pricing.title}
+          description={t.home.pricing.description}
         />
 
         <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -77,15 +79,14 @@ export default function PricingSection({ items }: PricingSectionProps) {
                 href="/contact"
                 className="mt-7 inline-flex items-center justify-center rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-3 text-sm font-semibold transition hover:bg-[var(--text-primary)]/10"
               >
-                Обсудить проект
+                {t.common.discussProject}
               </Link>
             </motion.div>
           ))}
         </div>
 
         <p className="mt-10 text-center text-sm text-slate-500 light:text-slate-600">
-          Стоимость указана ориентировочно. Точная цена рассчитывается после
-          обсуждения задач и подготовки технического задания.
+          {t.home.pricing.note}
         </p>
       </div>
     </section>

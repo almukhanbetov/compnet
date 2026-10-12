@@ -18,14 +18,16 @@ import {
   fetchPricingCards,
   fetchTestimonials,
 } from "@/lib/api/content";
+import { getRequestLocale } from "@/lib/i18n.server";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const locale = await getRequestLocale();
   const [servicesOverview, pricingCards, testimonials] = await Promise.all([
-    fetchServicesOverview(),
-    fetchPricingCards(),
-    fetchTestimonials(),
+    fetchServicesOverview(locale),
+    fetchPricingCards(locale),
+    fetchTestimonials(locale),
   ]);
 
   return (

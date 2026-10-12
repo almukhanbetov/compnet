@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, ExternalLink, TrendingUp } from "lucide-react";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { fill } from "@/lib/i18n";
 import type { PortfolioCaseStudy } from "@/types/portfolioPage";
 
 interface PortfolioCardProps {
@@ -13,6 +15,7 @@ const ctaClass =
   "mt-6 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-3 text-sm font-semibold transition group-hover:bg-[var(--text-primary)]/10";
 
 export default function PortfolioCard({ project }: PortfolioCardProps) {
+  const { t } = useLocale();
   const isExternal = Boolean(project.externalUrl);
 
   const body = (
@@ -24,7 +27,7 @@ export default function PortfolioCard({ project }: PortfolioCardProps) {
           <>
             <Image
               src={project.screenshotUrl}
-              alt={`Скриншот сайта: ${project.title}`}
+              alt={fill(t.portfolio.card.screenshotAlt, { title: project.title })}
               fill
               sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               className="object-cover object-top"
@@ -44,7 +47,7 @@ export default function PortfolioCard({ project }: PortfolioCardProps) {
       <div className="flex flex-1 flex-col p-6">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex w-fit rounded-full border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/5 px-3 py-1 text-xs font-medium text-slate-300 light:text-slate-700">
-            {project.category}
+            {t.portfolio.categories[project.category] ?? project.category}
           </span>
           {project.subcategory ? (
             <span className="text-xs text-slate-500 light:text-slate-500">
@@ -84,12 +87,12 @@ export default function PortfolioCard({ project }: PortfolioCardProps) {
 
         {isExternal ? (
           <span className={ctaClass}>
-            Открыть сайт
+            {t.portfolio.card.openSite}
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
           </span>
         ) : (
           <Link href={`/portfolio/${project.slug}`} className={ctaClass}>
-            Подробнее
+            {t.portfolio.card.more}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         )}

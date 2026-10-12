@@ -5,13 +5,11 @@ import "./globals.css";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import ChatWidgetLoader from "@/components/chat/ChatWidgetLoader";
-import { getRequestLocale } from "@/lib/i18n.server";
+import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "COMPNET AI Platform",
-  description:
-    "Современная маркетинговая, торговая и клиентская платформа",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.root;
+}
 
 type RootLayoutProps = Readonly<{
   children: React.ReactNode;

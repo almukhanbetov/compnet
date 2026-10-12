@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { byId } from "@/lib/i18n";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
@@ -7,28 +9,31 @@ import SectionHeading from "@/components/ui/SectionHeading";
 import { portfolioProjects } from "@/data/portfolio";
 
 export default function PortfolioSection() {
+  const { t } = useLocale();
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <SectionHeading
             align="left"
-            eyebrow="Портфолио"
-            title="Реализованные проекты"
-            description="Несколько кейсов из разных направлений — web, mobile, CRM и AI."
+            eyebrow={t.home.portfolio.eyebrow}
+            title={t.home.portfolio.title}
+            description={t.home.portfolio.description}
           />
 
           <Link
             href="/portfolio"
             className="inline-flex items-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-2.5 text-sm font-semibold text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10"
           >
-            Все проекты
+            {t.home.portfolio.allProjects}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {portfolioProjects.map((project, index) => (
+          {portfolioProjects.map((original, index) => {
+            const project = { ...original, ...byId(t.home.portfolio.cases, original.id) };
+            return (
             <motion.div
               key={project.id}
               initial={{ opacity: 0, y: 16 }}
@@ -65,7 +70,8 @@ export default function PortfolioSection() {
                 </div>
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

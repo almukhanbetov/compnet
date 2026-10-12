@@ -1,3 +1,4 @@
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { portfolioFilterValues } from "@/data/portfolioPage";
 import type { PortfolioFilterValue } from "@/types/portfolioPage";
 
@@ -10,11 +11,13 @@ export default function PortfolioFilters({
   active,
   onChange,
 }: PortfolioFiltersProps) {
+  const { t } = useLocale();
+
   return (
     <div
       className="flex flex-wrap justify-center gap-3"
       role="group"
-      aria-label="Фильтр проектов по категории"
+      aria-label={t.portfolio.filterLabel}
     >
       {portfolioFilterValues.map((value) => {
         const isActive = value === active;
@@ -31,7 +34,7 @@ export default function PortfolioFilters({
                 : "border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-slate-300 light:text-slate-700 hover:bg-[var(--text-primary)]/10"
             }`}
           >
-            {value}
+            {t.portfolio.categories[value]}
           </button>
         );
       })}

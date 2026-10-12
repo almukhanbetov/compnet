@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Construction } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { getServerTranslations } from "@/lib/i18n.server";
 
 interface PlaceholderPageProps {
   eyebrow: string;
@@ -11,13 +12,15 @@ interface PlaceholderPageProps {
   showDiscussCta?: boolean;
 }
 
-export default function PlaceholderPage({
+export default async function PlaceholderPage({
   eyebrow,
   title,
   description,
   meta,
   showDiscussCta = false,
 }: PlaceholderPageProps) {
+  const { common } = await getServerTranslations();
+
   return (
     <>
       <Header />
@@ -58,7 +61,7 @@ export default function PlaceholderPage({
                 href="/contact"
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-6 py-3.5 font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.35)] transition hover:scale-105 hover:shadow-[0_0_32px_rgba(124,58,237,0.5)]"
               >
-                Обсудить проект
+                {common.discussProject}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             ) : null}
@@ -72,7 +75,7 @@ export default function PlaceholderPage({
               }
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              На главную
+              {common.toHome}
             </Link>
           </div>
         </div>

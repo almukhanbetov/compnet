@@ -5,17 +5,16 @@ import CtaSection from "@/components/home/CtaSection";
 import PortfolioHero from "@/components/portfolio/PortfolioHero";
 import PortfolioGrid from "@/components/portfolio/PortfolioGrid";
 import { fetchPortfolioCases } from "@/lib/api/content";
+import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Портфолио | COMPNET",
-  description:
-    "Реализованные проекты COMPNET — сайты, web- и мобильные приложения, CRM-системы и AI-решения с описанием задачи, процесса и результата.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.portfolio;
+}
 
 export const dynamic = "force-dynamic";
 
 export default async function PortfolioPage() {
-  const projects = await fetchPortfolioCases();
+  const projects = await fetchPortfolioCases(await getRequestLocale());
 
   return (
     <>

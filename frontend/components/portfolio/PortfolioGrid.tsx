@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import PortfolioFilters from "@/components/portfolio/PortfolioFilters";
@@ -11,6 +12,7 @@ interface PortfolioGridProps {
 }
 
 export default function PortfolioGrid({ projects }: PortfolioGridProps) {
+  const { t } = useLocale();
   const [activeFilter, setActiveFilter] = useState<PortfolioFilterValue>("Все");
 
   const filteredProjects = useMemo(() => {
@@ -41,8 +43,7 @@ export default function PortfolioGrid({ projects }: PortfolioGridProps) {
           </div>
         ) : (
           <p className="mt-14 text-center text-sm text-slate-400 light:text-slate-600">
-            В этой категории пока нет кейсов — уточните задачу, и мы предложим
-            похожие проекты.
+            {t.portfolio.empty}
           </p>
         )}
       </div>

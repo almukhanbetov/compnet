@@ -1,5 +1,11 @@
 import type { Locale, LocaleOption, Translations } from "@/types/i18n";
 import { contactPageTranslations } from "@/data/i18n/contactPage";
+import { commonTranslations } from "@/data/i18n/common";
+import { homeTranslations } from "@/data/i18n/home";
+import { catalogTranslations } from "@/data/i18n/catalog";
+import { pricingTranslations } from "@/data/i18n/pricing";
+import { portfolioTranslations } from "@/data/i18n/portfolio";
+import { chatTranslations } from "@/data/i18n/chat";
 
 export const localeOptions: LocaleOption[] = [
   { value: "kk", label: "Қазақша", shortLabel: "KZ" },
@@ -9,6 +15,12 @@ export const localeOptions: LocaleOption[] = [
 
 export const translations: Record<Locale, Translations> = {
   kk: {
+    common: commonTranslations.kk,
+    home: homeTranslations.kk,
+    catalog: catalogTranslations.kk,
+    pricing: pricingTranslations.kk,
+    portfolio: portfolioTranslations.kk,
+    chat: chatTranslations.kk,
     header: {
       nav: {
         services: "Қызметтер",
@@ -94,6 +106,12 @@ export const translations: Record<Locale, Translations> = {
     contactPage: contactPageTranslations.kk,
   },
   ru: {
+    common: commonTranslations.ru,
+    home: homeTranslations.ru,
+    catalog: catalogTranslations.ru,
+    pricing: pricingTranslations.ru,
+    portfolio: portfolioTranslations.ru,
+    chat: chatTranslations.ru,
     header: {
       nav: {
         services: "Услуги",
@@ -179,6 +197,12 @@ export const translations: Record<Locale, Translations> = {
     contactPage: contactPageTranslations.ru,
   },
   en: {
+    common: commonTranslations.en,
+    home: homeTranslations.en,
+    catalog: catalogTranslations.en,
+    pricing: pricingTranslations.en,
+    portfolio: portfolioTranslations.en,
+    chat: chatTranslations.en,
     header: {
       nav: {
         services: "Services",

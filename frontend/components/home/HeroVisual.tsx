@@ -40,10 +40,10 @@ export default function HeroVisual() {
       >
         <div>
           <p className="text-base font-semibold text-slate-100 light:text-slate-900">
-            Направления разработки
+            {t.home.heroVisual.title}
           </p>
           <p className="text-sm text-slate-400 light:text-slate-600">
-            От идеи и дизайна до запуска и поддержки
+            {t.home.heroVisual.subtitle}
           </p>
         </div>
 

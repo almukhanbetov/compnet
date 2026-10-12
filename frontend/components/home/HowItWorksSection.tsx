@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { byId, fill } from "@/lib/i18n";
 import { motion } from "motion/react";
 import {
   Search,
@@ -20,13 +22,14 @@ const stepIcons: Record<StepIcon, LucideIcon> = {
 };
 
 export default function HowItWorksSection() {
+  const { t } = useLocale();
   return (
     <section className="border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Процесс"
-          title="Этапы разработки"
-          description="От брифа и дизайна до запуска и поддержки — прозрачный процесс на каждом шаге."
+          eyebrow={t.home.howItWorks.eyebrow}
+          title={t.home.howItWorks.title}
+          description={t.home.howItWorks.description}
         />
 
         <div className="relative mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -49,13 +52,13 @@ export default function HowItWorksSection() {
                 </span>
 
                 <span className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500 light:text-slate-600">
-                  Шаг {step.number}
+                  {fill(t.common.step, { n: String(step.number) })}
                 </span>
                 <p className="mt-1.5 text-lg font-semibold text-slate-100 light:text-slate-900">
-                  {step.title}
+                  {(byId(t.home.howItWorks.steps, step.id) ?? step).title}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-400 light:text-slate-600">
-                  {step.description}
+                  {(byId(t.home.howItWorks.steps, step.id) ?? step).description}
                 </p>
               </motion.div>
             );

@@ -9,13 +9,18 @@ import {
   CheckCircle2,
   Tag,
 } from "lucide-react";
+import { fill } from "@/lib/i18n";
+import { getServerTranslations } from "@/lib/i18n.server";
 import type { PortfolioCaseStudy } from "@/types/portfolioPage";
 
 interface CaseStudyTemplateProps {
   project: PortfolioCaseStudy;
 }
 
-export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
+export default async function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
+  const { portfolio } = await getServerTranslations();
+  const c = portfolio.caseStudy;
+
   return (
     <main className="relative overflow-hidden px-6 py-20 md:py-28">
       <div
@@ -33,7 +38,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
             href="/portfolio"
             className="inline-block -my-1.5 py-1.5 transition hover:text-cyan-300 light:hover:text-cyan-700"
           >
-            Портфолио
+            {c.breadcrumb}
           </Link>
           <span aria-hidden="true">/</span>
           <span className="text-slate-300 light:text-slate-700">{project.title}</span>
@@ -41,7 +46,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
 
         <span className="mt-6 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-cyan-300 light:border-cyan-600/30 light:bg-cyan-500/10 light:text-cyan-700">
           <Tag className="h-3.5 w-3.5" aria-hidden="true" />
-          {project.category}
+          {portfolio.categories[project.category] ?? project.category}
         </span>
 
         <h1 className="mt-6 text-3xl font-bold leading-tight md:text-5xl">
@@ -55,7 +60,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
         <div className="mt-6 flex flex-wrap gap-3">
           <span className="inline-flex items-center gap-2 rounded-xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/5 px-4 py-2 text-sm text-slate-300 light:text-slate-700">
             <Clock className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
-            Срок: {project.duration}
+            {fill(c.duration, { duration: project.duration })}
           </span>
         </div>
 
@@ -65,7 +70,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
               <Target className="h-5 w-5" aria-hidden="true" />
             </span>
             <p className="mt-4 text-lg font-semibold text-slate-100 light:text-slate-900">
-              Задача
+              {c.task}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-400 light:text-slate-600">
               {project.task}
@@ -77,7 +82,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
               <Lightbulb className="h-5 w-5" aria-hidden="true" />
             </span>
             <p className="mt-4 text-lg font-semibold text-slate-100 light:text-slate-900">
-              Решение
+              {c.solution}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-400 light:text-slate-600">
               {project.solution}
@@ -87,7 +92,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
 
         <div className="mt-6 rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl">
           <p className="text-lg font-semibold text-slate-100 light:text-slate-900">
-            Процесс работы
+            {c.process}
           </p>
 
           <ol className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -107,7 +112,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl">
             <p className="text-lg font-semibold text-slate-100 light:text-slate-900">
-              Технологии
+              {c.technologies}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {project.technologies.map((tech) => (
@@ -126,7 +131,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
               <TrendingUp className="h-5 w-5" aria-hidden="true" />
             </span>
             <p className="mt-4 text-lg font-semibold text-slate-100 light:text-slate-900">
-              Результат
+              {c.result}
             </p>
             <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-slate-300 light:text-slate-700">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
@@ -138,10 +143,10 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
         <div className="mt-14 flex flex-wrap items-center justify-between gap-6 rounded-[28px] border border-[var(--text-primary)]/10 bg-gradient-to-br from-violet-700/30 via-blue-700/25 to-cyan-500/20 p-8 backdrop-blur-xl md:p-10">
           <div>
             <p className="text-xl font-bold leading-tight md:text-2xl">
-              Хотите похожий проект?
+              {c.ctaTitle}
             </p>
             <p className="mt-2 text-sm text-slate-300 light:text-slate-700">
-              Обсудим задачу и предложим решение с оценкой сроков и бюджета.
+              {c.ctaDescription}
             </p>
           </div>
 
@@ -150,7 +155,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
               href="/contact"
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-6 py-3.5 font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.35)] transition hover:scale-105 hover:shadow-[0_0_32px_rgba(124,58,237,0.5)]"
             >
-              Обсудить похожий проект
+              {c.ctaPrimary}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
 
@@ -159,7 +164,7 @@ export default function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-6 py-3.5 font-semibold transition hover:bg-[var(--text-primary)]/10"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Ко всем проектам
+              {c.allProjects}
             </Link>
           </div>
         </div>

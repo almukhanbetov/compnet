@@ -26,7 +26,8 @@ import type {
 import { buildProjectRequestPayload } from "@/lib/api/projectRequestMapping";
 import { submitProjectRequest } from "@/lib/api/projectRequests";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { fill } from "@/lib/i18n";
+import { byId, fill } from "@/lib/i18n";
+import { translateDuration } from "@/data/i18n/catalog";
 import type { ContactPageTranslations } from "@/types/i18n";
 import type { ProjectRequestData } from "@/types/api/projectRequest";
 
@@ -40,6 +41,22 @@ const BACKEND_FIELD_TO_FORM_FIELD: Partial<
   description: "description",
   contact_method: "contactMethod",
   consent: "consent",
+};
+
+type ErrorKey = keyof ContactPageTranslations["form"]["errors"];
+
+/** Backend validation messages (backend/internal/http/dto/projectrequest.go)
+ * mapped to translated texts; anything else gets the generic `invalid`. */
+const BACKEND_MESSAGE_TO_ERROR: Record<string, ErrorKey> = {
+  "укажите имя": "name",
+  "слишком длинное имя": "nameTooLong",
+  "укажите телефон или email": "phoneOrEmail",
+  "проверьте номер телефона": "phone",
+  "проверьте email": "email",
+  "выберите тип проекта": "projectType",
+  "кратко опишите задачу": "description",
+  "слишком длинное описание": "descriptionTooLong",
+  "нужно согласие на обработку данных": "consent",
 };
 
 function formatTenge(amount: number): string {
@@ -159,7 +176,7 @@ export default function ProjectEstimateForm() {
       for (const [backendField, message] of Object.entries(result.fields)) {
         const formField = BACKEND_FIELD_TO_FORM_FIELD[backendField];
         if (formField) {
-          mappedErrors[formField] = message;
+          mappedErrors[formField] = f.errors[byId(BACKEND_MESSAGE_TO_ERROR, message) ?? "invalid"];
         } else {
           hasUnmappedField = true;
         }
@@ -167,7 +184,7 @@ export default function ProjectEstimateForm() {
 
       setErrors((prev) => ({ ...prev, ...mappedErrors }));
       if (hasUnmappedField || Object.keys(mappedErrors).length === 0) {
-        setApiError(result.message);
+        setApiError(f.errors.invalid);
       }
       return;
     }
@@ -207,7 +224,9 @@ export default function ProjectEstimateForm() {
                       max: formatTenge(submitResult.estimate.maximum_tenge),
                     })}
                 {submitResult.estimate.duration_label
-                  ? fill(f.success.duration, { duration: submitResult.estimate.duration_label })
+                  ? fill(f.success.duration, {
+                      duration: translateDuration(t.catalog, submitResult.estimate.duration_label),
+                    })
                   : ""}
               </p>
               <p className="mt-2 max-w-md text-xs leading-5 text-slate-500 light:text-slate-600">

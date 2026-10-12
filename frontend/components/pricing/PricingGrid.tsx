@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { CheckCircle2, Clock, ArrowRight, Info } from "lucide-react";
@@ -10,6 +11,8 @@ interface PricingGridProps {
 }
 
 export default function PricingGrid({ items }: PricingGridProps) {
+  const { t } = useLocale();
+
   return (
     <section className="px-6 py-8 md:py-12">
       <div className="mx-auto max-w-[1440px]">
@@ -61,7 +64,7 @@ export default function PricingGrid({ items }: PricingGridProps) {
                 href={item.serviceHref}
                 className="mt-5 -mb-1 inline-flex items-center gap-2 py-1 text-sm font-semibold text-cyan-300 light:text-cyan-700 transition hover:text-cyan-200"
               >
-                Подробнее об услуге
+                {t.common.serviceDetails}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
 
@@ -69,7 +72,7 @@ export default function PricingGrid({ items }: PricingGridProps) {
                 href="/contact"
                 className="mt-4 inline-flex items-center justify-center rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-3 text-sm font-semibold transition hover:bg-[var(--text-primary)]/10"
               >
-                Обсудить проект
+                {t.common.discussProject}
               </Link>
             </motion.div>
           ))}
@@ -81,8 +84,7 @@ export default function PricingGrid({ items }: PricingGridProps) {
             aria-hidden="true"
           />
           <p className="text-sm leading-6 text-cyan-100 light:text-cyan-900">
-            Стоимость указана ориентировочно. Итоговая цена зависит от
-            функционала, дизайна, интеграций, сроков и сложности проекта.
+            {t.catalog.result.note}
           </p>
         </div>
       </div>

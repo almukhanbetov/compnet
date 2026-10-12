@@ -3,12 +3,11 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CalculatorHero from "@/components/calculator/CalculatorHero";
 import CalculatorForm from "@/components/calculator/CalculatorForm";
+import { getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Калькулятор стоимости | COMPNET",
-  description:
-    "Рассчитайте ориентировочную стоимость и сроки разработки сайта, web- или мобильного приложения с учётом модулей, дизайна и сложности.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.calculator;
+}
 
 export default function CalculatorPage() {
   return (
