@@ -83,7 +83,7 @@ export default function Footer() {
 
         <div className="mt-14 flex flex-col gap-6 border-t border-[var(--text-primary)]/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500 light:text-slate-600">
-            © 2026 COMPNET. Визуальный прототип, все данные демонстрационные.
+            © 2026 COMPNET.
           </p>
 
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500 light:text-slate-600">

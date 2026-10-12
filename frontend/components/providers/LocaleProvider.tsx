@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { translations } from "@/data/translations";
+import { localeCookie } from "@/lib/i18n";
 import type { Locale, Translations } from "@/types/i18n";
 
 interface LocaleContextValue {
@@ -13,12 +14,26 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>("ru");
+interface LocaleProviderProps {
+  children: ReactNode;
+  /** Language the server rendered with (from the locale cookie). */
+  initialLocale: Locale;
+}
+
+export function LocaleProvider({ children, initialLocale }: LocaleProviderProps) {
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
+
+  // Remember the choice for the next visit (the server reads the cookie)
+  // and keep <html lang> in step without a reload.
+  const setLocale = useCallback((next: Locale) => {
+    setLocaleState(next);
+    document.cookie = localeCookie(next);
+    document.documentElement.lang = next;
+  }, []);
 
   const value = useMemo<LocaleContextValue>(
     () => ({ locale, setLocale, t: translations[locale] }),
-    [locale],
+    [locale, setLocale],
   );
 
   return (

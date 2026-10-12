@@ -2,8 +2,9 @@
 
 import { motion } from "motion/react";
 import { Info, MessageCircle, MonitorSmartphone, Phone, Smartphone, TrendingUp, type LucideIcon } from "lucide-react";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { companyPhone, whatsappLink } from "@/data/contacts";
-import { digitalStartPromo as promo } from "@/data/promo";
+import { PROMO_PRICE, promoFeatureOrder } from "@/data/promo";
 import type { PromoFeatureIcon } from "@/types/promo";
 
 const featureIcons: Record<PromoFeatureIcon, LucideIcon> = {
@@ -20,6 +21,9 @@ const reveal = {
 
 /** "Цифровой старт для бизнеса" offer, right after the hero (anchor #promo). */
 export default function PromoSection() {
+  const { t } = useLocale();
+  const promo = t.promo;
+
   return (
     <section
       id="promo"
@@ -53,10 +57,10 @@ export default function PromoSection() {
           </div>
 
           <div className="rounded-3xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-5 sm:p-8">
-            <p className="text-sm font-medium uppercase tracking-wider text-slate-400 light:text-slate-600">Стоимость</p>
+            <p className="text-sm font-medium uppercase tracking-wider text-slate-400 light:text-slate-600">{promo.priceLabel}</p>
             <p className="mt-2 text-4xl font-bold leading-none sm:text-5xl">
               <span className="bg-gradient-to-r from-violet-300 via-blue-300 to-cyan-200 bg-clip-text text-transparent light:from-violet-600 light:via-blue-600 light:to-cyan-600">
-                {promo.price}
+                {PROMO_PRICE}
               </span>
             </p>
             <p className="mt-2 text-base text-slate-300 light:text-slate-700">{promo.priceNote}</p>
@@ -69,15 +73,15 @@ export default function PromoSection() {
                 className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-6 py-3.5 text-center font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.3)] transition hover:shadow-[0_0_32px_rgba(124,58,237,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
               >
                 <MessageCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                Обсудить проект в WhatsApp
-                <span className="sr-only">(откроется в новой вкладке)</span>
+                {promo.whatsappButton}
+                <span className="sr-only">{t.header.actions.opensInNewTab}</span>
               </a>
               <a
                 href={companyPhone.href}
                 className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-6 py-3.5 font-semibold transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
               >
                 <Phone className="h-5 w-5 shrink-0" aria-hidden="true" />
-                Позвонить
+                {promo.callButton}
                 <span className="hidden font-normal text-slate-400 light:text-slate-600 sm:inline">{companyPhone.display}</span>
               </a>
             </div>
@@ -85,11 +89,12 @@ export default function PromoSection() {
         </div>
 
         <ul className="relative mt-10 grid gap-4 md:grid-cols-3 lg:mt-14 lg:gap-6">
-          {promo.features.map((feature, index) => {
-            const Icon = featureIcons[feature.icon];
+          {promoFeatureOrder.map((id, index) => {
+            const Icon = featureIcons[id];
+            const feature = promo.features[id];
             return (
               <motion.li
-                key={feature.id}
+                key={id}
                 {...reveal}
                 transition={{ duration: 0.45, ease: "easeOut", delay: 0.08 * index }}
                 className="rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-5 transition duration-300 sm:p-6 hover:-translate-y-1 hover:border-cyan-400/30 hover:shadow-[0_0_30px_rgba(6,182,212,0.12)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
@@ -107,7 +112,7 @@ export default function PromoSection() {
         <div className="relative mt-8 flex gap-3 rounded-2xl border border-[var(--text-primary)]/10 px-5 py-4 lg:mt-10">
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-slate-400 light:text-slate-500" aria-hidden="true" />
           <p className="text-sm leading-6 text-slate-300 light:text-slate-700">
-            <span className="font-semibold text-slate-200 light:text-slate-800">Условия. </span>
+            <span className="font-semibold text-slate-200 light:text-slate-800">{promo.termsLabel} </span>
             {promo.terms}
           </p>
         </div>

@@ -1,3 +1,6 @@
+import type { BudgetRange, ContactMethod, Timeline } from "@/types/contactPage";
+import type { ProjectPricingLabel } from "@/types/projectPricing";
+
 export type Locale = "kk" | "ru" | "en";
 
 export interface HeaderNavTranslations {
@@ -13,11 +16,21 @@ export interface HeaderNavTranslations {
 export interface HeaderActionsTranslations {
   login: string;
   discuss: string;
+  /** Accessible label prefix for the phone link, e.g. "Позвонить". */
+  call: string;
+  whatsapp: string;
+  opensInNewTab: string;
+}
+
+export interface MobileNavTranslations {
+  language: string;
+  theme: string;
 }
 
 export interface HeaderTranslations {
   nav: HeaderNavTranslations;
   actions: HeaderActionsTranslations;
+  mobile: MobileNavTranslations;
 }
 
 export interface HeroStat {
@@ -49,9 +62,137 @@ export interface HeroTranslations {
   directions: HeroDirection[];
 }
 
+export interface PromoFeatureTranslations {
+  title: string;
+  description: string;
+}
+
+export interface PromoTranslations {
+  announcementBadge: string;
+  label: string;
+  title: string;
+  subtitle: string;
+  priceLabel: string;
+  priceNote: string;
+  description: string;
+  features: {
+    web: PromoFeatureTranslations;
+    mobile: PromoFeatureTranslations;
+    promotion: PromoFeatureTranslations;
+  };
+  termsLabel: string;
+  terms: string;
+  whatsappButton: string;
+  callButton: string;
+  /** Pre-filled WhatsApp message in this language. */
+  whatsappMessage: string;
+}
+
+export interface HomeContactsTranslations {
+  eyebrow: string;
+  title: string;
+  description: string;
+  city: string;
+}
+
+export type ContactAdvantageKey = "reply" | "estimate" | "nda" | "format";
+
+export interface ContactPageTranslations {
+  hero: {
+    badge: string;
+    titleStart: string;
+    titleAccent: string;
+    description: string;
+    ctaPrimary: string;
+    ctaSecondary: string;
+    advantages: Record<ContactAdvantageKey, string>;
+  };
+  form: {
+    labels: {
+      name: string;
+      company: string;
+      phone: string;
+      email: string;
+      projectType: string;
+      contactMethod: string;
+      budget: string;
+      timeline: string;
+      description: string;
+      consent: string;
+    };
+    placeholders: {
+      name: string;
+      company: string;
+      projectType: string;
+      description: string;
+    };
+    contactHint: string;
+    submit: string;
+    submitting: string;
+    errors: {
+      name: string;
+      phoneOrEmail: string;
+      phone: string;
+      email: string;
+      projectType: string;
+      description: string;
+      consent: string;
+      chooseFromList: string;
+      network: string;
+      unexpected: string;
+      config: string;
+    };
+    /** {id}, {min}, {max}, {duration} are filled in by the form. */
+    success: {
+      title: string;
+      individual: string;
+      estimate: string;
+      duration: string;
+      followUp: string;
+      again: string;
+    };
+    /** Display labels only — the submitted values stay the canonical ones. */
+    options: {
+      projectType: Record<ProjectPricingLabel, string>;
+      budget: Record<BudgetRange, string>;
+      timeline: Record<Timeline, string>;
+      contactMethod: Record<ContactMethod, string>;
+    };
+  };
+  estimate: {
+    title: string;
+    choose: string;
+    /** {price} is the formatted amount. */
+    from: string;
+    individual: string;
+    disclaimer: string;
+  };
+  methods: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    phone: string;
+    whatsappValue: string;
+    telegramValue: string;
+    demoNote: string;
+    weekdays: string;
+    weekends: string;
+    weekendsValue: string;
+  };
+  faq: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    items: Array<{ question: string; answer: string }>;
+  };
+}
+
 export interface Translations {
   header: HeaderTranslations;
   hero: HeroTranslations;
+  promo: PromoTranslations;
+  homeContacts: HomeContactsTranslations;
+  contactPage: ContactPageTranslations;
 }
 
 export interface LocaleOption {

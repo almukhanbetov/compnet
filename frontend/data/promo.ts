@@ -1,39 +1,7 @@
-import type { PromoOffer } from "@/types/promo";
+import type { PromoFeatureIcon } from "@/types/promo";
 
-// Non-breaking spaces keep the price on one line.
-const PRICE = "200 000 ₸";
+/** Same price in every language; non-breaking spaces keep it on one line. */
+export const PROMO_PRICE = "200\u00a0000\u00a0₸";
 
-export const digitalStartPromo: PromoOffer = {
-  label: "Специальное предложение",
-  title: "Цифровой старт для бизнеса",
-  subtitle: "Веб-приложение + мобильное приложение + стартовая настройка продвижения",
-  price: PRICE,
-  priceNote: "за базовый пакет",
-  description:
-    "Запустите удобный сервис для ваших клиентов: в браузере и на смартфоне. Поможем определить основные функции и подготовить проект к привлечению первых пользователей.",
-  features: [
-    {
-      id: "web",
-      icon: "web",
-      title: "Веб-приложение",
-      description: "Удобный интерфейс для компьютеров и телефонов. Основные функции под задачи вашего бизнеса.",
-    },
-    {
-      id: "mobile",
-      icon: "mobile",
-      title: "Мобильное приложение",
-      description: "Мобильная версия сервиса с согласованным базовым функционалом.",
-    },
-    {
-      id: "promotion",
-      icon: "promotion",
-      title: "Старт продвижения",
-      description:
-        "Базовая SEO-подготовка, подключение аналитики и первоначальная настройка рекламной кампании.",
-    },
-  ],
-  terms:
-    "Стоимость действует для базового пакета. Функционал, платформы мобильного приложения, сроки и состав работ согласовываются до начала разработки. Рекламный бюджет, домен, хостинг и сборы магазинов приложений оплачиваются отдельно.",
-  whatsappMessage:
-    "Здравствуйте! Интересует пакет “Цифровой старт для бизнеса” за 200 000 ₸. Хочу обсудить проект",
-};
+/** Card order; texts come from translations.promo.features. */
+export const promoFeatureOrder: PromoFeatureIcon[] = ["web", "mobile", "promotion"];

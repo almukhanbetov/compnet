@@ -4,24 +4,26 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
-import { contactFaqItems } from "@/data/contactPage";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 export default function ContactFaq() {
-  const [openId, setOpenId] = useState<string | null>(
-    contactFaqItems[0]?.id ?? null,
-  );
+  const { t } = useLocale();
+  const faq = t.contactPage.faq;
+  // Ids are positional, so the open item stays open when the language changes.
+  const items = faq.items.map((item, index) => ({ ...item, id: `contact-faq-${index + 1}` }));
+  const [openId, setOpenId] = useState<string | null>(items[0]?.id ?? null);
 
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-3xl">
         <SectionHeading
-          eyebrow="FAQ"
-          title="Частые вопросы о заявках"
-          description="Если ответа нет здесь — уточните детали в форме выше, поможем разобраться."
+          eyebrow={faq.eyebrow}
+          title={faq.title}
+          description={faq.description}
         />
 
         <div className="mt-12 space-y-3">
-          {contactFaqItems.map((item) => {
+          {items.map((item) => {
             const isOpen = item.id === openId;
 
             return (

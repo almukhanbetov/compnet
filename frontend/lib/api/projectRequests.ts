@@ -14,6 +14,7 @@ export async function submitProjectRequest(
   if (!API_BASE_URL) {
     return {
       kind: "error",
+      reason: "config",
       message: "Адрес backend не настроен (NEXT_PUBLIC_API_URL).",
     };
   }
@@ -28,6 +29,7 @@ export async function submitProjectRequest(
   } catch {
     return {
       kind: "error",
+      reason: "network",
       message:
         "Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.",
     };
@@ -49,6 +51,7 @@ export async function submitProjectRequest(
 
   return {
     kind: "error",
+    reason: "unexpected",
     message: "Сервер вернул непредвиденную ошибку. Попробуйте позже.",
   };
 }

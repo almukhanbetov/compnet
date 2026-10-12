@@ -61,7 +61,7 @@ export default function Header() {
 
           <a
             href={companyPhone.href}
-            aria-label={`Позвонить: ${companyPhone.display}`}
+            aria-label={`${t.header.actions.call}: ${companyPhone.display}`}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/40 hover:bg-[var(--text-primary)]/10 light:text-slate-900 lg:w-auto lg:px-3.5"
           >
             <Phone className="h-4 w-4 shrink-0 text-cyan-300 light:text-cyan-700" aria-hidden="true" />

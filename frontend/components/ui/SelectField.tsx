@@ -15,6 +15,8 @@ interface SelectFieldProps<T extends string> {
   options: readonly T[];
   placeholder?: string;
   hasError?: boolean;
+  /** Display text for an option; the value itself is what gets submitted. */
+  getLabel?: (value: T) => string;
 }
 
 export default function SelectField<T extends string>({
@@ -24,6 +26,7 @@ export default function SelectField<T extends string>({
   options,
   placeholder,
   hasError = false,
+  getLabel,
 }: SelectFieldProps<T>) {
   return (
     <div className="relative">
@@ -38,7 +41,7 @@ export default function SelectField<T extends string>({
         {placeholder ? <option value="">{placeholder}</option> : null}
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {getLabel ? getLabel(option) : option}
           </option>
         ))}
       </select>

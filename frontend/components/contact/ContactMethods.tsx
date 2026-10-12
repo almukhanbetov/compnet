@@ -1,7 +1,10 @@
+"use client";
+
 import { Phone, Mail, MessageCircle, Send, Clock, MapPin, type LucideIcon } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
-import { contactChannels, workingHours } from "@/data/contactPage";
-import type { ContactChannelIcon } from "@/types/contactPage";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { companyPhone, whatsappLink } from "@/data/contacts";
+import type { ContactChannel, ContactChannelIcon } from "@/types/contactPage";
 
 const channelIcons: Record<ContactChannelIcon, LucideIcon> = {
   Phone,
@@ -11,13 +14,27 @@ const channelIcons: Record<ContactChannelIcon, LucideIcon> = {
 };
 
 export default function ContactMethods() {
+  const { t } = useLocale();
+  const m = t.contactPage.methods;
+
+  const contactChannels: ContactChannel[] = [
+    { id: "phone", label: m.phone, value: companyPhone.display, href: companyPhone.href, icon: "Phone" },
+    { id: "email", label: "Email", value: "hello@compnet.kz", href: "mailto:hello@compnet.kz", icon: "Mail" },
+    { id: "whatsapp", label: "WhatsApp", value: m.whatsappValue, href: whatsappLink(), icon: "MessageCircle" },
+    { id: "telegram", label: "Telegram", value: m.telegramValue, href: "#", icon: "Send", isPlaceholder: true },
+  ];
+  const workingHours = [
+    { label: m.weekdays, value: "09:00–19:00 (GMT+5)" },
+    { label: m.weekends, value: m.weekendsValue },
+  ];
+
   return (
     <section className="border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Способы связи"
-          title="Как с нами связаться"
-          description="Выберите удобный канал — ответим в течение рабочего дня."
+          eyebrow={m.eyebrow}
+          title={m.title}
+          description={m.description}
         />
 
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -43,7 +60,7 @@ export default function ContactMethods() {
                   </span>
                   {channel.isPlaceholder ? (
                     <span className="mt-1 block text-xs text-slate-500 light:text-slate-500">
-                      Демо-ссылка, без реального контакта
+                      {m.demoNote}
                     </span>
                   ) : null}
                 </span>
@@ -66,7 +83,7 @@ export default function ContactMethods() {
 
           <div className="flex items-center gap-2 text-sm text-slate-300 light:text-slate-700">
             <MapPin className="h-4 w-4 shrink-0 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
-            Алматы, Казахстан
+            {t.homeContacts.city}
           </div>
         </div>
       </div>
