@@ -111,10 +111,12 @@ export function fetchHistory(before: number, limit: number, signal?: AbortSignal
 }
 
 /** POST /chat/messages — 201 new, 200 when client_message_id was already stored. */
-export function sendMessage(clientMessageId: string, body: string) {
+/** analyticsSessionId (only with analytics consent) lets the server link a
+ *  conversation's first message to the visit; it never affects sending. */
+export function sendMessage(clientMessageId: string, body: string, analyticsSessionId?: string) {
   return request<ApiChatEnvelope<ApiChatMessage>>("/messages", {
     method: "POST",
-    body: JSON.stringify({ client_message_id: clientMessageId, body }),
+    body: JSON.stringify({ client_message_id: clientMessageId, body, analytics_session_id: analyticsSessionId }),
   });
 }
 

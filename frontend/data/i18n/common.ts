@@ -148,11 +148,11 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
         sections: [
           {
             heading: "Какие данные мы собираем",
-            body: "При заполнении формы заявки мы можем получать имя, телефон, email и описание задачи. Аналитические данные о посещениях собираются в обезличенном виде.",
+            body: "Из формы заявки — имя, телефон, email и описание задачи; из чата — сообщения и контакт, который вы оставили сами. Аналитика посещений — только если вы её разрешили: случайный идентификатор браузера, просмотренные страницы (без параметров адреса), нажатия на телефон, WhatsApp, акцию и чат, источник перехода (UTM-метки или сайт, с которого вы пришли), тип устройства и язык сайта. В аналитику не попадают IP-адрес, содержимое форм, текст сообщений и контакты; местоположение не определяется.",
           },
           {
             heading: "Как мы используем данные",
-            body: "Данные используются для связи с клиентом по заявке, подготовки коммерческого предложения и улучшения качества сервиса.",
+            body: "Данные используются для связи с клиентом по заявке, подготовки коммерческого предложения и улучшения качества сервиса. Если аналитика разрешена, сохранённая заявка или первое сообщение в чате связываются с посещением по внутреннему номеру — так менеджер видит, какие страницы привели к обращению. Контакты при этом в аналитику не копируются.",
           },
           {
             heading: "Передача данных третьим лицам",
@@ -160,7 +160,7 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
           },
           {
             heading: "Хранение и защита данных",
-            body: "Данные хранятся в защищённом виде и удаляются по запросу пользователя или по истечении срока, необходимого для обработки заявки.",
+            body: "Данные хранятся в защищённом виде и удаляются по запросу пользователя или по истечении срока, необходимого для обработки заявки. Подробные данные аналитики посещений хранятся не более 90 дней и затем удаляются автоматически.",
           },
           {
             heading: "Права пользователя",
@@ -208,15 +208,15 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
           },
           {
             heading: "Какие cookie мы используем",
-            body: "Технические cookie и локальное хранилище браузера — для сохранения выбранной темы оформления и языка интерфейса. Аналитические cookie в этом прототипе не подключены.",
+            body: "Необходимые: язык сайта (cookie compnet-locale, 1 год), идентификатор чата (cookie compnet_chat, 90 дней — чтобы сохранялась переписка), тема оформления и ваш выбор по аналитике (локальное хранилище браузера). Аналитические — только после согласия: случайные идентификаторы браузера и сессии и первый источник перехода в локальном хранилище браузера. Если владелец сайта подключит Google Analytics 4, его cookie (_ga) тоже устанавливаются только после согласия.",
           },
           {
             heading: "Управление cookie",
-            body: "Вы можете очистить или заблокировать cookie в настройках браузера — это может ограничить часть функциональности сайта, например сохранение темы оформления.",
+            body: "Решение об аналитике можно изменить в любой момент по ссылке «Настройки cookie» внизу сайта; при отказе аналитические идентификаторы удаляются из браузера. Также можно очистить или заблокировать cookie в настройках браузера — это может ограничить часть функциональности, например сохранение темы или истории чата.",
           },
           {
             heading: "Согласие на использование cookie",
-            body: "Продолжая пользоваться сайтом, вы соглашаетесь с использованием технических cookie, описанных в этом документе.",
+            body: "Необходимые cookie нужны для работы сайта и используются без отдельного согласия. Аналитика включается только после того, как вы нажмёте «Разрешить аналитику». Сайт, формы и чат работают одинаково и без согласия.",
           },
         ],
       },
@@ -345,11 +345,11 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
         sections: [
           {
             heading: "Қандай деректер жинаймыз",
-            body: "Өтінім формасын толтырған кезде біз атыңызды, телефоныңызды, email-іңізді және тапсырма сипаттамасын ала аламыз. Келулер туралы аналитикалық деректер иесіздендірілген түрде жиналады.",
+            body: "Өтінім формасынан — аты, телефон, email және тапсырма сипаттамасы; чаттан — хабарламалар және өзіңіз қалдырған байланыс. Келу аналитикасы — тек сіз рұқсат берсеңіз: браузердің кездейсоқ идентификаторы, қаралған беттер (мекенжай параметрлерінсіз), телефонды, WhatsApp-ты, акцияны және чатты басу, өту көзі (UTM-белгілер немесе сіз келген сайт), құрылғы түрі және сайт тілі. Аналитикаға IP-мекенжай, форма мазмұны, хабарлама мәтіні және байланыс деректері түспейді; орналасқан жер анықталмайды.",
           },
           {
             heading: "Деректерді қалай пайдаланамыз",
-            body: "Деректер клиентпен өтінім бойынша байланысу, коммерциялық ұсыныс дайындау және қызмет сапасын жақсарту үшін пайдаланылады.",
+            body: "Деректер клиентпен өтінім бойынша байланысу, коммерциялық ұсыныс дайындау және қызмет сапасын жақсарту үшін пайдаланылады. Аналитикаға рұқсат берілсе, сақталған өтінім немесе чаттағы алғашқы хабарлама келумен ішкі нөмір арқылы байланыстырылады — менеджер қандай беттер өтінішке әкелгенін көреді. Байланыс деректері аналитикаға көшірілмейді.",
           },
           {
             heading: "Деректерді үшінші тұлғаларға беру",
@@ -357,7 +357,7 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
           },
           {
             heading: "Деректерді сақтау және қорғау",
-            body: "Деректер қорғалған түрде сақталады және пайдаланушының сұрауы бойынша немесе өтінімді өңдеуге қажетті мерзім өткен соң жойылады.",
+            body: "Деректер қорғалған түрде сақталады және пайдаланушының сұрауы бойынша немесе өтінімді өңдеуге қажетті мерзім өткен соң жойылады. Келу аналитикасының толық деректері 90 күннен аспай сақталады, содан кейін автоматты түрде жойылады.",
           },
           {
             heading: "Пайдаланушының құқықтары",
@@ -405,15 +405,15 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
           },
           {
             heading: "Қандай cookie пайдаланамыз",
-            body: "Техникалық cookie және браузердің жергілікті жады — таңдалған безендіру тақырыбы мен интерфейс тілін сақтау үшін. Бұл прототипте аналитикалық cookie қосылмаған.",
+            body: "Қажеттілері: сайт тілі (compnet-locale cookie, 1 жыл), чат идентификаторы (compnet_chat cookie, 90 күн — хат алмасу сақталуы үшін), безендіру тақырыбы және аналитика бойынша таңдауыңыз (браузердің жергілікті жадында). Аналитикалық — тек келісімнен кейін: браузер мен сессияның кездейсоқ идентификаторлары және алғашқы өту көзі браузердің жергілікті жадында. Егер сайт иесі Google Analytics 4 қосса, оның cookie-лері (_ga) де тек келісімнен кейін орнатылады.",
           },
           {
             heading: "Cookie басқару",
-            body: "Cookie-ді браузер баптауларында тазалауға немесе бұғаттауға болады — бұл сайттың кейбір функцияларын, мысалы, безендіру тақырыбын сақтауды шектеуі мүмкін.",
+            body: "Аналитика бойынша шешімді сайттың төменгі жағындағы «Cookie баптаулары» сілтемесі арқылы кез келген уақытта өзгертуге болады; бас тартқанда аналитикалық идентификаторлар браузерден жойылады. Cookie-ді браузер баптауларында тазалауға немесе бұғаттауға да болады — бұл кейбір функцияларды, мысалы, тақырыпты немесе чат тарихын сақтауды шектеуі мүмкін.",
           },
           {
             heading: "Cookie пайдалануға келісім",
-            body: "Сайтты пайдалануды жалғастыра отырып, сіз осы құжатта сипатталған техникалық cookie-дің пайдаланылуымен келісесіз.",
+            body: "Қажетті cookie-лер сайттың жұмысы үшін керек және жеке келісімсіз пайдаланылады. Аналитика тек сіз «Аналитикаға рұқсат беру» батырмасын басқаннан кейін қосылады. Сайт, формалар мен чат келісімсіз де бірдей жұмыс істейді.",
           },
         ],
       },
@@ -542,11 +542,11 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
         sections: [
           {
             heading: "What data we collect",
-            body: "When you fill in the request form, we may receive your name, phone number, email and a description of your task. Visit analytics are collected in anonymised form.",
+            body: "From the request form — your name, phone number, email and task description; from the chat — the messages and any contact you chose to leave. Visit analytics only if you allowed them: a random browser identifier, the pages you viewed (without URL parameters), clicks on the phone number, WhatsApp, the promo and the chat, where you came from (UTM tags or the referring site), device type and site language. Analytics never include your IP address, form contents, message text or contacts; your location is not determined.",
           },
           {
             heading: "How we use the data",
-            body: "The data is used to contact you about your request, prepare a commercial proposal and improve the quality of our service.",
+            body: "The data is used to contact you about your request, prepare a commercial proposal and improve the quality of our service. If analytics are allowed, a saved request or a first chat message is linked to the visit by an internal number, so a manager can see which pages led to the inquiry. Contacts are not copied into the analytics.",
           },
           {
             heading: "Sharing data with third parties",
@@ -554,7 +554,7 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
           },
           {
             heading: "Storing and protecting data",
-            body: "Data is stored securely and deleted at the user's request or once it is no longer needed to process the request.",
+            body: "Data is stored securely and deleted at the user's request or once it is no longer needed to process the request. Detailed visit analytics are kept for at most 90 days and then deleted automatically.",
           },
           {
             heading: "Your rights",
@@ -601,15 +601,15 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
           },
           {
             heading: "Which cookies we use",
-            body: "Technical cookies and the browser's local storage, to remember the selected colour theme and interface language. Analytics cookies are not enabled in this prototype.",
+            body: "Necessary: the site language (cookie compnet-locale, 1 year), the chat identifier (cookie compnet_chat, 90 days, so your conversation is kept), the colour theme and your analytics choice (browser local storage). Analytics, only after consent: random browser and session identifiers and the first referral source in the browser's local storage. If the site owner enables Google Analytics 4, its cookies (_ga) are also set only after consent.",
           },
           {
             heading: "Managing cookies",
-            body: "You can clear or block cookies in your browser settings. This may limit some of the website's features, such as remembering the colour theme.",
+            body: "You can change your analytics choice at any time with the “Cookie settings” link at the bottom of the site; declining removes the analytics identifiers from your browser. You can also clear or block cookies in your browser settings, which may limit some features, such as remembering the theme or the chat history.",
           },
           {
             heading: "Consent to cookies",
-            body: "By continuing to use the website, you agree to the use of the technical cookies described in this document.",
+            body: "Necessary cookies are required for the site to work and are used without separate consent. Analytics are turned on only after you click “Allow analytics”. The site, forms and chat work the same without consent.",
           },
         ],
       },

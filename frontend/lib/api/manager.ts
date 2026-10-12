@@ -1,3 +1,4 @@
+import type { ApiAnalyticsReport, ApiAnalyticsSessionDetail } from "@/types/api/analytics";
 import type {
   ApiEnvelope,
   ApiInboxItem,
@@ -161,4 +162,13 @@ export function setConversationStatus(conversationId: string, status: "open" | "
 
 export function fetchUnreadCount(signal?: AbortSignal) {
   return request<ApiEnvelope<ApiUnreadCount>>("/unread-count", { signal });
+}
+
+/** Statistics for whole Asia/Almaty days [from, to] (YYYY-MM-DD). */
+export function fetchAnalyticsReport(from: string, to: string, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiAnalyticsReport>>(`/analytics/report${query({ from, to })}`, { signal });
+}
+
+export function fetchAnalyticsSession(id: string, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiAnalyticsSessionDetail>>(`/analytics/sessions/${encodeURIComponent(id)}`, { signal });
 }

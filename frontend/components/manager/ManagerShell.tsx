@@ -6,6 +6,7 @@ import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useCountdown } from "@/components/chat/useCountdown";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { useManagerRealtime } from "@/components/manager/ManagerRealtime";
+import { ManagerNav } from "@/components/manager/analytics/AnalyticsDashboard";
 import { fill } from "@/lib/i18n";
 import ConversationList from "@/components/manager/ConversationList";
 import ConversationView from "@/components/manager/ConversationView";
@@ -25,7 +26,10 @@ export default function ManagerShell({ user, onAuthError, onLogout }: ManagerShe
   const BASE_TITLE = t.manager.title;
   const realtime = useManagerRealtime();
   const [filter, setFilter] = useState<InboxFilter>("open");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // ?conversation=<id> (link from the statistics) opens that conversation.
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("conversation"),
+  );
   const [unsentStore] = useState<UnsentStore>(() => new Map());
   const [drafts] = useState<Map<string, string>>(() => new Map());
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -66,7 +70,7 @@ export default function ManagerShell({ user, onAuthError, onLogout }: ManagerShe
               COMP
               <span className="bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent">NET</span>
             </span>
-            <span className="hidden text-sm text-slate-400 light:text-slate-600 lg:inline">{sh.section}</span>
+            <ManagerNav current="inbox" />
             <span
               className="inline-flex items-center gap-1.5 rounded-full border border-[var(--text-primary)]/15 px-2.5 py-1 text-xs text-slate-300 light:text-slate-700"
               title={sh.unreadTitle}

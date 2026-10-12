@@ -19,12 +19,17 @@ import (
 	"github.com/almukha/compnet-backend/internal/app"
 	"github.com/almukha/compnet-backend/internal/config"
 	"github.com/almukha/compnet-backend/internal/database"
+	"github.com/almukha/compnet-backend/internal/jobs"
 	"github.com/almukha/compnet-backend/internal/staffcli"
 )
 
 // shutdownTimeout bounds how long in-flight requests get to finish once a
 // shutdown signal is received.
 const shutdownTimeout = 10 * time.Second
+
+// analyticsCleanupInterval: how often analytics older than the retention
+// period are deleted (also once at startup).
+const analyticsCleanupInterval = 6 * time.Hour
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "create-staff" {
@@ -91,6 +96,9 @@ func run() error {
 		return err
 	}
 
+	// Background jobs stop with the process (ctx is cancelled on SIGTERM).
+	jobsDone := jobs.Periodic(ctx, "analytics retention", analyticsCleanupInterval, application.Analytics.Purge)
+
 	srv := &http.Server{
 		Addr:    ":" + cfg.AppPort,
 		Handler: application.Engine,
@@ -126,6 +134,7 @@ func run() error {
 		return shutdownErr
 	}
 
+	<-jobsDone
 	log.Println("api: shutdown complete")
 	return nil
 }

@@ -1,4 +1,6 @@
 export interface CreateProjectRequestPayload {
+  /** With analytics consent only: lets the server link the saved request to the visit. */
+  analytics_session_id?: string;
   name: string;
   phone: string;
   email: string;

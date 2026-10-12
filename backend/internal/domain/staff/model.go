@@ -31,6 +31,16 @@ func (r Role) CanUseManagerSection() bool {
 	return managerRoles[r]
 }
 
+// analyticsRoles may open the statistics. Today every manager role; narrow
+// this map (e.g. admin only) to restrict it — the API checks it on every
+// request.
+var analyticsRoles = map[Role]bool{RoleManager: true, RoleAdmin: true}
+
+// CanViewAnalytics reports whether the role may read the visit statistics.
+func (r Role) CanViewAnalytics() bool {
+	return analyticsRoles[r]
+}
+
 // Limits shared by validation and the database CHECK constraints.
 const (
 	MaxEmailLength       = 254

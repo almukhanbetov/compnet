@@ -60,16 +60,34 @@ func (noPublisher) MessageStored(context.Context, chat.Message)     {}
 func (noPublisher) ReadMarked(context.Context, string, chat.Author) {}
 func (noPublisher) ConversationChanged(context.Context, string)     {}
 
+// ConversionRecorder links a conversation to the visitor's analytics
+// session when its first visitor message is stored (best effort).
+type ConversionRecorder interface {
+	ChatMessageStored(ctx context.Context, analyticsSessionID, conversationID string)
+}
+
+type noRecorder struct{}
+
+func (noRecorder) ChatMessageStored(context.Context, string, string) {}
+
 // Service implements the visitor chat use cases.
 type Service struct {
-	repo      Repository
-	limits    Limits
-	publisher Publisher
+	repo        Repository
+	limits      Limits
+	publisher   Publisher
+	conversions ConversionRecorder
+}
+
+// SetConversionRecorder enables linking conversations to analytics sessions.
+func (s *Service) SetConversionRecorder(r ConversionRecorder) {
+	if r != nil {
+		s.conversions = r
+	}
 }
 
 // NewService builds a Service backed by the given Repository and limiters.
 func NewService(repo Repository, limits Limits) *Service {
-	return &Service{repo: repo, limits: limits, publisher: noPublisher{}}
+	return &Service{repo: repo, limits: limits, publisher: noPublisher{}, conversions: noRecorder{}}
 }
 
 // SetPublisher enables realtime events.
@@ -281,6 +299,11 @@ func (s *Service) SendMessage(ctx context.Context, in SendMessageInput) (SendMes
 	// Committed. Announce it — also for a retry, in case the first announce
 	// was lost between commit and publish; receivers drop repeats by id.
 	s.publisher.MessageStored(ctx, saved)
+	if req.AnalyticsSessionID != "" {
+		// Counted only if this is the conversation's first visitor message
+		// (checked in the database), once per conversation.
+		s.conversions.ChatMessageStored(ctx, req.AnalyticsSessionID, conv.ID)
+	}
 	return SendMessageResult{Message: saved, Created: created}, nil
 }
 

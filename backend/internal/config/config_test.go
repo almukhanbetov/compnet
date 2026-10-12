@@ -10,7 +10,7 @@ func setBaseEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
-	for _, key := range []string{"APP_ENV", "TRUSTED_PROXIES", "COOKIE_SECURE", "COOKIE_SAMESITE", "CHAT_COOKIE_TTL", "MANAGER_SESSION_TTL"} {
+	for _, key := range []string{"APP_ENV", "TRUSTED_PROXIES", "COOKIE_SECURE", "COOKIE_SAMESITE", "CHAT_COOKIE_TTL", "MANAGER_SESSION_TTL", "ANALYTICS_ENABLED", "ANALYTICS_RETENTION_DAYS", "ANALYTICS_ALLOW_LOCAL", "GA4_MEASUREMENT_ID"} {
 		t.Setenv(key, "")
 	}
 }
@@ -40,17 +40,21 @@ func TestLoad_ProductionDefaultsToSecure(t *testing.T) {
 
 func TestLoad_Rejects(t *testing.T) {
 	tests := map[string]map[string]string{
-		"wildcard origin":        {"CORS_ALLOWED_ORIGINS": "*"},
-		"wildcard subdomain":     {"CORS_ALLOWED_ORIGINS": "https://*.compnet.kz"},
-		"insecure in production": {"APP_ENV": "production", "COOKIE_SECURE": "false"},
-		"samesite none insecure": {"COOKIE_SAMESITE": "none", "COOKIE_SECURE": "false"},
-		"bad samesite":           {"COOKIE_SAMESITE": "sometimes"},
-		"bad bool":               {"COOKIE_SECURE": "yes please"},
-		"bad ttl":                {"CHAT_COOKIE_TTL": "forever"},
-		"negative ttl":           {"CHAT_COOKIE_TTL": "-1h"},
-		"bad proxy":              {"TRUSTED_PROXIES": "nginx"},
-		"manager ttl too short":  {"MANAGER_SESSION_TTL": "1m"},
-		"manager ttl too long":   {"MANAGER_SESSION_TTL": "720h"},
+		"wildcard origin":         {"CORS_ALLOWED_ORIGINS": "*"},
+		"wildcard subdomain":      {"CORS_ALLOWED_ORIGINS": "https://*.compnet.kz"},
+		"insecure in production":  {"APP_ENV": "production", "COOKIE_SECURE": "false"},
+		"samesite none insecure":  {"COOKIE_SAMESITE": "none", "COOKIE_SECURE": "false"},
+		"bad samesite":            {"COOKIE_SAMESITE": "sometimes"},
+		"bad bool":                {"COOKIE_SECURE": "yes please"},
+		"bad ttl":                 {"CHAT_COOKIE_TTL": "forever"},
+		"negative ttl":            {"CHAT_COOKIE_TTL": "-1h"},
+		"bad proxy":               {"TRUSTED_PROXIES": "nginx"},
+		"manager ttl too short":   {"MANAGER_SESSION_TTL": "1m"},
+		"manager ttl too long":    {"MANAGER_SESSION_TTL": "720h"},
+		"retention zero":          {"ANALYTICS_RETENTION_DAYS": "0"},
+		"retention not a number":  {"ANALYTICS_RETENTION_DAYS": "ninety"},
+		"fake ga4 id":             {"GA4_MEASUREMENT_ID": "UA-12345"},
+		"local analytics in prod": {"APP_ENV": "production", "ANALYTICS_ALLOW_LOCAL": "true"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {

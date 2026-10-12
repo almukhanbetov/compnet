@@ -199,6 +199,7 @@ export interface Translations {
   portfolio: import("@/data/i18n/portfolio").PortfolioTranslations;
   chat: import("@/data/i18n/chat").ChatTranslations;
   manager: import("@/data/i18n/manager").ManagerTranslations;
+  consent: import("@/data/i18n/consent").ConsentTranslations;
   header: HeaderTranslations;
   hero: HeroTranslations;
   promo: PromoTranslations;

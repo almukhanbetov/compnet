@@ -27,6 +27,10 @@ type SendChatMessageRequest struct {
 	Body            string `json:"body"`
 	// Website is a honeypot: the real widget never fills it, bots often do.
 	Website string `json:"website"`
+	// AnalyticsSessionID is the browser's analytics session (only sent
+	// after analytics consent). Used to link the conversation to the visit;
+	// never required, never trusted for anything else.
+	AnalyticsSessionID string `json:"analytics_session_id,omitempty"`
 }
 
 // NormalizedChatBody trims surrounding whitespace and unifies line endings.

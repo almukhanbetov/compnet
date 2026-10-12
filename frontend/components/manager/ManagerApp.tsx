@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert, WifiOff } from "lucide-react";
 import ManagerShell from "@/components/manager/ManagerShell";
+import AnalyticsDashboard from "@/components/manager/analytics/AnalyticsDashboard";
 import { ManagerRealtimeProvider } from "@/components/manager/ManagerRealtime";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { fetchMe, logout } from "@/lib/api/manager";
@@ -22,7 +23,11 @@ type Gate =
  * on (expired, revoked, deactivated) unmounts the whole section — polling
  * stops and loaded data is dropped — and sends the user to the login page.
  */
-export default function ManagerApp() {
+/**
+ * section: "inbox" (/manager) or "analytics" (/manager/analytics). Both use
+ * the same session check; the statistics API additionally checks the role.
+ */
+export default function ManagerApp({ section = "inbox" }: { section?: "inbox" | "analytics" }) {
   const router = useRouter();
   const { t } = useLocale();
   const g = t.manager.gate;
@@ -74,6 +79,10 @@ export default function ManagerApp() {
     }
     return result.kind === "network_error" ? g.logoutNetwork : g.logoutFailed;
   }, [router, g.logoutNetwork, g.logoutFailed]);
+
+  if (gate.kind === "authed" && section === "analytics") {
+    return <AnalyticsDashboard user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />;
+  }
 
   if (gate.kind === "authed") {
     return (

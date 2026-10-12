@@ -55,6 +55,9 @@ type CreateProjectRequestRequest struct {
 	ContactMethod   string                   `json:"contact_method"`
 	Consent         bool                     `json:"consent"`
 	Calculator      CalculatorSelectionInput `json:"calculator"`
+	// AnalyticsSessionID links the saved request to the visit (only sent
+	// after analytics consent; optional, ignored when unknown).
+	AnalyticsSessionID string `json:"analytics_session_id,omitempty"`
 }
 
 // NormalizedPhone strips everything except digits and a leading '+', the

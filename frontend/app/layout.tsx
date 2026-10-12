@@ -5,6 +5,7 @@ import "./globals.css";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import ChatWidgetLoader from "@/components/chat/ChatWidgetLoader";
+import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,6 +44,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
             <LocaleProvider initialLocale={locale}>
               {children}
               <ChatWidgetLoader />
+              <AnalyticsProvider />
             </LocaleProvider>
           </ThemeProvider>
         </MotionConfig>

@@ -25,6 +25,8 @@ import type {
 } from "@/types/contactPage";
 import { buildProjectRequestPayload } from "@/lib/api/projectRequestMapping";
 import { submitProjectRequest } from "@/lib/api/projectRequests";
+import { analyticsSessionId } from "@/lib/analytics/tracker";
+import { ga4Event } from "@/lib/analytics/ga4";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { byId, fill } from "@/lib/i18n";
 import { translateDuration } from "@/data/i18n/catalog";
@@ -161,11 +163,14 @@ export default function ProjectEstimateForm() {
     }
 
     setIsSubmitting(true);
-    const result = await submitProjectRequest(payload);
+    const result = await submitProjectRequest({ ...payload, analytics_session_id: analyticsSessionId() });
     setIsSubmitting(false);
 
     if (result.kind === "success") {
       setSubmitResult(result.data);
+      // GA4 (if configured and consented) learns only that a request was
+      // saved — confirmed by the server, never with contacts or ids.
+      ga4Event("lead_confirmed", window.location.pathname);
       return;
     }
 

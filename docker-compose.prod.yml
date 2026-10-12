@@ -49,6 +49,11 @@ services:
       COOKIE_SAMESITE: lax
       CHAT_COOKIE_TTL: ${CHAT_COOKIE_TTL:-2160h}
       MANAGER_SESSION_TTL: ${MANAGER_SESSION_TTL:-12h}
+      # Visit analytics (docs/ANALYTICS.md): off unless ANALYTICS_ENABLED=true.
+      ANALYTICS_ENABLED: ${ANALYTICS_ENABLED:-false}
+      ANALYTICS_RETENTION_DAYS: ${ANALYTICS_RETENTION_DAYS:-90}
+      # Optional GA4, only with a real measurement id (empty = no GA4).
+      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
     depends_on:
       postgres:
         condition: service_healthy

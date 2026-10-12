@@ -95,7 +95,14 @@ export interface ManagerConversationData {
 
 /** Client → server frames. */
 export type RealtimeFrame =
-  | { type: "send_message"; client_message_id: string; body: string; conversation_id?: string }
+  | {
+      type: "send_message";
+      client_message_id: string;
+      body: string;
+      conversation_id?: string;
+      /** Visitor only, with analytics consent: links the first message to the visit. */
+      analytics_session_id?: string;
+    }
   | { type: "mark_read"; last_message_id: number; conversation_id?: string }
   | { type: "typing"; is_typing: boolean; conversation_id?: string }
   | { type: "ping" };

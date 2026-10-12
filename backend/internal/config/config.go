@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -35,6 +36,24 @@ type Config struct {
 	// TCP peer address.
 	TrustedProxies []string
 	Cookie         CookieConfig
+	Analytics      AnalyticsConfig
+}
+
+// AnalyticsConfig controls the first-party visit analytics.
+type AnalyticsConfig struct {
+	// Enabled turns event collection on. Off: the public endpoint accepts
+	// and drops everything, nothing is linked to requests or chats, and the
+	// statistics page says so.
+	Enabled bool
+	// RetentionDays: detailed sessions and events older than this are
+	// deleted by the background cleanup (default 90).
+	RetentionDays int
+	// AllowLocal accepts events from localhost origins and headless
+	// browsers — for local testing only, never in production.
+	AllowLocal bool
+	// GA4MeasurementID ("G-…") enables the optional Google Analytics 4
+	// integration in browsers that consented. Empty: no GA4 at all.
+	GA4MeasurementID string
 }
 
 // CookieConfig controls the attributes of cookies the API sets.
@@ -90,6 +109,25 @@ func Load() (Config, error) {
 	}
 	cfg.Cookie = CookieConfig{Secure: secure, SameSite: sameSite, ChatTTL: ttl, ManagerSessionTTL: managerTTL}
 
+	analyticsEnabled, err := parseBool("ANALYTICS_ENABLED", false)
+	if err != nil {
+		return Config{}, err
+	}
+	allowLocal, err := parseBool("ANALYTICS_ALLOW_LOCAL", false)
+	if err != nil {
+		return Config{}, err
+	}
+	retention, err := parseInt("ANALYTICS_RETENTION_DAYS", 90)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Analytics = AnalyticsConfig{
+		Enabled:          analyticsEnabled,
+		RetentionDays:    retention,
+		AllowLocal:       allowLocal,
+		GA4MeasurementID: strings.TrimSpace(getEnv("GA4_MEASUREMENT_ID", "")),
+	}
+
 	if err := cfg.validate(); err != nil {
 		return Config{}, err
 	}
@@ -134,7 +172,30 @@ func (c Config) validate() error {
 	if c.Cookie.ManagerSessionTTL < 5*time.Minute || c.Cookie.ManagerSessionTTL > 7*24*time.Hour {
 		return fmt.Errorf("config: MANAGER_SESSION_TTL must be between 5m and 168h")
 	}
+	if c.Analytics.RetentionDays < 1 || c.Analytics.RetentionDays > 3650 {
+		return fmt.Errorf("config: ANALYTICS_RETENTION_DAYS must be between 1 and 3650")
+	}
+	if id := c.Analytics.GA4MeasurementID; id != "" && !ga4Pattern.MatchString(id) {
+		return fmt.Errorf("config: GA4_MEASUREMENT_ID must look like G-XXXXXXXXXX (or be empty)")
+	}
+	if c.IsProduction() && c.Analytics.AllowLocal {
+		return fmt.Errorf("config: ANALYTICS_ALLOW_LOCAL must not be enabled in production")
+	}
 	return nil
+}
+
+var ga4Pattern = regexp.MustCompile(`^G-[A-Z0-9]{4,16}$`)
+
+func parseInt(key string, fallback int) (int, error) {
+	raw := getEnv(key, "")
+	if raw == "" {
+		return fallback, nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("config: %s must be an integer", key)
+	}
+	return value, nil
 }
 
 func parseBool(key string, fallback bool) (bool, error) {
