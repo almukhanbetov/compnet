@@ -1,0 +1,2 @@
+# Unified diffs: context lines of empty lines are a single space by format.
+deploy/nginx/*.patch -whitespace

@@ -16,41 +16,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/almukha/compnet-backend/internal/app"
 	"github.com/almukha/compnet-backend/internal/config"
 	"github.com/almukha/compnet-backend/internal/database"
-	"github.com/almukha/compnet-backend/internal/http/handler"
-	"github.com/almukha/compnet-backend/internal/http/router"
-	"github.com/almukha/compnet-backend/internal/ratelimit"
-	"github.com/almukha/compnet-backend/internal/repository/postgres"
-	"github.com/almukha/compnet-backend/internal/security"
-	chatsvc "github.com/almukha/compnet-backend/internal/service/chat"
-	contentsvc "github.com/almukha/compnet-backend/internal/service/content"
-	"github.com/almukha/compnet-backend/internal/service/managerchat"
-	projectrequestsvc "github.com/almukha/compnet-backend/internal/service/projectrequest"
-	"github.com/almukha/compnet-backend/internal/service/staffauth"
 	"github.com/almukha/compnet-backend/internal/staffcli"
 )
 
 // shutdownTimeout bounds how long in-flight requests get to finish once a
 // shutdown signal is received.
 const shutdownTimeout = 10 * time.Second
-
-// Chat anti-spam limits (in-memory, per backend process).
-var (
-	// All chat requests per client IP, including polling every few seconds
-	// from several tabs or an office behind one NAT address.
-	chatIPLimiter = func() *ratelimit.Limiter { return ratelimit.New(120, time.Minute, 40) }
-	// Messages one conversation may send.
-	chatMessageLimiter = func() *ratelimit.Limiter { return ratelimit.New(10, time.Minute, 5) }
-	// New conversations one IP may start.
-	chatNewConversationLimiter = func() *ratelimit.Limiter { return ratelimit.New(5, time.Hour, 3) }
-	// Login attempts (successful ones included): per client IP and per
-	// target email, 5 at once, then one every 3 minutes.
-	loginIPLimiter    = func() *ratelimit.Limiter { return ratelimit.New(5, 15*time.Minute, 5) }
-	loginEmailLimiter = func() *ratelimit.Limiter { return ratelimit.New(5, 15*time.Minute, 5) }
-	// All manager API requests per IP (an open inbox polls every few seconds).
-	managerIPLimiter = func() *ratelimit.Limiter { return ratelimit.New(300, time.Minute, 100) }
-)
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "create-staff" {
@@ -62,14 +36,6 @@ func main() {
 	if err := run(); err != nil {
 		log.Fatalf("api: %v", err)
 	}
-}
-
-func newStaffAuthService(repo *postgres.StaffRepository, cfg config.Config) (*staffauth.Service, error) {
-	return staffauth.NewService(repo, security.BcryptHasher{Cost: security.DefaultBcryptCost}, staffauth.Options{
-		SessionTTL:   cfg.Cookie.ManagerSessionTTL,
-		LoginByIP:    loginIPLimiter(),
-		LoginByEmail: loginEmailLimiter(),
-	})
 }
 
 func runCreateStaff(rawArgs []string) error {
@@ -91,7 +57,7 @@ func runCreateStaff(rawArgs []string) error {
 	}
 	defer pool.Close()
 
-	service, err := newStaffAuthService(postgres.NewStaffRepository(pool), cfg)
+	service, err := app.NewStaffAuthService(pool, cfg, app.DefaultLimiters())
 	if err != nil {
 		return err
 	}
@@ -113,59 +79,21 @@ func run() error {
 	}
 	defer pool.Close()
 
-	healthHandler := handler.NewHealthHandler(pool)
-
-	projectRequestRepo := postgres.NewProjectRequestRepository(pool)
-	projectRequestService := projectrequestsvc.NewService(projectRequestRepo)
-	projectRequestHandler := handler.NewProjectRequestHandler(projectRequestService)
-
-	contentRepo := postgres.NewContentRepository(pool)
-	contentService := contentsvc.NewService(contentRepo)
-	contentHandler := handler.NewContentHandler(contentService)
-
-	chatRepo := postgres.NewChatRepository(pool)
-	chatService := chatsvc.NewService(chatRepo, chatsvc.Limits{
-		NewConversation: chatNewConversationLimiter(),
-		Messages:        chatMessageLimiter(),
-	})
-	chatHandler := handler.NewChatHandler(chatService, handler.ChatCookieSettings{
-		Secure:   cfg.Cookie.Secure,
-		SameSite: cfg.Cookie.SameSite,
-		TTL:      cfg.Cookie.ChatTTL,
-	})
-
-	staffAuthService, err := newStaffAuthService(postgres.NewStaffRepository(pool), cfg)
-	if err != nil {
-		return err
-	}
-	managerAuthHandler := handler.NewManagerAuthHandler(staffAuthService, handler.ManagerCookieSettings{Secure: cfg.Cookie.Secure})
-	managerChatHandler := handler.NewManagerChatHandler(managerchat.NewService(chatRepo))
-
 	log.Printf("api: trusted proxies: %v", cfg.TrustedProxies)
 	if cfg.IsProduction() && len(cfg.TrustedProxies) == 0 {
 		log.Println("api: warning: TRUSTED_PROXIES is empty — behind a reverse proxy every visitor shares the proxy's IP for rate limiting")
 	}
 
-	engine, err := router.New(router.Deps{
-		Health:             healthHandler,
-		ProjectRequest:     projectRequestHandler,
-		Content:            contentHandler,
-		Chat:               chatHandler,
-		ChatIPLimiter:      chatIPLimiter(),
-		ManagerAuth:        managerAuthHandler,
-		ManagerChat:        managerChatHandler,
-		StaffAuth:          staffAuthService,
-		ManagerIPLimiter:   managerIPLimiter(),
-		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
-		TrustedProxies:     cfg.TrustedProxies,
-	})
+	// One in-memory realtime hub: this must be the only backend process
+	// (docker-compose.prod.yml runs exactly one). See docs/CHAT_REALTIME.md.
+	application, err := app.Build(pool, cfg, app.Options{})
 	if err != nil {
 		return err
 	}
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.AppPort,
-		Handler: engine,
+		Handler: application.Engine,
 	}
 
 	serverErr := make(chan error, 1)
@@ -188,8 +116,14 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		return err
+	// Stop accepting connections and let HTTP requests finish, then close
+	// the WebSockets ourselves (http.Server.Shutdown does not track hijacked
+	// connections) with "going away", so clients reconnect to the new
+	// process and re-read the history from PostgreSQL.
+	shutdownErr := srv.Shutdown(shutdownCtx)
+	application.Hub.Shutdown(shutdownCtx)
+	if shutdownErr != nil {
+		return shutdownErr
 	}
 
 	log.Println("api: shutdown complete")

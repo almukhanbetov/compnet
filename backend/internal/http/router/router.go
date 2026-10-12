@@ -23,6 +23,8 @@ type Deps struct {
 	ChatIPLimiter middleware.Limiter
 	ManagerAuth   *handler.ManagerAuthHandler
 	ManagerChat   *handler.ManagerChatHandler
+	// Realtime serves the visitor and manager WebSockets.
+	Realtime *handler.RealtimeHandler
 	// StaffAuth authenticates every manager request from its session cookie.
 	StaffAuth middleware.Authenticator
 	// ManagerIPLimiter bounds all manager API requests per IP (login has
@@ -73,6 +75,9 @@ func New(deps Deps) (*gin.Engine, error) {
 	chatGroup.POST("/messages", deps.Chat.SendMessage)
 	chatGroup.POST("/read", deps.Chat.MarkRead)
 	chatGroup.PUT("/contact", deps.Chat.UpdateContact)
+	// WebSocket under /api/v1/chat, so the visitor cookie (Path=/api/v1/chat)
+	// is sent with the handshake.
+	chatGroup.GET("/ws", deps.Realtime.Visitor)
 
 	manager := v1.Group("/manager",
 		middleware.NoStore(),
@@ -91,6 +96,7 @@ func New(deps Deps) (*gin.Engine, error) {
 	staffOnly.POST("/conversations/:id/read", deps.ManagerChat.MarkRead)
 	staffOnly.PATCH("/conversations/:id", deps.ManagerChat.UpdateConversation)
 	staffOnly.GET("/unread-count", deps.ManagerChat.UnreadCount)
+	staffOnly.GET("/ws", deps.Realtime.Manager)
 
 	return engine, nil
 }

@@ -85,6 +85,42 @@ func (f *fakeRepo) ListMessages(_ context.Context, convID string, after int64, l
 	return out, nil
 }
 
+// ListMessagePage mirrors the PostgreSQL window: before an id (or the
+// newest), returned oldest first.
+func (f *fakeRepo) ListMessagePage(_ context.Context, convID string, p chat.MessagePage) ([]chat.Message, error) {
+	var picked []chat.Message
+	for i := len(f.messages) - 1; i >= 0 && len(picked) < p.Limit; i-- {
+		m := f.messages[i]
+		if m.ConversationID == convID && (p.BeforeID == 0 || m.ID < p.BeforeID) {
+			picked = append(picked, m)
+		}
+	}
+	for i, j := 0, len(picked)-1; i < j; i, j = i+1, j-1 {
+		picked[i], picked[j] = picked[j], picked[i]
+	}
+	if picked == nil {
+		picked = []chat.Message{}
+	}
+	return picked, nil
+}
+
+// recordingPublisher records what the service announces.
+type recordingPublisher struct {
+	stored  []chat.Message
+	reads   []chat.Author
+	changed []string
+}
+
+func (r *recordingPublisher) MessageStored(_ context.Context, m chat.Message) {
+	r.stored = append(r.stored, m)
+}
+func (r *recordingPublisher) ReadMarked(_ context.Context, _ string, a chat.Author) {
+	r.reads = append(r.reads, a)
+}
+func (r *recordingPublisher) ConversationChanged(_ context.Context, id string) {
+	r.changed = append(r.changed, id)
+}
+
 func (f *fakeRepo) MarkVisitorRead(_ context.Context, convID string, id int64) error {
 	for _, m := range f.messages {
 		if m.ConversationID == convID && m.ID == id {
@@ -440,5 +476,60 @@ func TestSanitizePageURL(t *testing.T) {
 		if got := sanitizePageURL(in); got != want {
 			t.Errorf("sanitizePageURL(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestListHistory_TailAndBefore(t *testing.T) {
+	s, _ := newService()
+	ctx := context.Background()
+	token := startSession(t, s, "").NewToken
+	for i := 0; i < 7; i++ {
+		send(t, s, token, fmt.Sprintf("00000000-0000-4000-8000-%012d", i), fmt.Sprintf("m%d", i))
+	}
+
+	page, err := s.ListHistory(ctx, token, 0, 3)
+	if err != nil || len(page.Messages) != 3 || !page.HasMore || page.Messages[2].Body != "m6" || page.Messages[0].Body != "m4" {
+		t.Fatalf("tail: %+v err=%v", page, err)
+	}
+	older, err := s.ListHistory(ctx, token, page.Messages[0].ID, 10)
+	if err != nil || len(older.Messages) != 4 || older.HasMore || older.Messages[0].Body != "m0" {
+		t.Fatalf("before: %+v err=%v", older, err)
+	}
+	if _, err := s.ListHistory(ctx, token, -1, 10); err == nil {
+		t.Fatal("negative before must be rejected")
+	}
+	if page, _ := s.ListHistory(ctx, "", 0, 10); len(page.Messages) != 0 || page.Exists {
+		t.Fatal("no session: empty page")
+	}
+}
+
+// Every committed change is announced, and a retried send is announced
+// again (the first announce may have been lost between commit and publish).
+func TestPublisher_CalledAfterCommit(t *testing.T) {
+	s, _ := newService()
+	pub := &recordingPublisher{}
+	s.SetPublisher(pub)
+	ctx := context.Background()
+	token := startSession(t, s, "").NewToken
+
+	id := "11111111-1111-4111-8111-111111111111"
+	first := send(t, s, token, id, "hello")
+	again := send(t, s, token, id, "hello")
+	if len(pub.stored) != 2 || pub.stored[0].ID != first.Message.ID || pub.stored[1].ID != again.Message.ID || again.Created {
+		t.Fatalf("stored announces: %+v", pub.stored)
+	}
+
+	if _, err := s.SendMessage(ctx, SendMessageInput{Token: token, Request: dto.SendChatMessageRequest{ClientMessageID: "bad", Body: "x"}}); err == nil {
+		t.Fatal("invalid message must fail")
+	}
+	if len(pub.stored) != 2 {
+		t.Fatal("a refused message must not be announced")
+	}
+
+	if _, err := s.UpdateContact(ctx, token, dto.UpdateChatContactRequest{Contact: "+77001112233"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(pub.changed) != 1 {
+		t.Fatalf("contact change not announced: %+v", pub.changed)
 	}
 }

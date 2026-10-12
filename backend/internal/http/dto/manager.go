@@ -82,7 +82,7 @@ func NewManagerMessageResponse(m chat.Message) ManagerMessageResponse {
 		ClientMessageID: m.ClientMessageID,
 		StaffUserID:     m.StaffUserID,
 		StaffName:       m.StaffDisplayName,
-		CreatedAt:       m.CreatedAt,
+		CreatedAt:       m.CreatedAt.UTC(),
 	}
 }
 
@@ -123,8 +123,8 @@ func NewManagerConversationResponse(c chat.Conversation) ManagerConversationResp
 		ManagerLastReadID: c.ManagerLastReadID,
 		VisitorLastReadID: c.VisitorLastReadID,
 		LastMessageID:     c.LastMessageID,
-		LastMessageAt:     c.LastMessageAt,
-		CreatedAt:         c.CreatedAt,
+		LastMessageAt:     utcPtr(c.LastMessageAt),
+		CreatedAt:         c.CreatedAt.UTC(),
 	}
 }
 
@@ -157,7 +157,7 @@ func NewManagerInboxResponse(items []chat.ConversationSummary) []ManagerInboxIte
 				ID:        item.LastMessage.ID,
 				Author:    string(item.LastMessage.Author),
 				Body:      preview,
-				CreatedAt: item.LastMessage.CreatedAt,
+				CreatedAt: item.LastMessage.CreatedAt.UTC(),
 			}
 		}
 		result = append(result, row)

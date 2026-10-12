@@ -2,8 +2,12 @@ import type { ChatFailure } from "@/data/i18n/chat";
 
 export type ChatAuthor = "visitor" | "manager" | "system";
 
-/** sending → sent, or sending → failed → (retry) sending → sent. */
-export type ChatDeliveryStatus = "sending" | "sent" | "failed";
+/**
+ * sending → sent (server confirmed) → read (the other side has shown it),
+ * or sending → failed → (retry) sending → sent. Nothing is "sent" before
+ * the server's confirmation.
+ */
+export type ChatDeliveryStatus = "sending" | "sent" | "read" | "failed";
 
 export interface ChatMessage {
   /** Stable React key: client_message_id for own messages, server id otherwise. */

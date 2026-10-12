@@ -28,6 +28,7 @@ const (
 type ChatService interface {
 	GetConversation(ctx context.Context, token string) (chat.Conversation, bool, error)
 	ListMessages(ctx context.Context, token string, afterID int64) (chatsvc.MessagePage, error)
+	ListHistory(ctx context.Context, token string, beforeID int64, limit int) (chatsvc.MessagePage, error)
 	StartSession(ctx context.Context, in chatsvc.StartSessionInput) (chatsvc.StartSessionResult, error)
 	SendMessage(ctx context.Context, in chatsvc.SendMessageInput) (chatsvc.SendMessageResult, error)
 	MarkRead(ctx context.Context, token string, req dto.MarkChatReadRequest) (chat.Conversation, error)
@@ -45,8 +46,22 @@ type ChatCookieSettings struct {
 // identified only by the HttpOnly cookie; no request carries a
 // conversation id.
 type ChatHandler struct {
-	service ChatService
-	cookie  ChatCookieSettings
+	service  ChatService
+	cookie   ChatCookieSettings
+	presence Presence
+}
+
+// Presence reports whether a manager is connected right now (the realtime
+// hub). Without it, managers_online is always false.
+type Presence interface {
+	ManagersOnline() bool
+}
+
+// SetPresence enables managers_online in GET /api/v1/chat.
+func (h *ChatHandler) SetPresence(p Presence) { h.presence = p }
+
+func (h *ChatHandler) managersOnline() bool {
+	return h.presence != nil && h.presence.ManagersOnline()
 }
 
 // NewChatHandler wires the handler with its service and cookie settings.
@@ -55,7 +70,8 @@ func NewChatHandler(service ChatService, cookie ChatCookieSettings) *ChatHandler
 }
 
 // Get handles GET /api/v1/chat: the visitor's conversation summary, or
-// data=null when they have not written yet.
+// data=null when they have not written yet. meta.managers_online is true
+// only while a manager has a live, authenticated realtime connection.
 func (h *ChatHandler) Get(c *gin.Context) {
 	token := h.token(c)
 	conv, exists, err := h.service.GetConversation(c.Request.Context(), token)
@@ -63,40 +79,75 @@ func (h *ChatHandler) Get(c *gin.Context) {
 		apierr.Write(c, err)
 		return
 	}
+	meta := gin.H{"managers_online": h.managersOnline()}
 	if !exists {
-		response.OK(c, nil)
+		response.OKWithMeta(c, nil, meta)
 		return
 	}
 
 	h.setCookie(c, token) // sliding expiry while the visitor is active
-	response.OK(c, dto.NewChatConversationResponse(conv))
+	response.OKWithMeta(c, dto.NewChatConversationResponse(conv), meta)
 }
 
-// ListMessages handles GET /api/v1/chat/messages?after=<id>.
+// ListMessages handles GET /api/v1/chat/messages:
+//
+//	?after=<id>             messages newer than id (reconciliation), oldest first
+//	?tail=1[&limit=n]       the newest n messages
+//	?before=<id>[&limit=n]  the n messages before id (older history)
+//
+// meta.has_more means more newer messages (after) or older ones (tail/before).
 func (h *ChatHandler) ListMessages(c *gin.Context) {
-	var after int64
-	if raw := c.Query("after"); raw != "" {
-		parsed, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil {
-			apierr.Write(c, apperr.Validation("проверьте параметры запроса", map[string]string{
-				"after": "нужно целое число",
-			}))
-			return
-		}
-		after = parsed
+	after, ok := queryInt(c, "after")
+	if !ok {
+		return
+	}
+	before, ok := queryInt(c, "before")
+	if !ok {
+		return
+	}
+	limit, ok := queryInt(c, "limit")
+	if !ok {
+		return
 	}
 
-	page, err := h.service.ListMessages(c.Request.Context(), h.token(c), after)
+	var (
+		page chatsvc.MessagePage
+		err  error
+	)
+	if before > 0 || c.Query("tail") == "1" {
+		page, err = h.service.ListHistory(c.Request.Context(), h.token(c), before, int(limit))
+	} else {
+		page, err = h.service.ListMessages(c.Request.Context(), h.token(c), after)
+	}
 	if err != nil {
 		apierr.Write(c, err)
 		return
 	}
 
 	response.OKWithMeta(c, dto.NewChatMessageListResponse(page.Messages), gin.H{
-		"has_more":     page.HasMore,
-		"unread_count": page.Conversation.UnreadForVisitor,
-		"last_read_id": page.Conversation.VisitorLastReadID,
+		"has_more":             page.HasMore,
+		"unread_count":         page.Conversation.UnreadForVisitor,
+		"last_read_id":         page.Conversation.VisitorLastReadID,
+		"manager_last_read_id": page.Conversation.ManagerLastReadID,
+		"status":               string(page.Conversation.Status),
 	})
+}
+
+// queryInt parses an optional non-negative integer query parameter. On a
+// malformed value it writes 422 and returns ok=false.
+func queryInt(c *gin.Context, name string) (int64, bool) {
+	raw := c.Query(name)
+	if raw == "" {
+		return 0, true
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		apierr.Write(c, apperr.Validation("проверьте параметры запроса", map[string]string{
+			name: "нужно целое число",
+		}))
+		return 0, false
+	}
+	return value, true
 }
 
 // StartSession handles POST /api/v1/chat/session: it returns the visitor's

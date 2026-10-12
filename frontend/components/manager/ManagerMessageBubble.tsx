@@ -1,4 +1,5 @@
-import { AlertCircle, Check, Clock, RotateCcw, X } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, Clock, RotateCcw, X } from "lucide-react";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { formatTime } from "@/components/manager/format";
 import type { ManagerMessage } from "@/components/manager/useConversation";
 
@@ -11,6 +12,8 @@ interface ManagerMessageBubbleProps {
 
 /** Manager perspective: visitor messages on the left, staff replies on the right. */
 export default function ManagerMessageBubble({ message, retryDisabled, onRetry, onDiscard }: ManagerMessageBubbleProps) {
+  const { t } = useLocale();
+  const b = t.manager.bubble;
   if (message.author === "system") {
     return (
       <div className="flex justify-center">
@@ -30,12 +33,12 @@ export default function ManagerMessageBubble({ message, retryDisabled, onRetry, 
       data-visitor-message-id={!isReply && message.id !== null ? message.id : undefined}
     >
       <span className="mb-1 px-1 text-[11px] font-medium text-slate-400 light:text-slate-500">
-        {isReply ? message.staffName || "Менеджер" : "Посетитель"}
+        {isReply ? message.staffName || b.manager : b.visitor}
       </span>
       <div
         className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-6 ${
           isReply
-            ? `rounded-br-sm bg-gradient-to-r from-violet-600 to-blue-600 text-white ${message.status !== "sent" ? "opacity-70" : ""}`
+            ? `rounded-br-sm bg-gradient-to-r from-violet-600 to-blue-600 text-white ${message.status === "sending" || message.status === "failed" ? "opacity-70" : ""}`
             : "rounded-bl-sm border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.05] text-slate-200 light:text-slate-800"
         }`}
       >
@@ -45,13 +48,19 @@ export default function ManagerMessageBubble({ message, retryDisabled, onRetry, 
           {isReply && message.status === "sending" ? (
             <>
               <Clock className="h-3 w-3" aria-hidden="true" />
-              <span>Отправляется…</span>
+              <span>{b.sending}</span>
             </>
           ) : null}
           {isReply && message.status === "sent" ? (
             <>
               <Check className="h-3 w-3" aria-hidden="true" />
-              <span>Отправлено</span>
+              <span>{b.sent}</span>
+            </>
+          ) : null}
+          {isReply && message.status === "read" ? (
+            <>
+              <CheckCheck className="h-3 w-3" aria-hidden="true" />
+              <span>{b.read}</span>
             </>
           ) : null}
         </p>
@@ -61,7 +70,7 @@ export default function ManagerMessageBubble({ message, retryDisabled, onRetry, 
         <div role="alert" className="mt-1.5 flex max-w-[85%] flex-col items-end gap-1.5 text-right">
           <p className="text-xs leading-5 text-rose-300 light:text-rose-700">
             <AlertCircle className="mr-1 inline h-3.5 w-3.5 -translate-y-px align-middle" aria-hidden="true" />
-            {message.error ?? "Ответ не отправлен."}
+            {message.error ?? b.notSent}
           </p>
           <div className="flex gap-2">
             <button
@@ -71,7 +80,7 @@ export default function ManagerMessageBubble({ message, retryDisabled, onRetry, 
               className="inline-flex items-center gap-1 rounded-lg border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-2.5 py-1 text-xs font-medium text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <RotateCcw className="h-3 w-3" aria-hidden="true" />
-              Повторить
+              {b.retry}
             </button>
             <button
               type="button"
@@ -79,7 +88,7 @@ export default function ManagerMessageBubble({ message, retryDisabled, onRetry, 
               className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-400 light:text-slate-600 transition hover:bg-[var(--text-primary)]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
             >
               <X className="h-3 w-3" aria-hidden="true" />
-              Удалить
+              {b.discard}
             </button>
           </div>
         </div>

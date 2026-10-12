@@ -26,6 +26,7 @@ type Repository interface {
 	Create(ctx context.Context, conv chat.Conversation) (chat.Conversation, error)
 	AddMessage(ctx context.Context, conversationID string, msg chat.Message) (chat.Message, bool, error)
 	ListMessages(ctx context.Context, conversationID string, afterID int64, limit int) ([]chat.Message, error)
+	ListMessagePage(ctx context.Context, conversationID string, page chat.MessagePage) ([]chat.Message, error)
 	MarkVisitorRead(ctx context.Context, conversationID string, messageID int64) error
 	UpdateVisitorContact(ctx context.Context, conversationID, name, contact string) error
 }
@@ -44,15 +45,80 @@ type Limits struct {
 	Messages Limiter
 }
 
+// Publisher announces committed changes to connected clients (see
+// internal/service/chatevents). It is called only after a successful
+// commit; a nil-safe no-op is used until SetPublisher.
+type Publisher interface {
+	MessageStored(ctx context.Context, msg chat.Message)
+	ReadMarked(ctx context.Context, conversationID string, reader chat.Author)
+	ConversationChanged(ctx context.Context, conversationID string)
+}
+
+type noPublisher struct{}
+
+func (noPublisher) MessageStored(context.Context, chat.Message)     {}
+func (noPublisher) ReadMarked(context.Context, string, chat.Author) {}
+func (noPublisher) ConversationChanged(context.Context, string)     {}
+
 // Service implements the visitor chat use cases.
 type Service struct {
-	repo   Repository
-	limits Limits
+	repo      Repository
+	limits    Limits
+	publisher Publisher
 }
 
 // NewService builds a Service backed by the given Repository and limiters.
 func NewService(repo Repository, limits Limits) *Service {
-	return &Service{repo: repo, limits: limits}
+	return &Service{repo: repo, limits: limits, publisher: noPublisher{}}
+}
+
+// SetPublisher enables realtime events.
+func (s *Service) SetPublisher(p Publisher) {
+	if p != nil {
+		s.publisher = p
+	}
+}
+
+// HistoryPageSize is the default and MaxHistoryPageSize the largest page of
+// older history (GET /chat/messages?before= or ?tail=1).
+const (
+	HistoryPageSize    = 50
+	MaxHistoryPageSize = 100
+)
+
+// ListHistory returns a window of the visitor's history, oldest first:
+// with beforeID > 0 the messages just before it, otherwise the newest ones.
+// HasMore reports that older messages exist.
+func (s *Service) ListHistory(ctx context.Context, token string, beforeID int64, limit int) (MessagePage, error) {
+	if beforeID < 0 {
+		return MessagePage{}, apperr.Validation("проверьте параметры запроса", map[string]string{
+			"before": "должно быть не меньше 0",
+		})
+	}
+	if limit <= 0 {
+		limit = HistoryPageSize
+	}
+	if limit > MaxHistoryPageSize {
+		limit = MaxHistoryPageSize
+	}
+
+	conv, err := s.lookup(ctx, token)
+	if errors.Is(err, chat.ErrNotFound) {
+		return MessagePage{Messages: []chat.Message{}}, nil
+	}
+	if err != nil {
+		return MessagePage{}, apperr.Internal(err)
+	}
+
+	items, err := s.repo.ListMessagePage(ctx, conv.ID, chat.MessagePage{BeforeID: beforeID, Limit: limit + 1})
+	if err != nil {
+		return MessagePage{}, apperr.Internal(err)
+	}
+	hasMore := len(items) > limit
+	if hasMore {
+		items = items[1:] // oldest-first: drop the extra oldest
+	}
+	return MessagePage{Messages: items, HasMore: hasMore, Conversation: conv, Exists: true}, nil
 }
 
 // StartSessionInput is the raw cookie token (may be empty) and request
@@ -212,6 +278,9 @@ func (s *Service) SendMessage(ctx context.Context, in SendMessageInput) (SendMes
 		// returning the old message.
 		return SendMessageResult{}, apperr.Conflict("client_message_id уже использован для другого сообщения")
 	}
+	// Committed. Announce it — also for a retry, in case the first announce
+	// was lost between commit and publish; receivers drop repeats by id.
+	s.publisher.MessageStored(ctx, saved)
 	return SendMessageResult{Message: saved, Created: created}, nil
 }
 
@@ -238,6 +307,7 @@ func (s *Service) MarkRead(ctx context.Context, token string, req dto.MarkChatRe
 		return chat.Conversation{}, apperr.Internal(err)
 	}
 
+	s.publisher.ReadMarked(ctx, conv.ID, chat.AuthorVisitor)
 	return s.reload(ctx, token)
 }
 
@@ -255,6 +325,7 @@ func (s *Service) UpdateContact(ctx context.Context, token string, req dto.Updat
 	if err := s.repo.UpdateVisitorContact(ctx, conv.ID, strings.TrimSpace(req.Name), strings.TrimSpace(req.Contact)); err != nil {
 		return chat.Conversation{}, apperr.Internal(err)
 	}
+	s.publisher.ConversationChanged(ctx, conv.ID)
 
 	return s.reload(ctx, token)
 }

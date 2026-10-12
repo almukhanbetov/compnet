@@ -36,14 +36,35 @@ type Repository interface {
 	ManagerUnread(ctx context.Context) (conversations, messages int, err error)
 }
 
+// Publisher announces committed changes (see internal/service/chatevents).
+type Publisher interface {
+	MessageStored(ctx context.Context, msg chat.Message)
+	ReadMarked(ctx context.Context, conversationID string, reader chat.Author)
+	ConversationChanged(ctx context.Context, conversationID string)
+}
+
+type noPublisher struct{}
+
+func (noPublisher) MessageStored(context.Context, chat.Message)     {}
+func (noPublisher) ReadMarked(context.Context, string, chat.Author) {}
+func (noPublisher) ConversationChanged(context.Context, string)     {}
+
 // Service implements the manager chat use cases.
 type Service struct {
-	repo Repository
+	repo      Repository
+	publisher Publisher
 }
 
 // NewService builds a Service backed by the given Repository.
 func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{repo: repo, publisher: noPublisher{}}
+}
+
+// SetPublisher enables realtime events.
+func (s *Service) SetPublisher(p Publisher) {
+	if p != nil {
+		s.publisher = p
+	}
 }
 
 // InboxQuery is the raw list query: status=open|closed|all, cursor, limit.
@@ -204,9 +225,14 @@ func (s *Service) SendMessage(ctx context.Context, author staff.User, conversati
 		return SendMessageResult{}, apperr.Internal(err)
 	}
 	if !created {
-		return s.idempotent(saved, msg, author)
+		result, err := s.idempotent(saved, msg, author)
+		if err == nil {
+			s.publisher.MessageStored(ctx, result.Message) // a lost first announce is repeated
+		}
+		return result, err
 	}
 	saved.StaffDisplayName = author.DisplayName
+	s.publisher.MessageStored(ctx, saved)
 	return SendMessageResult{Message: saved, Created: true}, nil
 }
 
@@ -241,6 +267,7 @@ func (s *Service) MarkRead(ctx context.Context, conversationID string, req dto.M
 	if err != nil {
 		return chat.Conversation{}, apperr.Internal(err)
 	}
+	s.publisher.ReadMarked(ctx, conv.ID, chat.AuthorManager)
 	return s.conversation(ctx, conv.ID)
 }
 
@@ -256,6 +283,7 @@ func (s *Service) UpdateConversation(ctx context.Context, conversationID string,
 	if err := s.repo.SetStatus(ctx, conv.ID, chat.Status(req.Status)); err != nil {
 		return chat.Conversation{}, apperr.Internal(err)
 	}
+	s.publisher.ConversationChanged(ctx, conv.ID)
 	return s.conversation(ctx, conv.ID)
 }
 

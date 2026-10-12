@@ -139,12 +139,17 @@ export default function ChatWidget() {
           aria-label={launcherLabel}
           aria-expanded={isOpen}
           aria-controls={isOpen ? panelId : undefined}
-          className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white shadow-[0_0_25px_rgba(124,58,237,0.45)] transition hover:scale-110 hover:shadow-[0_0_35px_rgba(124,58,237,0.6)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-400/50"
+          className={`relative flex h-14 items-center justify-center gap-2.5 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white shadow-[0_0_25px_rgba(124,58,237,0.45)] transition hover:scale-105 hover:shadow-[0_0_35px_rgba(124,58,237,0.6)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-400/50 ${
+            isOpen ? "w-14" : "pl-4 pr-5"
+          }`}
         >
           {isOpen ? (
             <X className="h-6 w-6" aria-hidden="true" />
           ) : (
-            <MessageCircle className="h-6 w-6" aria-hidden="true" />
+            <>
+              <MessageCircle className="h-6 w-6 shrink-0" aria-hidden="true" />
+              <span className="whitespace-nowrap text-sm font-semibold">{t.chat.launcher.label}</span>
+            </>
           )}
           {!isOpen && unread > 0 ? (
             <span
