@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Mail, Phone, MapPin } from "lucide-react";
+import { companyPhone } from "@/data/contacts";
 
 interface FooterLink {
   label: string;
@@ -82,7 +83,7 @@ export default function Footer() {
 
         <div className="mt-14 flex flex-col gap-6 border-t border-[var(--text-primary)]/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500 light:text-slate-600">
-            © 2026 COMPNET. Визуальный прототип, все данные демонстрационные.
+            © 2026 COMPNET.
           </p>
 
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500 light:text-slate-600">
@@ -90,10 +91,13 @@ export default function Footer() {
               <Mail className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
               hello@compnet.kz
             </span>
-            <span className="flex items-center gap-2">
+            <a
+              href={companyPhone.href}
+              className="flex items-center gap-2 py-1 transition hover:text-cyan-300 light:hover:text-cyan-700"
+            >
               <Phone className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
-              +7 (700) 000-00-00
-            </span>
+              {companyPhone.display}
+            </a>
             <span className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
               Алматы, Казахстан

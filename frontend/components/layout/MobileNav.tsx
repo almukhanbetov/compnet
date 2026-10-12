@@ -2,6 +2,9 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { MessageCircle, Phone } from "lucide-react";
+import { companyPhone, whatsappLink } from "@/data/contacts";
+import { localeOptions } from "@/data/translations";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 
@@ -11,7 +14,7 @@ interface MobileNavProps {
 }
 
 export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
-  const { t } = useLocale();
+  const { t, locale, setLocale } = useLocale();
 
   useEffect(() => {
     if (!isOpen) {
@@ -58,10 +61,61 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
       </nav>
 
       <div className="flex flex-col gap-3 border-t border-[var(--text-primary)]/10 px-6 py-6">
+        <div className="flex items-center justify-between gap-4">
+          <span id="mobile-language-label" className="text-sm text-slate-400 light:text-slate-600">
+            {t.header.mobile.language}
+          </span>
+          <div
+            role="group"
+            aria-labelledby="mobile-language-label"
+            className="inline-flex rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 p-1"
+          >
+            {localeOptions.map((option) => {
+              const active = option.value === locale;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  lang={option.value}
+                  aria-pressed={active}
+                  aria-label={option.label}
+                  onClick={() => setLocale(option.value)}
+                  className={`min-h-10 min-w-12 rounded-lg px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${
+                    active
+                      ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white"
+                      : "text-slate-300 hover:bg-[var(--text-primary)]/10 light:text-slate-700"
+                  }`}
+                >
+                  {option.shortLabel}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400 light:text-slate-600">Тема</span>
+          <span className="text-sm text-slate-400 light:text-slate-600">{t.header.mobile.theme}</span>
           <ThemeToggle />
         </div>
+
+        <a
+          href={companyPhone.href}
+          aria-label={`${t.header.actions.call}: ${companyPhone.display}`}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-5 py-3 text-base font-semibold text-slate-100 light:border-cyan-600/30 light:text-slate-900 transition hover:bg-cyan-400/15"
+        >
+          <Phone className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
+          {companyPhone.display}
+        </a>
+        <a
+          href={whatsappLink()}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-3 text-sm font-semibold text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden="true" />
+          {t.header.actions.whatsapp}
+          <span className="sr-only">{t.header.actions.opensInNewTab}</span>
+        </a>
 
         <Link
           href="/login"

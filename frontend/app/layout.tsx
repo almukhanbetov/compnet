@@ -5,6 +5,7 @@ import "./globals.css";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import ChatWidgetLoader from "@/components/chat/ChatWidgetLoader";
+import { getRequestLocale } from "@/lib/i18n.server";
 
 export const metadata: Metadata = {
   title: "COMPNET AI Platform",
@@ -26,9 +27,11 @@ const themeInitScript = `
 })();
 `;
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const locale = await getRequestLocale();
+
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <Script
           id="theme-init"
@@ -39,7 +42,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body>
         <MotionConfig reducedMotion="user">
           <ThemeProvider>
-            <LocaleProvider>
+            <LocaleProvider initialLocale={locale}>
               {children}
               <ChatWidgetLoader />
             </LocaleProvider>

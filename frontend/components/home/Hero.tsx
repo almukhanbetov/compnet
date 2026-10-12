@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
+import { ArrowDown } from "lucide-react";
+import { PROMO_PRICE } from "@/data/promo";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import HeroBackground from "@/components/home/HeroBackground";
 import HeroVisual from "@/components/home/HeroVisual";
@@ -22,6 +24,23 @@ export default function Hero() {
           <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-300 light:border-cyan-600/30 light:bg-cyan-500/10 light:text-cyan-700">
             {t.hero.badge}
           </span>
+
+          <a
+            href="#promo"
+            className="group mt-4 flex w-fit max-w-full items-center gap-2.5 rounded-2xl border border-violet-400/25 bg-violet-500/10 py-1.5 pl-1.5 pr-4 text-sm text-slate-200 transition hover:border-violet-400/45 hover:bg-violet-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 light:border-violet-500/25 light:bg-violet-500/[0.07] light:text-slate-800"
+          >
+            <span className="shrink-0 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-2.5 py-1 text-xs font-semibold text-white">
+              {t.promo.announcementBadge}
+            </span>
+            <span className="min-w-0">
+              {t.promo.title} —{" "}
+              <span className="whitespace-nowrap font-semibold">{PROMO_PRICE}</span>
+            </span>
+            <ArrowDown
+              className="h-4 w-4 shrink-0 text-violet-300 transition group-hover:translate-y-0.5 motion-reduce:transition-none light:text-violet-600"
+              aria-hidden="true"
+            />
+          </a>
 
           <h1 className="mt-8 max-w-2xl text-5xl font-bold leading-tight md:text-7xl">
             {t.hero.titleLine1}

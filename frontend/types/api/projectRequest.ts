@@ -51,4 +51,4 @@ export interface ApiErrorEnvelope {
 export type SubmitProjectRequestResult =
   | { kind: "success"; data: ProjectRequestData }
   | { kind: "validation_error"; fields: Record<string, string>; message: string }
-  | { kind: "error"; message: string };
+  | { kind: "error"; reason: "config" | "network" | "unexpected"; message: string };

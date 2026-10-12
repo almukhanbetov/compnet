@@ -1,6 +1,7 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Hero from "@/components/home/Hero";
+import PromoSection from "@/components/home/PromoSection";
 import WhatWeCreateSection from "@/components/home/WhatWeCreateSection";
 import ServicesOverviewSection from "@/components/home/ServicesOverviewSection";
 import PricingSection from "@/components/home/PricingSection";
@@ -32,6 +33,7 @@ export default async function HomePage() {
       <Header />
       <main>
         <Hero />
+        <PromoSection />
         <WhatWeCreateSection />
         <ServicesOverviewSection items={servicesOverview} />
         <PricingSection items={pricingCards} />

@@ -1,5 +1,9 @@
+"use client";
+
 import { Wallet, Info } from "lucide-react";
-import { projectPricingList, formatPriceFrom } from "@/data/projectPricing";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { projectPricingList } from "@/data/projectPricing";
+import { fill } from "@/lib/i18n";
 import type { ProjectType } from "@/types/contactPage";
 
 interface EstimatePreviewProps {
@@ -7,6 +11,8 @@ interface EstimatePreviewProps {
 }
 
 export default function EstimatePreview({ projectType }: EstimatePreviewProps) {
+  const { t } = useLocale();
+  const e = t.contactPage.estimate;
   const entry = projectPricingList.find((item) => item.label === projectType);
 
   return (
@@ -16,22 +22,23 @@ export default function EstimatePreview({ projectType }: EstimatePreviewProps) {
       </span>
 
       <p className="mt-4 text-lg font-semibold text-slate-100 light:text-slate-900">
-        Ориентировочная стоимость
+        {e.title}
       </p>
 
       {entry ? (
         <>
           <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
-            {entry.label}
+            {t.contactPage.form.options.projectType[entry.label]}
           </p>
           <p className="mt-3 bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-3xl font-bold text-transparent light:from-violet-600 light:via-blue-600 light:to-cyan-600">
-            {formatPriceFrom(entry.basePrice)}
+            {entry.basePrice === null
+              ? e.individual
+              : fill(e.from, { price: `${entry.basePrice.toLocaleString("ru-RU")} ₸` })}
           </p>
         </>
       ) : (
         <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600">
-          Выберите тип проекта в форме, чтобы увидеть ориентировочную
-          стоимость.
+          {e.choose}
         </p>
       )}
 
@@ -41,8 +48,7 @@ export default function EstimatePreview({ projectType }: EstimatePreviewProps) {
           aria-hidden="true"
         />
         <p className="text-xs leading-5 text-cyan-100 light:text-cyan-900">
-          Расчёт предварительный. Точная стоимость определяется после
-          обсуждения проекта и подготовки технического задания.
+          {e.disclaimer}
         </p>
       </div>
     </div>

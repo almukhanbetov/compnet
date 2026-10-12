@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, Phone, X } from "lucide-react";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 import MobileNav from "@/components/layout/MobileNav";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { companyPhone } from "@/data/contacts";
 
 export default function Header() {
   const { t } = useLocale();
@@ -57,6 +58,15 @@ export default function Header() {
           >
             {t.header.actions.login}
           </Link>
+
+          <a
+            href={companyPhone.href}
+            aria-label={`${t.header.actions.call}: ${companyPhone.display}`}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/40 hover:bg-[var(--text-primary)]/10 light:text-slate-900 lg:w-auto lg:px-3.5"
+          >
+            <Phone className="h-4 w-4 shrink-0 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
+            <span className="hidden whitespace-nowrap lg:inline">{companyPhone.display}</span>
+          </a>
 
           <Link
             href="/contact"
