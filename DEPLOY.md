@@ -275,17 +275,63 @@ Details, event format and limits: [docs/CHAT_REALTIME.md](docs/CHAT_REALTIME.md)
 - **One backend process.** The realtime hub lives in the backend's memory;
   the compose file runs exactly one backend and that must stay so (see
   "Scaling" in the document before adding replicas).
-- **Nginx.** WebSocket handshakes need the two `location = /api/v1/…/ws`
-  blocks from docs/CHAT_REALTIME.md in `/etc/nginx/sites-available/compnet.kz`
-  (before `location /api/`), then `sudo nginx -t && sudo systemctl reload nginx`.
-  Without them the chat still works, over HTTP polling every few seconds.
-- **Order.** Deploy (migration `20261013100000_chat_realtime_indexes` only
-  adds indexes) → add the Nginx blocks → check the `101`/`403` curl commands
-  from the document → the widget flag (unchanged: only `true` turns it on).
-- **Verify live.** A normal window on `https://compnet.kz` (visitor) and a
-  private one on `/manager`: the visitor's message appears in the inbox
-  without a reload, the reply appears in the widget, the manager header says
-  "Онлайн — сообщения приходят сразу", the widget shows "Менеджер онлайн".
+- **Order is safe either way.** Without the Nginx change the widget and
+  `/manager` keep working over HTTP polling; with the Nginx change but the
+  old backend, `/ws` just answers 404 and the clients poll.
+
+**1. Deploy the code** (merge the PR). The workflow backs up the database,
+applies `20261013100000_chat_realtime_indexes` (indexes only) and restarts
+the containers. `NEXT_PUBLIC_CHAT_WIDGET_ENABLED` stays as it is.
+
+**2. Nginx** — needs root or a sudo-capable account (the `compnet` user has
+no sudo). The change is
+[deploy/nginx/compnet-chat-websocket.patch](deploy/nginx/compnet-chat-websocket.patch):
+two `location = /api/v1/{chat,manager}/ws` blocks added before
+`location /api/`, upstream `127.0.0.1:8080` (where `compnet-backend` is
+published). Nothing else in the site file changes.
+
+```bash
+# copy the patch to the server (as compnet, no sudo needed for this)
+scp deploy/nginx/compnet-chat-websocket.patch compnet-vps:/home/compnet/
+
+# then, as root or a sudo user on the VPS:
+F=/etc/nginx/sites-available/compnet.kz
+sha256sum "$F"        # expected aca5dc505b58a382… (the file the patch was made for);
+                      # anything else: the file changed — compare before applying
+B=/root/compnet.kz.bak-$(date +%Y%m%d-%H%M%S)
+sudo cp -a "$F" "$B"  # backup outside /etc/nginx, so it is never included
+sudo patch --dry-run "$F" < /home/compnet/compnet-chat-websocket.patch
+sudo patch "$F" < /home/compnet/compnet-chat-websocket.patch
+sudo nginx -t         # must print "syntax is ok" and "test is successful"
+sudo systemctl reload nginx   # graceful: open connections finish on the old workers
+```
+
+If `nginx -t` fails, do **not** reload — restore the backup (below); the
+running Nginx is untouched until a reload. `reload` never drops the site:
+if the new configuration cannot be loaded, the old workers keep serving.
+
+**Rollback** (the chat falls back to HTTP polling, nothing else changes):
+
+```bash
+sudo cp -a "$B" /etc/nginx/sites-available/compnet.kz
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**3. Verify** (from any computer):
+
+```bash
+H='-H Connection:Upgrade -H Upgrade:websocket -H Sec-WebSocket-Version:13 -H Sec-WebSocket-Key:dGhlIHNhbXBsZSBub25jZQ=='
+curl -s -o /dev/null -w '%{http_code}\n' --http1.1 -m 3 $H -H 'Origin: https://compnet.kz'   https://compnet.kz/api/v1/chat/ws     # 101
+curl -s -o /dev/null -w '%{http_code}\n' --http1.1 -m 3 $H -H 'Origin: https://evil.example' https://compnet.kz/api/v1/chat/ws     # 403
+curl -s -o /dev/null -w '%{http_code}\n' --http1.1 -m 3 $H -H 'Origin: https://compnet.kz'   https://compnet.kz/api/v1/manager/ws  # 401 (no session)
+```
+
+Then two sessions: a normal window on `https://compnet.kz` (visitor) and a
+private one on `/manager`. DevTools → Network → WS shows
+`wss://compnet.kz/api/v1/chat/ws` with status 101; the manager header says
+"Онлайн — сообщения приходят сразу", the widget "Менеджер онлайн"; messages
+appear on the other side without a reload; turning the network off and on
+(DevTools → Offline) reconnects and shows each message once.
 
 ## 6. Rollback
 
