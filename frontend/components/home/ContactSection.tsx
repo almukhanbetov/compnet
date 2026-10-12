@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mail, Phone, MapPin, ArrowRight } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
+import { companyPhone } from "@/data/contacts";
 
 export default function ContactSection() {
   return (
@@ -20,10 +21,13 @@ export default function ContactSection() {
                 <Mail className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
                 hello@compnet.kz
               </span>
-              <span className="flex items-center gap-2 md:justify-end">
+              <a
+                href={companyPhone.href}
+                className="flex items-center gap-2 py-1 text-base font-semibold text-slate-200 transition hover:text-cyan-300 light:text-slate-800 light:hover:text-cyan-700 md:justify-end"
+              >
                 <Phone className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
-                +7 (700) 000-00-00
-              </span>
+                {companyPhone.display}
+              </a>
               <span className="flex items-center gap-2 md:justify-end">
                 <MapPin className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
                 Алматы, Казахстан

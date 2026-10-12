@@ -28,6 +28,7 @@ export default function ContactMethods() {
               <a
                 key={channel.id}
                 href={channel.href}
+                {...(channel.href.startsWith("https://") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 className="group flex flex-col items-start gap-3 rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-6 backdrop-blur-xl transition hover:-translate-y-1 hover:border-cyan-400/30 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)]"
               >
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/30 to-cyan-400/20 text-cyan-300 light:text-cyan-700">

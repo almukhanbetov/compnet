@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { MessageCircle, Phone } from "lucide-react";
+import { companyPhone, whatsappLink } from "@/data/contacts";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 
@@ -62,6 +64,24 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
           <span className="text-sm text-slate-400 light:text-slate-600">Тема</span>
           <ThemeToggle />
         </div>
+
+        <a
+          href={companyPhone.href}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-5 py-3 text-base font-semibold text-slate-100 light:border-cyan-600/30 light:text-slate-900 transition hover:bg-cyan-400/15"
+        >
+          <Phone className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
+          {companyPhone.display}
+        </a>
+        <a
+          href={whatsappLink()}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-3 text-sm font-semibold text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden="true" />
+          Написать в WhatsApp
+          <span className="sr-only">(откроется в новой вкладке)</span>
+        </a>
 
         <Link
           href="/login"

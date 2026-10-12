@@ -6,6 +6,7 @@ import type {
   WorkingHours,
   ContactAdvantage,
 } from "@/types/contactPage";
+import { companyPhone, whatsappLink } from "@/data/contacts";
 import type { FaqItem } from "@/types/faqItem";
 import { projectPricingList } from "@/data/projectPricing";
 
@@ -40,8 +41,8 @@ export const contactChannels: ContactChannel[] = [
   {
     id: "phone",
     label: "Телефон",
-    value: "+7 (700) 000-00-00",
-    href: "tel:+77000000000",
+    value: companyPhone.display,
+    href: companyPhone.href,
     icon: "Phone",
   },
   {
@@ -55,9 +56,8 @@ export const contactChannels: ContactChannel[] = [
     id: "whatsapp",
     label: "WhatsApp",
     value: "Написать в WhatsApp",
-    href: "#",
+    href: whatsappLink(),
     icon: "MessageCircle",
-    isPlaceholder: true,
   },
   {
     id: "telegram",
