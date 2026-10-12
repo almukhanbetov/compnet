@@ -1,3 +1,5 @@
+import type { ChatFailure } from "@/data/i18n/chat";
+
 export type ChatAuthor = "visitor" | "manager" | "system";
 
 /** sending → sent, or sending → failed → (retry) sending → sent. */
@@ -14,7 +16,7 @@ export interface ChatMessage {
   createdAt: string;
   status: ChatDeliveryStatus;
   /** Why the last delivery attempt failed, shown under a failed bubble. */
-  error?: string;
+  error?: ChatFailure;
 }
 
 export interface ChatContact {

@@ -1,48 +1,41 @@
 import Link from "next/link";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { companyPhone } from "@/data/contacts";
+import { getServerTranslations } from "@/lib/i18n.server";
 
-interface FooterLink {
-  label: string;
-  href: string;
-}
+export default async function Footer() {
+  const t = await getServerTranslations();
+  const f = t.common.footer;
+  const footerColumns = [
+    {
+      title: f.company,
+      links: [
+        { label: f.links.services, href: "/services" },
+        { label: f.links.solutions, href: "/solutions" },
+        { label: f.links.about, href: "/about" },
+        { label: f.links.portfolio, href: "/portfolio" },
+      ],
+    },
+    {
+      title: f.clients,
+      links: [
+        { label: f.links.pricing, href: "/pricing" },
+        { label: f.links.calculator, href: "/calculator" },
+        { label: f.links.reviews, href: "/reviews" },
+        { label: f.links.contacts, href: "/contact" },
+        { label: f.links.login, href: "/login" },
+      ],
+    },
+    {
+      title: f.legal,
+      links: [
+        { label: f.links.terms, href: "/terms" },
+        { label: f.links.privacy, href: "/privacy" },
+        { label: f.links.cookies, href: "/cookies" },
+      ],
+    },
+  ];
 
-interface FooterColumn {
-  title: string;
-  links: FooterLink[];
-}
-
-const footerColumns: FooterColumn[] = [
-  {
-    title: "Компания",
-    links: [
-      { label: "Услуги", href: "/services" },
-      { label: "Решения", href: "/solutions" },
-      { label: "О компании", href: "/about" },
-      { label: "Портфолио", href: "/portfolio" },
-    ],
-  },
-  {
-    title: "Клиентам",
-    links: [
-      { label: "Цены", href: "/pricing" },
-      { label: "Калькулятор", href: "/calculator" },
-      { label: "Отзывы", href: "/reviews" },
-      { label: "Контакты", href: "/contact" },
-      { label: "Войти", href: "/login" },
-    ],
-  },
-  {
-    title: "Правовая информация",
-    links: [
-      { label: "Условия использования", href: "/terms" },
-      { label: "Конфиденциальность", href: "/privacy" },
-      { label: "Cookie", href: "/cookies" },
-    ],
-  },
-];
-
-export default function Footer() {
   return (
     <footer className="border-t border-[var(--text-primary)]/10 bg-[#05070f] px-6 py-16 light:bg-slate-50">
       <div className="mx-auto max-w-[1440px]">
@@ -55,8 +48,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-6 text-slate-400 light:text-slate-600">
-              IT-студия полного цикла: создаём сайты, web- и мобильные
-              приложения, CRM и AI-решения для бизнеса.
+              {f.tagline}
             </p>
           </div>
 
@@ -100,7 +92,7 @@ export default function Footer() {
             </a>
             <span className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
-              Алматы, Казахстан
+              {t.homeContacts.city}
             </span>
           </div>
         </div>

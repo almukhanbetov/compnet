@@ -1,5 +1,7 @@
 "use client";
 
+import { byId } from "@/lib/i18n";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { motion } from "motion/react";
 import {
   Layout,
@@ -30,13 +32,14 @@ const factorIcons: Record<PriceFactorIcon, LucideIcon> = {
 };
 
 export default function PriceFactors() {
+  const { t } = useLocale();
   return (
     <section className="border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Ценообразование"
-          title="Что влияет на стоимость"
-          description="Каждый проект уникален — вот ключевые параметры, которые формируют финальную оценку."
+          eyebrow={t.pricing.factors.eyebrow}
+          title={t.pricing.factors.title}
+          description={t.pricing.factors.description}
         />
 
         <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -56,7 +59,7 @@ export default function PriceFactors() {
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="text-sm font-medium text-slate-200 light:text-slate-800">
-                  {factor.label}
+                  {byId(t.pricing.factors.items, factor.id) ?? factor.label}
                 </span>
               </motion.div>
             );

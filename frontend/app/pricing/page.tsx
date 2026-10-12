@@ -9,17 +9,16 @@ import WorkFormats from "@/components/pricing/WorkFormats";
 import PricingProcess from "@/components/pricing/PricingProcess";
 import PricingFaq from "@/components/pricing/PricingFaq";
 import { fetchPricingCards } from "@/lib/api/content";
+import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Цены на разработку | COMPNET",
-  description:
-    "Ориентировочная стоимость разработки сайтов, web- и мобильных приложений, AI-решений, backend и поддержки в COMPNET.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.pricing;
+}
 
 export const dynamic = "force-dynamic";
 
 export default async function PricingPage() {
-  const pricingCards = await fetchPricingCards();
+  const pricingCards = await fetchPricingCards(await getRequestLocale());
 
   return (
     <>

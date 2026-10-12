@@ -1,42 +1,13 @@
 import type { Metadata } from "next";
 import LegalPageTemplate from "@/components/layout/LegalPageTemplate";
+import { getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Условия использования | COMPNET",
-  description:
-    "Условия использования сайта и сервисов COMPNET — демонстрационная версия документа.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.terms;
+}
 
-const sections = [
-  {
-    heading: "Общие положения",
-    body: "Используя сайт COMPNET, вы соглашаетесь с условиями данного документа. Мы вправе обновлять условия по мере развития продукта — актуальная версия всегда доступна на этой странице.",
-  },
-  {
-    heading: "Использование сайта",
-    body: "Материалы сайта предназначены для ознакомления с услугами компании. Запрещено использовать сайт для действий, нарушающих законодательство или права третьих лиц.",
-  },
-  {
-    heading: "Интеллектуальная собственность",
-    body: "Тексты, дизайн, логотип и иные материалы сайта принадлежат COMPNET или используются с разрешения правообладателей. Копирование без согласия не допускается.",
-  },
-  {
-    heading: "Ограничение ответственности",
-    body: "COMPNET не несёт ответственности за косвенные убытки, возникшие в результате использования сайта. Информация на сайте предоставляется «как есть».",
-  },
-  {
-    heading: "Изменение условий",
-    body: "Мы можем время от времени обновлять данный документ. Продолжая пользоваться сайтом после изменений, вы принимаете обновлённые условия.",
-  },
-];
+export default async function TermsPage() {
+  const { common } = await getServerTranslations();
 
-export default function TermsPage() {
-  return (
-    <LegalPageTemplate
-      eyebrow="Условия использования"
-      title="Условия использования"
-      intro="Настоящие условия регулируют использование сайта и сервисов COMPNET. Ниже — демонстрационная структура документа для визуального прототипа."
-      sections={sections}
-    />
-  );
+  return <LegalPageTemplate {...common.legal.terms} />;
 }

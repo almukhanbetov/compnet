@@ -77,7 +77,7 @@ export default function Header() {
 
           <button
             type="button"
-            aria-label={isMobileNavOpen ? "Close menu" : "Open menu"}
+            aria-label={isMobileNavOpen ? t.common.closeMenu : t.common.openMenu}
             aria-expanded={isMobileNavOpen}
             onClick={() => setIsMobileNavOpen((prev) => !prev)}
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10 xl:hidden"

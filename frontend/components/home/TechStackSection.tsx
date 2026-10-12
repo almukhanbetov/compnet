@@ -1,17 +1,19 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { motion } from "motion/react";
 import SectionHeading from "@/components/ui/SectionHeading";
 import { technologies } from "@/data/technologies";
 
 export default function TechStackSection() {
+  const { t } = useLocale();
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Технологии"
-          title="Стек, на котором мы работаем"
-          description="Подбираем инструменты под задачу — от фронтенда и бэкенда до AI и инфраструктуры."
+          eyebrow={t.home.techStack.eyebrow}
+          title={t.home.techStack.title}
+          description={t.home.techStack.description}
         />
 
         <div className="mt-14 flex flex-wrap justify-center gap-3">

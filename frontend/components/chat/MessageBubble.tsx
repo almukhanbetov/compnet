@@ -1,4 +1,6 @@
 import { AlertCircle, Check, Clock, RotateCcw, X } from "lucide-react";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { chatFailureText } from "@/data/i18n/chat";
 import type { ChatMessage } from "@/types/message";
 
 interface MessageBubbleProps {
@@ -17,6 +19,9 @@ function formatTime(iso: string): string {
 }
 
 export default function MessageBubble({ message, retryDisabled, onRetry, onDiscard }: MessageBubbleProps) {
+  const { t } = useLocale();
+  const b = t.chat.bubble;
+
   if (message.author === "system") {
     return (
       <div className="flex justify-center">
@@ -35,7 +40,7 @@ export default function MessageBubble({ message, retryDisabled, onRetry, onDisca
     <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
       {!isOwn ? (
         <span className="mb-1 px-1 text-[11px] font-medium text-slate-400 light:text-slate-500">
-          Менеджер COMPNET
+          {b.manager}
         </span>
       ) : null}
 
@@ -56,13 +61,13 @@ export default function MessageBubble({ message, retryDisabled, onRetry, onDisca
           {isOwn && isSending ? (
             <>
               <Clock className="h-3 w-3" aria-hidden="true" />
-              <span>Отправляется…</span>
+              <span>{b.sending}</span>
             </>
           ) : null}
           {isOwn && message.status === "sent" ? (
             <>
               <Check className="h-3 w-3" aria-hidden="true" />
-              <span>Отправлено</span>
+              <span>{b.sent}</span>
             </>
           ) : null}
         </p>
@@ -72,7 +77,7 @@ export default function MessageBubble({ message, retryDisabled, onRetry, onDisca
         <div role="alert" className="mt-1.5 flex max-w-[85%] flex-col items-end gap-1.5 text-right">
           <p className="text-xs leading-5 text-rose-300 light:text-rose-700">
             <AlertCircle className="mr-1 inline h-3.5 w-3.5 -translate-y-px align-middle" aria-hidden="true" />
-            {message.error ?? "Сообщение не отправлено."}
+            {chatFailureText(t.chat, message.error)}
           </p>
           <div className="flex gap-2">
             <button
@@ -82,7 +87,7 @@ export default function MessageBubble({ message, retryDisabled, onRetry, onDisca
               className="inline-flex items-center gap-1 rounded-lg border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-2.5 py-1 text-xs font-medium text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <RotateCcw className="h-3 w-3" aria-hidden="true" />
-              Повторить
+              {b.retry}
             </button>
             <button
               type="button"
@@ -90,7 +95,7 @@ export default function MessageBubble({ message, retryDisabled, onRetry, onDisca
               className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-400 light:text-slate-600 transition hover:bg-[var(--text-primary)]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
             >
               <X className="h-3 w-3" aria-hidden="true" />
-              Удалить
+              {b.discard}
             </button>
           </div>
         </div>

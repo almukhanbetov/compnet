@@ -3,7 +3,9 @@
 import { forwardRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { Send } from "lucide-react";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { MAX_MESSAGE_LENGTH } from "@/lib/chat/config";
+import { fill } from "@/lib/i18n";
 
 interface ChatComposerProps {
   rateLimitSeconds: number;
@@ -16,6 +18,8 @@ const ChatComposer = forwardRef<HTMLTextAreaElement, ChatComposerProps>(function
   { rateLimitSeconds, onSend },
   ref,
 ) {
+  const { t } = useLocale();
+  const c = t.chat.composer;
   const [draft, setDraft] = useState("");
   const length = [...draft].length;
   const isTooLong = length > MAX_MESSAGE_LENGTH;
@@ -47,13 +51,13 @@ const ChatComposer = forwardRef<HTMLTextAreaElement, ChatComposerProps>(function
     <form onSubmit={handleSubmit} className="border-t border-[var(--text-primary)]/10 p-3 sm:p-4">
       {isBlocked ? (
         <p role="status" className="mb-2 text-xs text-amber-300 light:text-amber-700">
-          Слишком много сообщений подряд. Отправить снова можно через {rateLimitSeconds} с.
+          {fill(c.rateLimited, { seconds: String(rateLimitSeconds) })}
         </p>
       ) : null}
 
       <div className="flex items-end gap-2">
         <label htmlFor="chat-composer" className="sr-only">
-          Текст сообщения
+          {c.label}
         </label>
         <textarea
           id="chat-composer"
@@ -62,14 +66,14 @@ const ChatComposer = forwardRef<HTMLTextAreaElement, ChatComposerProps>(function
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
-          placeholder="Напишите сообщение"
+          placeholder={c.placeholder}
           aria-describedby={isTooLong ? "chat-composer-error" : undefined}
           aria-invalid={isTooLong}
           className="max-h-32 min-h-[44px] min-w-0 flex-1 resize-none rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-4 py-2.5 text-base text-[var(--text-primary)] placeholder:text-slate-500 outline-none transition [field-sizing:content] focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 sm:text-sm"
         />
         <button
           type="submit"
-          aria-label="Отправить сообщение"
+          aria-label={c.send}
           disabled={!canSend}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
         >
@@ -83,7 +87,7 @@ const ChatComposer = forwardRef<HTMLTextAreaElement, ChatComposerProps>(function
           className={`mt-1.5 text-right text-[11px] ${isTooLong ? "text-rose-300 light:text-rose-700" : "text-slate-500"}`}
         >
           {length} / {MAX_MESSAGE_LENGTH}
-          {isTooLong ? " — сообщение слишком длинное" : ""}
+          {isTooLong ? c.tooLong : ""}
         </p>
       ) : null}
     </form>

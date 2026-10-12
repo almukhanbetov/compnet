@@ -11,7 +11,12 @@ import type { ServiceDetail, ServiceDetailIcon } from "@/types/serviceDetail";
 import type { PricingCardItem } from "@/types/pricingPage";
 import type { PortfolioCaseStudy, PortfolioCategory } from "@/types/portfolioPage";
 import type { Testimonial } from "@/types/testimonial";
-import { formatPriceFrom } from "@/data/projectPricing";
+import type { Locale } from "@/types/i18n";
+import type { ProjectPricingLabel } from "@/types/projectPricing";
+import { translations } from "@/data/translations";
+import { contentTranslations } from "@/data/i18n/content";
+import { translateDuration } from "@/data/i18n/catalog";
+import { byId, fill } from "@/lib/i18n";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -43,35 +48,57 @@ async function getJSONOrDefault<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
-export async function fetchServicesOverview(): Promise<ServiceOverview[]> {
+/** Pricing cards identify their project type by a stable key; the label
+ * is translated through the same map as the contact form options. */
+const projectTypeLabels: Record<string, ProjectPricingLabel> = {
+  landing: "Лендинг",
+  "business-card": "Сайт-визитка",
+  corporate: "Корпоративный сайт",
+  catalog: "Сайт-каталог",
+  "online-store": "Интернет-магазин",
+  "web-app": "Web-приложение",
+  crm: "CRM-система",
+  "mobile-app": "Мобильное приложение",
+  "ai-solution": "AI-решение",
+  "backend-api": "Backend/API",
+  "devops-vps": "DevOps/VPS",
+};
+
+export async function fetchServicesOverview(locale: Locale): Promise<ServiceOverview[]> {
   const items = await getJSONOrDefault<ApiServiceOverview[]>("/api/v1/services", []);
+  const texts = contentTranslations[locale].services;
   return items.map((item) => ({
     id: item.slug,
     title: item.title,
     description: item.description,
     features: item.features,
+    ...byId(texts, item.slug),
     icon: item.icon as ServiceOverviewIcon,
   }));
 }
 
-function mapServiceDetail(item: ApiServiceDetail): ServiceDetail {
+function mapServiceDetail(item: ApiServiceDetail, locale: Locale): ServiceDetail {
+  const text = byId(contentTranslations[locale].serviceDetails, item.slug);
   return {
     id: item.slug,
-    eyebrow: item.eyebrow,
-    title: item.title,
-    description: item.description,
-    points: item.points,
-    highlights: item.highlights.map((h) => ({
+    eyebrow: text?.eyebrow ?? item.eyebrow,
+    title: text?.title ?? item.title,
+    description: text?.description ?? item.description,
+    points: text?.points ?? item.points,
+    highlights: item.highlights.map((h, index) => ({
       icon: h.icon as ServiceDetailIcon,
-      label: h.label,
+      label: text?.highlights[index] ?? h.label,
     })),
   };
 }
 
-export async function fetchServiceDetail(slug: string): Promise<ServiceDetail | null> {
+export async function fetchServiceDetail(
+  slug: string,
+  locale: Locale,
+): Promise<ServiceDetail | null> {
   try {
     const item = await getJSON<ApiServiceDetail>(`/api/v1/services/${slug}`);
-    return mapServiceDetail(item);
+    return mapServiceDetail(item, locale);
   } catch (err) {
     console.error(`content: service detail "${slug}" failed`, err);
     return null;
@@ -82,9 +109,11 @@ export async function fetchServiceDetail(slug: string): Promise<ServiceDetail | 
  * every section at once (homepage, /services). A slug whose fetch fails is
  * simply omitted from the result — callers should render each section
  * conditionally rather than assume every slug is present. */
-export async function fetchServiceDetailsBySlug(): Promise<Record<string, ServiceDetail>> {
+export async function fetchServiceDetailsBySlug(
+  locale: Locale,
+): Promise<Record<string, ServiceDetail>> {
   const slugs = ["web-development", "web-apps", "mobile-apps", "ai-automation"];
-  const details = await Promise.all(slugs.map((slug) => fetchServiceDetail(slug)));
+  const details = await Promise.all(slugs.map((slug) => fetchServiceDetail(slug, locale)));
   return Object.fromEntries(
     details
       .filter((detail): detail is ServiceDetail => detail !== null)
@@ -92,33 +121,47 @@ export async function fetchServiceDetailsBySlug(): Promise<Record<string, Servic
   );
 }
 
-export async function fetchPricingCards(): Promise<PricingCardItem[]> {
+export async function fetchPricingCards(locale: Locale): Promise<PricingCardItem[]> {
   const items = await getJSONOrDefault<ApiPricingCard[]>("/api/v1/pricing", []);
-  return items.map((item) => ({
-    id: `price-${item.project_type}`,
-    title: item.title,
-    priceFrom: formatPriceFrom(item.is_individual ? null : item.price_from_tenge),
-    duration: item.duration,
-    description: item.description,
-    features: item.features,
-    serviceHref: item.service_href,
-  }));
+  const t = translations[locale];
+  return items.map((item) => {
+    const label = byId(projectTypeLabels, item.project_type);
+    const text = byId(contentTranslations[locale].pricing, item.project_type);
+    const priceFrom =
+      item.is_individual || item.price_from_tenge === null
+        ? t.catalog.result.individual
+        : fill(t.catalog.priceFrom, {
+            price: `${item.price_from_tenge.toLocaleString("ru-RU")} ₸`,
+          });
+    return {
+      id: `price-${item.project_type}`,
+      title: label ? t.contactPage.form.options.projectType[label] : item.title,
+      priceFrom,
+      duration: translateDuration(t.catalog, item.duration),
+      description: text?.description ?? item.description,
+      features: text?.features ?? item.features,
+      serviceHref: item.service_href,
+    };
+  });
 }
 
-function mapPortfolioCase(item: ApiPortfolioCase): PortfolioCaseStudy {
+/** `category` stays the canonical (Russian) value: the portfolio filter
+ * compares against it, and the card translates it for display. */
+function mapPortfolioCase(item: ApiPortfolioCase, locale: Locale): PortfolioCaseStudy {
+  const text = byId(contentTranslations[locale].portfolio, item.slug);
   return {
     id: item.slug,
     slug: item.slug,
-    title: item.title,
+    title: text?.title ?? item.title,
     category: item.category as PortfolioCategory,
-    subcategory: item.subcategory,
-    summary: item.summary,
-    task: item.task,
-    process: item.process,
-    solution: item.solution,
-    technologies: item.technologies,
-    result: item.result,
-    duration: item.duration,
+    subcategory: text?.subcategory ?? item.subcategory,
+    summary: text?.summary ?? item.summary,
+    task: text?.task ?? item.task,
+    process: text?.process ?? item.process,
+    solution: text?.solution ?? item.solution,
+    technologies: text?.technologies ?? item.technologies,
+    result: text?.result ?? item.result,
+    duration: text?.duration ?? item.duration,
     gradientFrom: item.gradient_from,
     gradientTo: item.gradient_to,
     screenshotUrl: item.screenshot_url,
@@ -126,28 +169,32 @@ function mapPortfolioCase(item: ApiPortfolioCase): PortfolioCaseStudy {
   };
 }
 
-export async function fetchPortfolioCases(): Promise<PortfolioCaseStudy[]> {
+export async function fetchPortfolioCases(locale: Locale): Promise<PortfolioCaseStudy[]> {
   const items = await getJSONOrDefault<ApiPortfolioCase[]>("/api/v1/portfolio", []);
-  return items.map(mapPortfolioCase);
+  return items.map((item) => mapPortfolioCase(item, locale));
 }
 
-export async function fetchPortfolioCase(slug: string): Promise<PortfolioCaseStudy | null> {
+export async function fetchPortfolioCase(
+  slug: string,
+  locale: Locale,
+): Promise<PortfolioCaseStudy | null> {
   try {
     const item = await getJSON<ApiPortfolioCase>(`/api/v1/portfolio/${slug}`);
-    return mapPortfolioCase(item);
+    return mapPortfolioCase(item, locale);
   } catch {
     return null;
   }
 }
 
-export async function fetchTestimonials(): Promise<Testimonial[]> {
+export async function fetchTestimonials(locale: Locale): Promise<Testimonial[]> {
   const items = await getJSONOrDefault<ApiTestimonial[]>("/api/v1/testimonials", []);
+  const texts = contentTranslations[locale].testimonials;
   return items.map((item) => ({
     id: item.id,
     name: item.name,
-    role: item.role,
+    role: byId(texts, item.name)?.role ?? item.role,
     company: item.company,
-    quote: item.quote,
+    quote: byId(texts, item.name)?.quote ?? item.quote,
     rating: item.rating,
     initials: item.initials,
   }));

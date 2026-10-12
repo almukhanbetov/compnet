@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { byId } from "@/lib/i18n";
 import { motion } from "motion/react";
 import {
   Sparkles,
@@ -24,13 +26,14 @@ const featureIcons: Record<FeatureIcon, LucideIcon> = {
 };
 
 export default function FeaturesSection() {
+  const { t } = useLocale();
   return (
     <section className="border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Почему мы"
-          title="Почему выбирают нас"
-          description="Работаем как продолжение вашей команды — с прозрачностью на каждом этапе."
+          eyebrow={t.home.features.eyebrow}
+          title={t.home.features.title}
+          description={t.home.features.description}
         />
 
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -51,10 +54,10 @@ export default function FeaturesSection() {
                 </span>
 
                 <p className="mt-5 text-lg font-semibold text-slate-100 light:text-slate-900">
-                  {feature.title}
+                  {(byId(t.home.features.items, feature.id) ?? feature).title}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-400 light:text-slate-600">
-                  {feature.description}
+                  {(byId(t.home.features.items, feature.id) ?? feature).description}
                 </p>
               </motion.div>
             );

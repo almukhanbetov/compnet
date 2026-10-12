@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { byId } from "@/lib/i18n";
 import { useState } from "react";
 import { motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
@@ -7,15 +9,16 @@ import SectionHeading from "@/components/ui/SectionHeading";
 import { faqItems } from "@/data/faq";
 
 export default function FaqSection() {
+  const { t } = useLocale();
   const [openId, setOpenId] = useState<string | null>(faqItems[0]?.id ?? null);
 
   return (
     <section className="border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-20 md:py-28">
       <div className="mx-auto max-w-3xl">
         <SectionHeading
-          eyebrow="FAQ"
-          title="Частые вопросы"
-          description="Если ответа нет здесь — просто напишите нам, обсудим детали проекта."
+          eyebrow={t.home.faq.eyebrow}
+          title={t.home.faq.title}
+          description={t.home.faq.description}
         />
 
         <div className="mt-12 space-y-3">
@@ -34,7 +37,7 @@ export default function FaqSection() {
                   className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left"
                 >
                   <span className="font-medium text-slate-100 light:text-slate-900">
-                    {item.question}
+                    {(byId(t.home.faq.items, item.id) ?? item).question}
                   </span>
                   <ChevronDown
                     className={`h-4 w-4 shrink-0 text-cyan-300 light:text-cyan-700 transition-transform ${
@@ -51,7 +54,7 @@ export default function FaqSection() {
                     transition={{ duration: 0.25, ease: "easeOut" }}
                     className="px-6 pb-5 text-sm leading-6 text-slate-400 light:text-slate-600"
                   >
-                    {item.answer}
+                    {(byId(t.home.faq.items, item.id) ?? item).answer}
                   </motion.div>
                 ) : null}
               </div>

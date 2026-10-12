@@ -5,12 +5,11 @@ import ContactHero from "@/components/contact/ContactHero";
 import ProjectEstimateForm from "@/components/contact/ProjectEstimateForm";
 import ContactMethods from "@/components/contact/ContactMethods";
 import ContactFaq from "@/components/contact/ContactFaq";
+import { getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Контакты и расчёт стоимости | COMPNET",
-  description:
-    "Оставьте заявку на сайт, web- или мобильное приложение, CRM либо AI-решение — получите ориентировочную стоимость и свяжитесь с COMPNET удобным способом.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.contact;
+}
 
 export default function ContactPage() {
   return (

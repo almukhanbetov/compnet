@@ -18,3 +18,8 @@ export function localeCookie(locale: Locale): string {
 export function fill(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
 }
+
+/** Translated entry for an item id, or undefined (callers fall back to the original text). */
+export function byId<T>(map: Record<string, T>, id: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(map, id) ? map[id] : undefined;
+}

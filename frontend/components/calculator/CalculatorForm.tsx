@@ -1,5 +1,7 @@
 "use client";
 
+import { byId } from "@/lib/i18n";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import FieldWrapper from "@/components/ui/FieldWrapper";
@@ -65,6 +67,8 @@ const pillClass = (isActive: boolean) =>
 const groupLabelClass = "text-sm font-medium text-slate-300 light:text-slate-700";
 
 export default function CalculatorForm() {
+  const { t } = useLocale();
+  const c = t.catalog;
   const [form, setForm] = useState<CalculatorFormState>(initialState);
 
   const entry = projectPricingList.find(
@@ -118,13 +122,16 @@ export default function CalculatorForm() {
     <section className="px-6 py-8 md:py-12">
       <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-8 rounded-[28px] border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl md:p-10">
-          <FieldWrapper label="Тип проекта" htmlFor="calc-project-type">
+          <FieldWrapper label={c.form.projectType} htmlFor="calc-project-type">
             <SelectField<ProjectPricingLabel | "">
               id="calc-project-type"
               value={form.projectType}
               onChange={handleProjectTypeChange}
               options={projectTypeLabels}
-              placeholder="Выберите тип проекта"
+              getLabel={(label) =>
+                label ? t.contactPage.form.options.projectType[label] : label
+              }
+              placeholder={c.form.projectTypePlaceholder}
             />
           </FieldWrapper>
 
@@ -132,8 +139,8 @@ export default function CalculatorForm() {
             <div>
               <p className={groupLabelClass}>
                 {entry?.category === "site"
-                  ? "Масштаб сайта"
-                  : "Масштаб приложения"}
+                  ? c.form.siteScale
+                  : c.form.appScale}
               </p>
               <div className="mt-3 flex flex-wrap gap-3">
                 {scaleTiers.map((tier) => (
@@ -146,7 +153,7 @@ export default function CalculatorForm() {
                     aria-pressed={tier.id === form.scaleTierId}
                     className={pillClass(tier.id === form.scaleTierId)}
                   >
-                    {tier.label}
+                    {byId(c.scale, tier.id) ?? tier.label}
                   </button>
                 ))}
               </div>
@@ -154,7 +161,7 @@ export default function CalculatorForm() {
           ) : null}
 
           <div>
-            <p className={groupLabelClass}>Дополнительные модули</p>
+            <p className={groupLabelClass}>{c.form.modules}</p>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {calculatorModules.map((module) => {
                 const checked = form.selectedModules.includes(module.id);
@@ -176,12 +183,12 @@ export default function CalculatorForm() {
                         className="h-4 w-4 shrink-0 accent-violet-500"
                       />
                       <span className="text-sm text-slate-200 light:text-slate-800">
-                        {module.label}
+                        {byId(c.modules, module.id) ?? module.label}
                       </span>
                     </span>
                     <span className="shrink-0 text-xs text-slate-400 light:text-slate-600">
                       +{module.price.toLocaleString("ru-RU")} ₸
-                      {module.perUnit ? " / интеграция" : ""}
+                      {module.perUnit ? c.form.perIntegration : ""}
                     </span>
                   </label>
                 );
@@ -191,12 +198,12 @@ export default function CalculatorForm() {
             {hasExternalApi ? (
               <div className="mt-4 flex items-center gap-3">
                 <span className="text-sm text-slate-400 light:text-slate-600">
-                  Количество интеграций внешнего API:
+                  {c.form.integrationsCount}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    aria-label="Уменьшить количество интеграций"
+                    aria-label={c.form.decrease}
                     onClick={() =>
                       setForm((prev) => ({
                         ...prev,
@@ -212,7 +219,7 @@ export default function CalculatorForm() {
                   </span>
                   <button
                     type="button"
-                    aria-label="Увеличить количество интеграций"
+                    aria-label={c.form.increase}
                     onClick={() =>
                       setForm((prev) => ({
                         ...prev,
@@ -240,7 +247,7 @@ export default function CalculatorForm() {
                 className="h-4 w-4 shrink-0 accent-violet-500"
               />
               <span className="text-sm text-slate-200 light:text-slate-800">
-                Мультиязычность{" "}
+                {c.form.multilingual}{" "}
                 <span className="text-slate-400 light:text-slate-600">
                   (+10%)
                 </span>
@@ -249,7 +256,7 @@ export default function CalculatorForm() {
           </div>
 
           <div>
-            <p className={groupLabelClass}>Дизайн</p>
+            <p className={groupLabelClass}>{c.form.design}</p>
             <div className="mt-3 flex flex-wrap gap-3">
               {designLevels.map((level) => (
                 <button
@@ -261,7 +268,7 @@ export default function CalculatorForm() {
                   aria-pressed={level.id === form.designLevelId}
                   className={pillClass(level.id === form.designLevelId)}
                 >
-                  {level.label}
+                  {byId(c.design, level.id) ?? level.label}
                   {level.percent > 0 ? ` +${level.percent * 100}%` : ""}
                 </button>
               ))}
@@ -269,7 +276,7 @@ export default function CalculatorForm() {
           </div>
 
           <div>
-            <p className={groupLabelClass}>Сложность</p>
+            <p className={groupLabelClass}>{c.form.complexity}</p>
             <div className="mt-3 flex flex-wrap gap-3">
               {complexityLevels.map((level) => (
                 <button
@@ -281,14 +288,14 @@ export default function CalculatorForm() {
                   aria-pressed={level.id === form.complexityId}
                   className={pillClass(level.id === form.complexityId)}
                 >
-                  {level.label} ×{level.multiplier.toFixed(2)}
+                  {byId(c.complexity, level.id) ?? level.label} ×{level.multiplier.toFixed(2)}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <p className={groupLabelClass}>Срочность</p>
+            <p className={groupLabelClass}>{c.form.urgency}</p>
             <div className="mt-3 flex flex-wrap gap-3">
               {urgencyLevels.map((level) => (
                 <button
@@ -300,7 +307,7 @@ export default function CalculatorForm() {
                   aria-pressed={level.id === form.urgencyId}
                   className={pillClass(level.id === form.urgencyId)}
                 >
-                  {level.label} ×{level.multiplier.toFixed(2)}
+                  {byId(c.urgency, level.id) ?? level.label} ×{level.multiplier.toFixed(2)}
                 </button>
               ))}
             </div>

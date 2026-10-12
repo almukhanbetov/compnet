@@ -1,5 +1,7 @@
 "use client";
 
+import { byId } from "@/lib/i18n";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { motion } from "motion/react";
 import {
   Globe,
@@ -24,18 +26,20 @@ const projectTypeIcons: Record<ProjectTypeIcon, LucideIcon> = {
 };
 
 export default function WhatWeCreateSection() {
+  const { t } = useLocale();
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Что мы делаем"
-          title="Какие проекты мы создаём"
-          description="Полный цикл разработки — от идеи до готового продукта, под любую задачу бизнеса."
+          eyebrow={t.home.whatWeCreate.eyebrow}
+          title={t.home.whatWeCreate.title}
+          description={t.home.whatWeCreate.description}
         />
 
         <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projectTypes.map((projectType, index) => {
             const Icon = projectTypeIcons[projectType.icon];
+            const text = byId(t.home.whatWeCreate.items, projectType.id) ?? projectType;
 
             return (
               <motion.div
@@ -51,10 +55,10 @@ export default function WhatWeCreateSection() {
                 </span>
 
                 <p className="mt-4 font-semibold text-slate-100 light:text-slate-900">
-                  {projectType.title}
+                  {text.title}
                 </p>
                 <p className="mt-1.5 text-sm text-slate-400 light:text-slate-600">
-                  {projectType.description}
+                  {text.description}
                 </p>
               </motion.div>
             );

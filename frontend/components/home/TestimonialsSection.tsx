@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Star, Quote, ArrowRight } from "lucide-react";
@@ -11,22 +12,23 @@ interface TestimonialsSectionProps {
 }
 
 export default function TestimonialsSection({ items }: TestimonialsSectionProps) {
+  const { t } = useLocale();
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <SectionHeading
             align="left"
-            eyebrow="Отзывы"
-            title="Клиенты нам доверяют"
-            description="Реальные истории команд, которые уже работают с COMPNET."
+            eyebrow={t.home.testimonials.eyebrow}
+            title={t.home.testimonials.title}
+            description={t.home.testimonials.description}
           />
 
           <Link
             href="/reviews"
             className="inline-flex items-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-2.5 text-sm font-semibold text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10"
           >
-            Все отзывы
+            {t.home.testimonials.allReviews}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>

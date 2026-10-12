@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, startTransition, useCallback, useContext, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { translations } from "@/data/translations";
 import { localeCookie } from "@/lib/i18n";
@@ -22,14 +23,20 @@ interface LocaleProviderProps {
 
 export function LocaleProvider({ children, initialLocale }: LocaleProviderProps) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  const router = useRouter();
 
-  // Remember the choice for the next visit (the server reads the cookie)
-  // and keep <html lang> in step without a reload.
-  const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next);
-    document.cookie = localeCookie(next);
-    document.documentElement.lang = next;
-  }, []);
+  // Remember the choice for the next visit (the server reads the cookie),
+  // keep <html lang> in step, and re-render the server components (page
+  // texts, API content, metadata) in the new language without a reload.
+  const setLocale = useCallback(
+    (next: Locale) => {
+      setLocaleState(next);
+      document.cookie = localeCookie(next);
+      document.documentElement.lang = next;
+      startTransition(() => router.refresh());
+    },
+    [router],
+  );
 
   const value = useMemo<LocaleContextValue>(
     () => ({ locale, setLocale, t: translations[locale] }),

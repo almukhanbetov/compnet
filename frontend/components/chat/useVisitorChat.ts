@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatFailure } from "@/data/i18n/chat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchConversation,
@@ -25,7 +26,7 @@ export type ChatConnection = "online" | "offline";
 
 export type SaveContactResult =
   | { kind: "ok" }
-  | { kind: "error"; message: string; fields: Record<string, string> };
+  | { kind: "error"; failure: ChatFailure; fields: Record<string, string> };
 
 function fromApi(m: ApiChatMessage): ChatMessage {
   return {
@@ -72,16 +73,18 @@ function mergeMessages(prev: ChatMessage[], incoming: ApiChatMessage[]): ChatMes
   return [...stored, ...unsent];
 }
 
-function failureText(result: ChatApiResult<unknown>): string {
+function deliveryFailure(result: ChatApiResult<unknown>): ChatFailure {
   switch (result.kind) {
     case "network_error":
-      return "Нет соединения с сервером. Сообщение не отправлено.";
+      return { code: "network" };
     case "rate_limited":
-      return `Слишком много сообщений подряд. Повторите через ${result.retryAfterSeconds} с.`;
+      return { code: "rateLimited", seconds: result.retryAfterSeconds };
     case "validation_error":
-      return result.fields.body ?? result.message;
+      return result.fields.body
+        ? { code: "field", field: "body", message: result.fields.body }
+        : { code: "invalid" };
     default:
-      return "Не удалось отправить сообщение. Попробуйте ещё раз.";
+      return { code: "sendFailed" };
   }
 }
 
@@ -339,8 +342,8 @@ export function useVisitorChat(isOpen: boolean) {
       updateLocal(clientMessageId, {
         status: "failed",
         error: sessionLimited
-          ? `Слишком много новых диалогов с этого адреса. Повторите через ${outcome.retryAfterSeconds} с.`
-          : failureText(outcome),
+          ? { code: "sessionRateLimited", seconds: outcome.retryAfterSeconds }
+          : deliveryFailure(outcome),
       });
     },
     [ensureSession, markConversation, updateLocal],
@@ -406,16 +409,16 @@ export function useVisitorChat(isOpen: boolean) {
         return { kind: "ok" };
       }
       if (result.kind === "validation_error") {
-        return { kind: "error", message: result.message, fields: result.fields };
+        return { kind: "error", failure: { code: "invalid" }, fields: result.fields };
       }
       if (result.kind === "rate_limited") {
         return {
           kind: "error",
-          message: `Слишком много запросов. Повторите через ${result.retryAfterSeconds} с.`,
+          failure: { code: "contactRateLimited", seconds: result.retryAfterSeconds },
           fields: {},
         };
       }
-      return { kind: "error", message: "Не удалось сохранить контакт. Попробуйте ещё раз.", fields: {} };
+      return { kind: "error", failure: { code: "contactFailed" }, fields: {} };
     },
     [applyConversation],
   );

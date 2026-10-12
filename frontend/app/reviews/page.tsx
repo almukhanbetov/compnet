@@ -1,18 +1,13 @@
 import type { Metadata } from "next";
 import PlaceholderPage from "@/components/layout/PlaceholderPage";
+import { getServerTranslations } from "@/lib/i18n.server";
 
-export const metadata: Metadata = {
-  title: "Отзывы клиентов | COMPNET",
-  description:
-    "Отзывы клиентов COMPNET о разработке сайтов, web- и мобильных приложений, CRM и AI-решений.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return (await getServerTranslations()).common.seo.reviews;
+}
 
-export default function ReviewsPage() {
-  return (
-    <PlaceholderPage
-      eyebrow="Отзывы"
-      title="Отзывы клиентов"
-      description="Полная лента отзывов с фильтрами по категориям и рейтингу появится на следующем этапе прототипа."
-    />
-  );
+export default async function ReviewsPage() {
+  const { common } = await getServerTranslations();
+
+  return <PlaceholderPage {...common.placeholders.reviews} />;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { byId } from "@/lib/i18n";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { motion } from "motion/react";
 import { Wallet, Layers, Clock, Headset, type LucideIcon } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
@@ -14,17 +16,19 @@ const formatIcons: Record<WorkFormatIcon, LucideIcon> = {
 };
 
 export default function WorkFormats() {
+  const { t } = useLocale();
   return (
     <section className="px-6 py-20 md:py-28">
       <div className="mx-auto max-w-[1440px]">
         <SectionHeading
-          eyebrow="Форматы работы"
-          title="Как мы можем работать"
-          description="Выбираем формат сотрудничества под тип проекта и ваш бюджет."
+          eyebrow={t.pricing.formats.eyebrow}
+          title={t.pricing.formats.title}
+          description={t.pricing.formats.description}
         />
 
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {workFormats.map((format, index) => {
+          {workFormats.map((original, index) => {
+            const format = { ...original, ...byId(t.pricing.formats.items, original.id) };
             const Icon = formatIcons[format.icon];
 
             return (
