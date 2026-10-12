@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert, WifiOff } from "lucide-react";
 import ManagerShell from "@/components/manager/ManagerShell";
+import { ManagerRealtimeProvider } from "@/components/manager/ManagerRealtime";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { fetchMe, logout } from "@/lib/api/manager";
 import type { ApiStaffUser } from "@/types/api/manager";
 
@@ -22,6 +24,8 @@ type Gate =
  */
 export default function ManagerApp() {
   const router = useRouter();
+  const { t } = useLocale();
+  const g = t.manager.gate;
   const [gate, setGate] = useState<Gate>({ kind: "checking" });
   const [attempt, setAttempt] = useState(0);
 
@@ -54,11 +58,12 @@ export default function ManagerApp() {
         setGate({ kind: "leaving" });
         router.replace("/manager/login?reason=expired");
       } else {
-        setGate({ kind: "forbidden", message: message ?? "Недостаточно прав." });
+        setGate({ kind: "forbidden", message: message ?? g.forbiddenShort });
       }
     },
-    [router],
+    [router, g.forbiddenShort],
   );
+  const handleSessionEnded = useCallback(() => handleAuthError("unauthorized"), [handleAuthError]);
 
   const handleLogout = useCallback(async (): Promise<string | null> => {
     const result = await logout();
@@ -67,13 +72,15 @@ export default function ManagerApp() {
       router.replace("/manager/login?reason=logout");
       return null;
     }
-    return result.kind === "network_error"
-      ? "Не удалось выйти: нет связи с сервером. Попробуйте ещё раз."
-      : "Не удалось выйти. Попробуйте ещё раз.";
-  }, [router]);
+    return result.kind === "network_error" ? g.logoutNetwork : g.logoutFailed;
+  }, [router, g.logoutNetwork, g.logoutFailed]);
 
   if (gate.kind === "authed") {
-    return <ManagerShell user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />;
+    return (
+      <ManagerRealtimeProvider onSessionEnded={handleSessionEnded}>
+        <ManagerShell user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />
+      </ManagerRealtimeProvider>
+    );
   }
 
   return (
@@ -81,13 +88,13 @@ export default function ManagerApp() {
       {gate.kind === "checking" || gate.kind === "leaving" ? (
         <p className="flex items-center gap-2 text-sm text-slate-400 light:text-slate-600">
           <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-          Проверяем вход…
+          {g.checking}
         </p>
       ) : null}
       {gate.kind === "unreachable" ? (
         <div role="alert" className="flex max-w-sm flex-col items-center gap-3 text-center text-sm text-slate-400 light:text-slate-600">
           <WifiOff className="h-6 w-6" aria-hidden="true" />
-          <p>Нет связи с сервером. Проверьте подключение.</p>
+          <p>{g.unreachable}</p>
           <button
             type="button"
             onClick={() => {
@@ -96,23 +103,23 @@ export default function ManagerApp() {
             }}
             className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white"
           >
-            Повторить
+            {g.retry}
           </button>
         </div>
       ) : null}
       {gate.kind === "forbidden" ? (
         <div role="alert" className="flex max-w-sm flex-col items-center gap-3 text-center">
           <ShieldAlert className="h-7 w-7 text-amber-300 light:text-amber-600" aria-hidden="true" />
-          <h1 className="text-lg font-semibold text-slate-100 light:text-slate-900">Нет доступа к разделу менеджера</h1>
+          <h1 className="text-lg font-semibold text-slate-100 light:text-slate-900">{g.forbiddenTitle}</h1>
           <p className="text-sm text-slate-400 light:text-slate-600">
-            Ваша учётная запись не имеет прав на работу с диалогами. Обратитесь к администратору.
+            {g.forbiddenText}
           </p>
           <button
             type="button"
             onClick={() => void handleLogout()}
             className="rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-4 py-2 text-sm font-medium text-slate-200 light:text-slate-800"
           >
-            Выйти
+            {g.logout}
           </button>
         </div>
       ) : null}

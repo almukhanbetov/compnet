@@ -119,7 +119,7 @@ func NewChatMessageResponse(m chat.Message) ChatMessageResponse {
 		ID:        m.ID,
 		Author:    string(m.Author),
 		Body:      m.Body,
-		CreatedAt: m.CreatedAt,
+		CreatedAt: m.CreatedAt.UTC(),
 	}
 	if m.Author == chat.AuthorVisitor {
 		resp.ClientMessageID = m.ClientMessageID
@@ -140,24 +140,38 @@ func NewChatMessageListResponse(items []chat.Message) []ChatMessageResponse {
 // conversation id is not exposed: the cookie is the only handle a visitor
 // needs.
 type ChatConversationResponse struct {
-	Status         string    `json:"status"`
-	VisitorName    string    `json:"visitor_name"`
-	VisitorContact string    `json:"visitor_contact"`
-	LastMessageID  int64     `json:"last_message_id"`
-	LastReadID     int64     `json:"last_read_id"`
-	UnreadCount    int       `json:"unread_count"`
-	CreatedAt      time.Time `json:"created_at"`
+	Status         string `json:"status"`
+	VisitorName    string `json:"visitor_name"`
+	VisitorContact string `json:"visitor_contact"`
+	LastMessageID  int64  `json:"last_message_id"`
+	LastReadID     int64  `json:"last_read_id"`
+	// ManagerLastReadID lets the widget mark the visitor's own messages
+	// as read ("Прочитано").
+	ManagerLastReadID int64     `json:"manager_last_read_id"`
+	UnreadCount       int       `json:"unread_count"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 // NewChatConversationResponse builds the visitor view of a conversation.
 func NewChatConversationResponse(c chat.Conversation) ChatConversationResponse {
 	return ChatConversationResponse{
-		Status:         string(c.Status),
-		VisitorName:    c.VisitorName,
-		VisitorContact: c.VisitorContact,
-		LastMessageID:  c.LastMessageID,
-		LastReadID:     c.VisitorLastReadID,
-		UnreadCount:    c.UnreadForVisitor,
-		CreatedAt:      c.CreatedAt,
+		Status:            string(c.Status),
+		VisitorName:       c.VisitorName,
+		VisitorContact:    c.VisitorContact,
+		LastMessageID:     c.LastMessageID,
+		LastReadID:        c.VisitorLastReadID,
+		ManagerLastReadID: c.ManagerLastReadID,
+		UnreadCount:       c.UnreadForVisitor,
+		CreatedAt:         c.CreatedAt.UTC(),
 	}
+}
+
+// utcPtr returns the time in UTC: every timestamp the API sends is UTC,
+// whatever the database session's time zone is.
+func utcPtr(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	u := t.UTC()
+	return &u
 }

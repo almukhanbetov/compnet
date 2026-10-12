@@ -13,6 +13,7 @@ import (
 	"github.com/almukha/compnet-backend/internal/http/dto"
 	"github.com/almukha/compnet-backend/internal/http/middleware"
 	"github.com/almukha/compnet-backend/internal/http/response"
+	"github.com/almukha/compnet-backend/internal/security"
 	"github.com/almukha/compnet-backend/internal/service/staffauth"
 )
 
@@ -32,7 +33,13 @@ type ManagerCookieSettings struct {
 type ManagerAuthHandler struct {
 	service ManagerAuthService
 	cookie  ManagerCookieSettings
+	// onLogout is told the revoked session's token hash (realtime hub:
+	// close that session's WebSocket connections).
+	onLogout func(tokenHash []byte)
 }
+
+// OnLogout registers a callback run after a session has been revoked.
+func (h *ManagerAuthHandler) OnLogout(fn func(tokenHash []byte)) { h.onLogout = fn }
 
 // NewManagerAuthHandler wires the handler.
 func NewManagerAuthHandler(service ManagerAuthService, cookie ManagerCookieSettings) *ManagerAuthHandler {
@@ -73,6 +80,9 @@ func (h *ManagerAuthHandler) Logout(c *gin.Context) {
 	if err := h.service.Logout(c.Request.Context(), token); err != nil {
 		apierr.Write(c, err)
 		return
+	}
+	if h.onLogout != nil && token != "" {
+		h.onLogout(security.HashToken(token))
 	}
 	h.clearCookie(c)
 	c.Status(http.StatusNoContent)

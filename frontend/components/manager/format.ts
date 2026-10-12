@@ -34,9 +34,12 @@ export function formatFull(iso: string | null | undefined): string {
   return date ? fullFormat.format(date) : "";
 }
 
-/** A readable label when the visitor left no name. */
-export function visitorLabel(name: string, id: string): string {
-  return name.trim() || `Посетитель ${id.slice(0, 4).toUpperCase()}`;
+/**
+ * A readable label when the visitor left no name: the template (e.g.
+ * "Посетитель {id}") with a short id. Names visitors wrote are kept as is.
+ */
+export function visitorLabel(name: string, id: string, fallbackTemplate: string): string {
+  return name.trim() || fallbackTemplate.replace("{id}", id.slice(0, 4).toUpperCase());
 }
 
 /** tel:/mailto: link for a contact the visitor left, if it looks like one. */

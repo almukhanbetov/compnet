@@ -1,7 +1,9 @@
 "use client";
 
 import { Loader2, RefreshCw, WifiOff } from "lucide-react";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { formatListDate, visitorLabel } from "@/components/manager/format";
+import { fill } from "@/lib/i18n";
 import type { useInbox } from "@/components/manager/useInbox";
 import type { InboxFilter } from "@/types/api/manager";
 
@@ -13,37 +15,31 @@ interface ConversationListProps {
   selectedId: string | null;
   onFilterChange: (filter: InboxFilter) => void;
   onSelect: (id: string) => void;
+  /** Conversations whose visitor has a live connection. */
+  onlineVisitors: ReadonlySet<string>;
 }
 
-const filters: Array<{ id: InboxFilter; label: string }> = [
-  { id: "open", label: "Открытые" },
-  { id: "closed", label: "Закрытые" },
-  { id: "all", label: "Все" },
-];
+const filterIds: InboxFilter[] = ["open", "closed", "all"];
 
-const emptyText: Record<InboxFilter, string> = {
-  open: "Открытых диалогов нет. Новые сообщения посетителей появятся здесь.",
-  closed: "Закрытых диалогов нет.",
-  all: "Диалогов пока нет.",
-};
-
-export default function ConversationList({ inbox, filter, selectedId, onFilterChange, onSelect }: ConversationListProps) {
+export default function ConversationList({ inbox, filter, selectedId, onFilterChange, onSelect, onlineVisitors }: ConversationListProps) {
+  const { t } = useLocale();
+  const l = t.manager.list;
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div role="group" aria-label="Фильтр диалогов" className="flex gap-1 border-b border-[var(--text-primary)]/10 p-3">
-        {filters.map((item) => (
+      <div role="group" aria-label={l.filterLabel} className="flex gap-1 border-b border-[var(--text-primary)]/10 p-3">
+        {filterIds.map((id) => (
           <button
-            key={item.id}
+            key={id}
             type="button"
-            aria-pressed={filter === item.id}
-            onClick={() => onFilterChange(item.id)}
+            aria-pressed={filter === id}
+            onClick={() => onFilterChange(id)}
             className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${
-              filter === item.id
+              filter === id
                 ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white"
                 : "text-slate-400 hover:bg-[var(--text-primary)]/5 light:text-slate-600"
             }`}
           >
-            {item.label}
+            {l.filters[id]}
           </button>
         ))}
       </div>
@@ -52,34 +48,35 @@ export default function ConversationList({ inbox, filter, selectedId, onFilterCh
         {inbox.loadState === "loading" ? (
           <p className="flex items-center justify-center gap-2 p-8 text-sm text-slate-400 light:text-slate-600">
             <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-            Загружаем диалоги…
+            {l.loading}
           </p>
         ) : null}
 
         {inbox.loadState === "error" ? (
           <div role="alert" className="flex flex-col items-center gap-3 p-8 text-center text-sm text-slate-400 light:text-slate-600">
             <WifiOff className="h-5 w-5" aria-hidden="true" />
-            <p>Не удалось загрузить диалоги. Повторяем автоматически.</p>
+            <p>{l.loadFailed}</p>
             <button
               type="button"
               onClick={inbox.refresh}
               className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-3.5 py-2 text-xs font-medium text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10"
             >
               <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-              Повторить сейчас
+              {l.retryNow}
             </button>
           </div>
         ) : null}
 
         {inbox.loadState === "ready" && inbox.items.length === 0 ? (
-          <p className="p-8 text-center text-sm text-slate-400 light:text-slate-600">{emptyText[filter]}</p>
+          <p className="p-8 text-center text-sm text-slate-400 light:text-slate-600">{l.empty[filter]}</p>
         ) : null}
 
-        <ul aria-label="Диалоги">
+        <ul aria-label={l.listAria}>
           {inbox.items.map((item) => {
             const active = item.id === selectedId;
             const last = item.last_message;
-            const prefix = last?.author === "manager" ? "Менеджер: " : "";
+            const prefix = last?.author === "manager" ? l.managerPrefix : "";
+            const online = onlineVisitors.has(item.id);
             return (
               <li key={item.id}>
                 <button
@@ -95,7 +92,14 @@ export default function ConversationList({ inbox, filter, selectedId, onFilterCh
                       <span
                         className={`truncate text-sm ${item.unread_count > 0 ? "font-semibold text-slate-100 light:text-slate-900" : "font-medium text-slate-200 light:text-slate-800"}`}
                       >
-                        {visitorLabel(item.visitor_name, item.id)}
+                        {online ? (
+                          <span
+                            aria-label={l.visitorOnline}
+                            title={l.visitorOnline}
+                            className="mr-1.5 inline-block h-2 w-2 rounded-full bg-emerald-400 align-middle"
+                          />
+                        ) : null}
+                        {visitorLabel(item.visitor_name, item.id, t.manager.visitorFallback)}
                       </span>
                       <span className="shrink-0 text-[11px] text-slate-500">{formatListDate(item.last_message_at)}</span>
                     </span>
@@ -107,13 +111,13 @@ export default function ConversationList({ inbox, filter, selectedId, onFilterCh
                       <span className="flex shrink-0 items-center gap-1.5">
                         {item.status === "closed" ? (
                           <span className="rounded-full border border-[var(--text-primary)]/15 px-2 py-0.5 text-[10px] text-slate-400 light:text-slate-600">
-                            закрыт
+                            {l.closedBadge}
                           </span>
                         ) : null}
                         {item.unread_count > 0 ? (
                           <span
                             className="flex h-5 min-w-5 items-center justify-center rounded-full bg-pink-500 px-1.5 text-[11px] font-bold text-white"
-                            aria-label={`непрочитанных: ${item.unread_count}`}
+                            aria-label={fill(l.unreadAria, { count: String(item.unread_count) })}
                           >
                             {item.unread_count}
                           </span>
@@ -135,7 +139,7 @@ export default function ConversationList({ inbox, filter, selectedId, onFilterCh
               disabled={inbox.loadingMore}
               className="w-full rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-4 py-2.5 text-sm font-medium text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:opacity-60"
             >
-              {inbox.loadingMore ? "Загружаем…" : "Показать ещё"}
+              {inbox.loadingMore ? l.loadingMore : l.showMore}
             </button>
           </div>
         ) : null}

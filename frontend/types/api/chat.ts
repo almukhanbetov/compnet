@@ -17,6 +17,8 @@ export interface ApiChatConversation {
   visitor_contact: string;
   last_message_id: number;
   last_read_id: number;
+  /** The managers' read marker: own messages up to it are "read". */
+  manager_last_read_id: number;
   unread_count: number;
   created_at: string;
 }
@@ -25,6 +27,13 @@ export interface ApiChatMessagesMeta {
   has_more: boolean;
   unread_count: number;
   last_read_id: number;
+  manager_last_read_id: number;
+  status: "open" | "closed";
+}
+
+export interface ApiChatConversationMeta {
+  /** True only while a manager has a live, authenticated realtime connection. */
+  managers_online: boolean;
 }
 
 export interface ApiChatEnvelope<T, M = null> {

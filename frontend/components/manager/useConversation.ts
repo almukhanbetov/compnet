@@ -8,12 +8,27 @@ import {
   setConversationStatus,
   type ManagerApiResult,
 } from "@/lib/api/manager";
+import { REALTIME_POLL_MS, TYPING_SEND_MS, TYPING_TTL_MS } from "@/lib/chat/config";
+import { RealtimeError } from "@/lib/chat/realtime";
 import { uuidV4 } from "@/lib/chat/uuid";
+import { fill } from "@/lib/i18n";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { backoff, usePollingLoop, useSerialQueue } from "@/components/manager/usePollingLoop";
+import { useManagerEvents, useManagerRealtime, useReconcileOnReconnect } from "@/components/manager/ManagerRealtime";
 import type { AuthErrorHandler, Connection } from "@/components/manager/useInbox";
+import type { ManagerTranslations } from "@/data/i18n/manager";
 import type { ApiManagerConversation, ApiManagerMessage } from "@/types/api/manager";
+import type {
+  AckData,
+  ManagerConversationData,
+  ManagerNewMessageData,
+  ManagerReadData,
+  RealtimeErrorData,
+  RealtimeEvent,
+  TypingData,
+} from "@/types/api/realtime";
 
-/** The open conversation is polled about every 4 seconds. */
+/** Without a realtime socket the open conversation is polled about every 4 seconds. */
 export const CONVERSATION_POLL_MS = 4_000;
 const PAGE_SIZE = 30;
 
@@ -25,7 +40,8 @@ export interface ManagerMessage {
   body: string;
   staffName: string;
   createdAt: string;
-  status: "sending" | "sent" | "failed";
+  /** "sent" only after the server confirmed; "read" once the visitor has seen it. */
+  status: "sending" | "sent" | "read" | "failed";
   error?: string;
 }
 
@@ -58,25 +74,30 @@ function mergeById(prev: ManagerMessage[], incoming: ApiManagerMessage[]): Manag
   return [...byId.values()].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
 }
 
-function sendFailureText(result: ManagerApiResult<unknown>): string {
+/** Translated reason for a failed HTTP send; server texts are never shown. */
+function sendFailureText(result: ManagerApiResult<unknown>, e: ManagerTranslations["errors"]): string {
   switch (result.kind) {
     case "network_error":
-      return "Нет соединения с сервером. Ответ не отправлен.";
+      return e.network;
     case "conflict":
-    case "validation_error":
+      return e.closed;
     case "not_found":
+      return e.notFound;
+    case "validation_error":
+      return e.invalid;
     case "forbidden":
-      return result.message;
+      return e.forbidden;
     case "rate_limited":
-      return `Слишком много запросов. Повторите через ${result.retryAfterSeconds} с.`;
+      return fill(e.rateLimited, { seconds: String(result.retryAfterSeconds) });
     default:
-      return "Не удалось отправить ответ. Попробуйте ещё раз.";
+      return e.failed;
   }
 }
 
 interface Options {
   conversationId: string;
   staffName: string;
+  staffId: string;
   unsentStore: UnsentStore;
   onAuthError: AuthErrorHandler;
   /** Called with every fresh server view of the conversation. */
@@ -89,15 +110,23 @@ interface Options {
  * Data and actions for one open conversation. The view using it is keyed by
  * the conversation id, so switching conversations unmounts it: the polling
  * loop is aborted and no response for another conversation can be applied.
+ *
+ * Realtime events of this conversation are applied at once; the HTTP
+ * cursor (maxIdRef) only advances over contiguous HTTP pages, so after a
+ * reconnect "after <cursor>" fills any gap left by missed events.
  */
 export function useConversation({
   conversationId: id,
   staffName,
+  staffId,
   unsentStore,
   onAuthError,
   onConversationChange,
   onRead,
 }: Options) {
+  const { t } = useLocale();
+  const m = t.manager;
+  const realtime = useManagerRealtime();
   const [conv, setConv] = useState<ApiManagerConversation | null>(null);
   const [stored, setStored] = useState<ManagerMessage[]>([]);
   const [unsent, setUnsentState] = useState<ManagerMessage[]>(() => unsentStore.get(id) ?? []);
@@ -109,6 +138,8 @@ export function useConversation({
   const [sendLimitedUntil, setSendLimitedUntil] = useState<number | null>(null);
   const [statusBusy, setStatusBusy] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [visitorTyping, setVisitorTyping] = useState(false);
+  const [otherTyping, setOtherTyping] = useState<string | null>(null);
 
   const loadedRef = useRef(false);
   const maxIdRef = useRef(0);
@@ -117,11 +148,24 @@ export function useConversation({
   const markingRef = useRef(false);
   const sendChainRef = useRef<Promise<void>>(Promise.resolve());
   const callbacksRef = useRef({ onAuthError, onConversationChange, onRead });
+  const liveRef = useRef(false);
+  const typingTimersRef = useRef<{ visitor?: ReturnType<typeof setTimeout>; other?: ReturnType<typeof setTimeout> }>({});
+  const lastTypingSentRef = useRef(0);
   const queue = useSerialQueue();
 
   useEffect(() => {
     callbacksRef.current = { onAuthError, onConversationChange, onRead };
   }, [onAuthError, onConversationChange, onRead]);
+  useEffect(() => {
+    liveRef.current = realtime.status === "open";
+  }, [realtime.status]);
+  useEffect(() => {
+    const timers = typingTimersRef.current;
+    return () => {
+      clearTimeout(timers.visitor);
+      clearTimeout(timers.other);
+    };
+  }, []);
 
   /** Updates the unsent list in state and in the store that outlives the view. */
   const updateUnsent = useCallback(
@@ -134,16 +178,19 @@ export function useConversation({
     [id, unsentStore],
   );
 
+  /** advanceCursor: only for contiguous HTTP pages, never realtime events. */
   const applyServer = useCallback(
-    (items: ApiManagerMessage[]) => {
+    (items: ApiManagerMessage[], advanceCursor: boolean) => {
       if (items.length === 0) return;
-      for (const item of items) {
-        maxIdRef.current = Math.max(maxIdRef.current, item.id);
-        minIdRef.current = minIdRef.current === 0 ? item.id : Math.min(minIdRef.current, item.id);
+      if (advanceCursor) {
+        for (const item of items) {
+          maxIdRef.current = Math.max(maxIdRef.current, item.id);
+          minIdRef.current = minIdRef.current === 0 ? item.id : Math.min(minIdRef.current, item.id);
+        }
       }
       setStored((prev) => mergeById(prev, items));
       const confirmed = new Set(items.map((item) => item.client_message_id));
-      updateUnsent((prev) => prev.filter((m) => !confirmed.has(m.clientMessageId)));
+      updateUnsent((prev) => prev.filter((msg) => !confirmed.has(msg.clientMessageId)));
     },
     [updateUnsent],
   );
@@ -161,7 +208,7 @@ export function useConversation({
         callbacksRef.current.onAuthError("unauthorized");
         return null;
       case "forbidden":
-        callbacksRef.current.onAuthError("forbidden", result.message);
+        callbacksRef.current.onAuthError("forbidden");
         return null;
       case "not_found":
         setLoadState("not_found");
@@ -192,20 +239,62 @@ export function useConversation({
 
         failuresRef.current = 0;
         setConnection({ kind: "online" });
-        applyServer(result.data.data);
+        applyServer(result.data.data, true);
         applyConversation(result.data.meta.conversation);
+        const idle = liveRef.current ? REALTIME_POLL_MS : CONVERSATION_POLL_MS;
         if (initial) {
           loadedRef.current = true;
           setHasOlder(result.data.meta.has_more);
           setLoadState("ready");
-          return CONVERSATION_POLL_MS;
+          return idle;
         }
-        return result.data.meta.has_more ? 0 : CONVERSATION_POLL_MS;
+        return result.data.meta.has_more ? 0 : idle;
       }),
     [id, queue, handleFailure, applyServer, applyConversation],
   );
 
   const refresh = usePollingLoop(step, { enabled: true, resetKey: id });
+  useReconcileOnReconnect(refresh);
+
+  const showTyping = useCallback((who: "visitor" | "other", value: boolean, name?: string) => {
+    const timers = typingTimersRef.current;
+    clearTimeout(timers[who]);
+    if (who === "visitor") setVisitorTyping(value);
+    else setOtherTyping(value ? name || m.bubble.manager : null);
+    if (value) {
+      timers[who] = setTimeout(() => (who === "visitor" ? setVisitorTyping(false) : setOtherTyping(null)), TYPING_TTL_MS);
+    }
+  }, [m.bubble.manager]);
+
+  useManagerEvents(
+    useCallback(
+      (event: RealtimeEvent) => {
+        if (event.conversation_id !== id) return;
+        switch (event.type) {
+          case "new_message": {
+            const data = event.data as ManagerNewMessageData;
+            if (loadedRef.current) applyServer([data.message], false);
+            if (data.message.author === "visitor") showTyping("visitor", false);
+            else if (data.message.staff_user_id && data.message.staff_user_id !== staffId) showTyping("other", false);
+            break;
+          }
+          case "messages_read":
+          case "conversation_updated":
+            applyConversation((event.data as ManagerReadData | ManagerConversationData).conversation);
+            break;
+          case "typing": {
+            const data = event.data as TypingData;
+            if (data.from === "visitor") showTyping("visitor", data.is_typing);
+            else if (data.staff_user_id && data.staff_user_id !== staffId) showTyping("other", data.is_typing, data.staff_name);
+            break;
+          }
+          default:
+            break;
+        }
+      },
+      [id, staffId, applyServer, applyConversation, showTyping],
+    ),
+  );
 
   const loadOlder = useCallback(async () => {
     if (!hasOlder || loadingOlder || minIdRef.current === 0) return;
@@ -216,17 +305,68 @@ export function useConversation({
       handleFailure(result);
       return;
     }
-    applyServer(result.data.data);
+    applyServer(result.data.data, true);
     setHasOlder(result.data.meta.has_more);
     setOlderLoads((n) => n + 1);
   }, [hasOlder, loadingOlder, id, queue, handleFailure, applyServer]);
 
+  const markFailed = useCallback(
+    (clientMessageId: string, error: string) => {
+      updateUnsent((prev) =>
+        prev.map((msg) => (msg.clientMessageId === clientMessageId ? { ...msg, status: "failed", error } : msg)),
+      );
+    },
+    [updateUnsent],
+  );
+
+  /** Socket send with ack. "done" = stored or definitively refused; "fallback" = use HTTP. */
+  const deliverRealtime = useCallback(
+    async (clientMessageId: string, body: string): Promise<"done" | "fallback"> => {
+      if (!liveRef.current) return "fallback";
+      try {
+        const ack = await realtime.request({ type: "send_message", conversation_id: id, client_message_id: clientMessageId, body });
+        applyServer([(ack.data as AckData<ApiManagerMessage>).message], false);
+        setConnection({ kind: "online" });
+        return "done";
+      } catch (error) {
+        if (!(error instanceof RealtimeError) || error.kind !== "server") return "fallback";
+        const data = error.event?.data as RealtimeErrorData | undefined;
+        switch (data?.code) {
+          case "rate_limited": {
+            const seconds = data.retry_after_seconds ?? 5;
+            setSendLimitedUntil(Date.now() + seconds * 1000);
+            markFailed(clientMessageId, fill(m.errors.rateLimited, { seconds: String(seconds) }));
+            return "done";
+          }
+          case "conflict":
+            refresh(); // most likely closed meanwhile: pick up the new status
+            markFailed(clientMessageId, m.errors.closed);
+            return "done";
+          case "not_found":
+            markFailed(clientMessageId, m.errors.notFound);
+            return "done";
+          case "validation_error":
+            markFailed(clientMessageId, m.errors.invalid);
+            return "done";
+          case "unauthorized":
+            callbacksRef.current.onAuthError("unauthorized");
+            return "done";
+          default:
+            return "fallback";
+        }
+      }
+    },
+    [id, realtime, applyServer, markFailed, refresh, m.errors],
+  );
+
   const deliver = useCallback(
     async (clientMessageId: string, body: string) => {
+      if ((await deliverRealtime(clientMessageId, body)) === "done") return;
+
       const result = await sendReply(id, clientMessageId, body);
       if (result.kind === "ok") {
         setConnection({ kind: "online" });
-        applyServer([result.data.data]);
+        applyServer([result.data.data], false);
         refresh();
         return;
       }
@@ -241,15 +381,11 @@ export function useConversation({
         setConnection({ kind: "offline" });
       }
       if (result.kind === "conflict") {
-        refresh(); // most likely closed meanwhile: pick up the new status
+        refresh();
       }
-      updateUnsent((prev) =>
-        prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, status: "failed", error: sendFailureText(result) } : m,
-        ),
-      );
+      markFailed(clientMessageId, sendFailureText(result, m.errors));
     },
-    [id, applyServer, refresh, handleFailure, updateUnsent],
+    [id, deliverRealtime, applyServer, refresh, handleFailure, markFailed, m.errors],
   );
 
   const enqueue = useCallback(
@@ -277,6 +413,7 @@ export function useConversation({
           status: "sending",
         },
       ]);
+      lastTypingSentRef.current = 0;
       enqueue(clientMessageId, body);
     },
     [enqueue, staffName, updateUnsent],
@@ -286,11 +423,11 @@ export function useConversation({
   const retry = useCallback(
     (clientMessageId: string) => {
       const message = (unsentStore.get(id) ?? []).find(
-        (m) => m.clientMessageId === clientMessageId && m.status === "failed",
+        (msg) => msg.clientMessageId === clientMessageId && msg.status === "failed",
       );
       if (!message) return;
       updateUnsent((prev) =>
-        prev.map((m) => (m.clientMessageId === clientMessageId ? { ...m, status: "sending", error: undefined } : m)),
+        prev.map((msg) => (msg.clientMessageId === clientMessageId ? { ...msg, status: "sending", error: undefined } : msg)),
       );
       enqueue(clientMessageId, message.body);
     },
@@ -299,10 +436,19 @@ export function useConversation({
 
   const discard = useCallback(
     (clientMessageId: string) => {
-      updateUnsent((prev) => prev.filter((m) => !(m.clientMessageId === clientMessageId && m.status === "failed")));
+      updateUnsent((prev) => prev.filter((msg) => !(msg.clientMessageId === clientMessageId && msg.status === "failed")));
     },
     [updateUnsent],
   );
+
+  /** Tells the visitor (and other managers) that a reply is being typed. */
+  const notifyTyping = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < TYPING_SEND_MS) return;
+    if (realtime.send({ type: "typing", conversation_id: id, is_typing: true })) {
+      lastTypingSentRef.current = now;
+    }
+  }, [id, realtime]);
 
   /** Moves the managers' read marker; callers pass only messages that were on screen. */
   const markRead = useCallback(
@@ -337,19 +483,23 @@ export function useConversation({
       }
       setStatusError(
         result.kind === "rate_limited"
-          ? `Слишком много запросов. Повторите через ${result.retryAfterSeconds} с.`
+          ? fill(m.errors.rateLimited, { seconds: String(result.retryAfterSeconds) })
           : result.kind === "network_error"
-            ? "Нет соединения с сервером. Статус не изменён."
-            : "Не удалось изменить статус диалога.",
+            ? m.errors.statusNetwork
+            : m.errors.statusFailed,
       );
     },
-    [id, applyConversation, handleFailure],
+    [id, applyConversation, handleFailure, m.errors],
   );
 
+  const visitorReadId = conv?.visitor_last_read_id ?? 0;
   const messages = useMemo(() => {
-    const storedIds = new Set(stored.map((m) => m.clientMessageId));
-    return [...stored, ...unsent.filter((m) => !storedIds.has(m.clientMessageId))];
-  }, [stored, unsent]);
+    const storedIds = new Set(stored.map((msg) => msg.clientMessageId));
+    const withRead = stored.map((msg) =>
+      msg.author === "manager" && msg.id !== null && msg.id <= visitorReadId ? { ...msg, status: "read" as const } : msg,
+    );
+    return [...withRead, ...unsent.filter((msg) => !storedIds.has(msg.clientMessageId))];
+  }, [stored, unsent, visitorReadId]);
 
   return {
     conv,
@@ -362,6 +512,8 @@ export function useConversation({
     sendLimitedUntil,
     statusBusy,
     statusError,
+    visitorTyping,
+    otherTyping,
     loadOlder,
     send,
     retry,
@@ -369,5 +521,6 @@ export function useConversation({
     markRead,
     setStatus,
     refresh,
+    notifyTyping,
   };
 }

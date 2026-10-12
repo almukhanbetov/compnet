@@ -16,5 +16,12 @@ export default function ChatWidgetLoader() {
   if (!chatWidgetEnabled || pathname?.startsWith("/manager")) {
     return null;
   }
-  return <ChatWidget />;
+  return (
+    <>
+      {/* Room below the footer (same background), so the end of every page can scroll clear of
+          the fixed launcher (56px tall, 16–24px from the bottom). */}
+      <div aria-hidden="true" className="h-24 bg-[#05070f] light:bg-slate-50" />
+      <ChatWidget />
+    </>
+  );
 }

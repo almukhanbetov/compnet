@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Clock, RotateCcw, X } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, Clock, RotateCcw, X } from "lucide-react";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { chatFailureText } from "@/data/i18n/chat";
 import type { ChatMessage } from "@/types/message";
@@ -68,6 +68,12 @@ export default function MessageBubble({ message, retryDisabled, onRetry, onDisca
             <>
               <Check className="h-3 w-3" aria-hidden="true" />
               <span>{b.sent}</span>
+            </>
+          ) : null}
+          {isOwn && message.status === "read" ? (
+            <>
+              <CheckCheck className="h-3 w-3" aria-hidden="true" />
+              <span>{b.read}</span>
             </>
           ) : null}
         </p>

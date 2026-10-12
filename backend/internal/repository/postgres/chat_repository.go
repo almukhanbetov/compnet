@@ -90,6 +90,12 @@ func (r *ChatRepository) Create(ctx context.Context, conv chat.Conversation) (ch
 // A new message sets the conversation's status to open: a visitor writing
 // into a closed conversation reopens it (managers may only write into open
 // ones, which the manager service enforces).
+//
+// The conversation row is locked before the insert, like in
+// AddManagerMessage, so messages of one conversation are inserted and
+// committed one at a time: their ids become visible in increasing order and
+// a client reading "after <last id>" can never skip a message that commits
+// later with a smaller id.
 func (r *ChatRepository) AddMessage(
 	ctx context.Context,
 	conversationID string,
@@ -100,6 +106,15 @@ func (r *ChatRepository) AddMessage(
 		return chat.Message{}, false, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	var locked string
+	err = tx.QueryRow(ctx, `SELECT id FROM chat_conversations WHERE id = $1 FOR UPDATE`, conversationID).Scan(&locked)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return chat.Message{}, false, chat.ErrNotFound
+	}
+	if err != nil {
+		return chat.Message{}, false, err
+	}
 
 	const insert = `
 		INSERT INTO chat_messages (conversation_id, author, staff_user_id, client_message_id, body)

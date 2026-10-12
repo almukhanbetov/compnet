@@ -7,15 +7,19 @@ import type { Locale } from "@/types/i18n";
  */
 const ru = {
   launcher: {
-    open: "Открыть чат с менеджером",
-    /** {count} unread messages. */
-    openUnread: "Открыть чат с менеджером, непрочитанных сообщений: {count}",
+    /** Visible button text; the accessible names below start with it. */
+    label: "Чат с менеджером",
+    open: "Чат с менеджером",
+    /** {count} unread replies. */
+    openUnread: "Чат с менеджером, непрочитанных ответов: {count}",
     close: "Закрыть чат",
   },
   window: {
     title: "Чат с COMPNET",
-    /** {hours} is the weekday working time. */
-    hours: "Отвечаем в рабочее время: будни {hours}",
+    /** Neutral subtitle: manager presence is not tracked, so no "online" and no reply-time promise. */
+    subtitle: "Напишите нам — менеджер ответит в чате",
+    whatsappPrompt: "Удобнее в WhatsApp?",
+    whatsapp: "Написать в WhatsApp",
     editContact: "Изменить контакт для связи",
     addContact: "Оставить контакт для связи",
     editContactShort: "Изменить контакт",
@@ -32,6 +36,13 @@ const ru = {
     consentStart: "Отправляя сообщение, вы соглашаетесь с",
     consentLink: "политикой конфиденциальности",
     consentEnd: ".",
+    managerOnline: "Менеджер онлайн",
+    reconnecting: "Восстанавливаем соединение…",
+    typing: "Менеджер печатает…",
+    loadOlder: "Показать более ранние сообщения",
+    loadingOlder: "Загружаем…",
+    newMessages: "Новые сообщения",
+    closedNote: "Менеджер завершил диалог. Если остались вопросы — напишите, и обращение откроется снова.",
   },
   composer: {
     /** {seconds} until sending is allowed again. */
@@ -47,6 +58,7 @@ const ru = {
     sent: "Отправлено",
     retry: "Повторить",
     discard: "Удалить",
+    read: "Прочитано",
   },
   contact: {
     intro: "Оставьте контакт — менеджер сможет ответить, даже если вы закроете страницу. Это необязательно.",
@@ -96,13 +108,16 @@ export const chatTranslations: Record<Locale, ChatTranslations> = {
 
   kk: {
     launcher: {
-      open: "Менеджермен чатты ашу",
-      openUnread: "Менеджермен чатты ашу, оқылмаған хабарламалар: {count}",
+      label: "Менеджермен чат",
+      open: "Менеджермен чат",
+      openUnread: "Менеджермен чат, оқылмаған жауаптар: {count}",
       close: "Чатты жабу",
     },
     window: {
       title: "COMPNET-пен чат",
-      hours: "Жұмыс уақытында жауап береміз: жұмыс күндері {hours}",
+      subtitle: "Бізге жазыңыз — менеджер чатта жауап береді",
+      whatsappPrompt: "WhatsApp ыңғайлырақ па?",
+      whatsapp: "WhatsApp-қа жазу",
       editContact: "Байланыс деректерін өзгерту",
       addContact: "Байланыс деректерін қалдыру",
       editContactShort: "Байланысты өзгерту",
@@ -119,6 +134,13 @@ export const chatTranslations: Record<Locale, ChatTranslations> = {
       consentStart: "Хабарлама жіберу арқылы сіз",
       consentLink: "құпиялылық саясатымен",
       consentEnd: " келісесіз.",
+      managerOnline: "Менеджер желіде",
+      reconnecting: "Байланыс қалпына келтірілуде…",
+      typing: "Менеджер жазып жатыр…",
+      loadOlder: "Ертерек хабарламаларды көрсету",
+      loadingOlder: "Жүктелуде…",
+      newMessages: "Жаңа хабарламалар",
+      closedNote: "Менеджер диалогты аяқтады. Сұрақтарыңыз қалса — жазыңыз, өтініш қайта ашылады.",
     },
     composer: {
       rateLimited: "Қатарынан тым көп хабарлама. Қайта жіберуге {seconds} с кейін болады.",
@@ -133,6 +155,7 @@ export const chatTranslations: Record<Locale, ChatTranslations> = {
       sent: "Жіберілді",
       retry: "Қайталау",
       discard: "Жою",
+      read: "Оқылды",
     },
     contact: {
       intro: "Байланыс деректерін қалдырыңыз — бетті жапсаңыз да, менеджер жауап бере алады. Бұл міндетті емес.",
@@ -174,13 +197,16 @@ export const chatTranslations: Record<Locale, ChatTranslations> = {
 
   en: {
     launcher: {
-      open: "Open chat with a manager",
-      openUnread: "Open chat with a manager, unread messages: {count}",
+      label: "Chat with a manager",
+      open: "Chat with a manager",
+      openUnread: "Chat with a manager, unread replies: {count}",
       close: "Close chat",
     },
     window: {
       title: "Chat with COMPNET",
-      hours: "We reply during working hours: weekdays {hours}",
+      subtitle: "Write to us — a manager will reply in this chat",
+      whatsappPrompt: "Prefer WhatsApp?",
+      whatsapp: "Message us on WhatsApp",
       editContact: "Change contact details",
       addContact: "Leave contact details",
       editContactShort: "Change contact",
@@ -197,6 +223,13 @@ export const chatTranslations: Record<Locale, ChatTranslations> = {
       consentStart: "By sending a message, you agree to the",
       consentLink: "privacy policy",
       consentEnd: ".",
+      managerOnline: "A manager is online",
+      reconnecting: "Reconnecting…",
+      typing: "A manager is typing…",
+      loadOlder: "Show earlier messages",
+      loadingOlder: "Loading…",
+      newMessages: "New messages",
+      closedNote: "The manager has closed this conversation. If you have more questions, just write and it will reopen.",
     },
     composer: {
       rateLimited: "Too many messages in a row. You can send again in {seconds} s.",
@@ -211,6 +244,7 @@ export const chatTranslations: Record<Locale, ChatTranslations> = {
       sent: "Sent",
       retry: "Retry",
       discard: "Delete",
+      read: "Read",
     },
     contact: {
       intro: "Leave your contact details so a manager can reply even if you close the page. This is optional.",

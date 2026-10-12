@@ -1,5 +1,6 @@
 import type {
   ApiChatConversation,
+  ApiChatConversationMeta,
   ApiChatEnvelope,
   ApiChatErrorEnvelope,
   ApiChatMessage,
@@ -78,7 +79,7 @@ async function request<T>(
 
 /** GET /chat — data is null while the visitor has no conversation yet. */
 export function fetchConversation(signal?: AbortSignal) {
-  return request<ApiChatEnvelope<ApiChatConversation | null>>("", { signal });
+  return request<ApiChatEnvelope<ApiChatConversation | null, ApiChatConversationMeta>>("", { signal });
 }
 
 /** POST /chat/session — idempotent: returns the existing conversation or creates one. */
@@ -93,6 +94,18 @@ export function startSession(pageUrl: string) {
 export function fetchMessages(after: number, signal?: AbortSignal) {
   return request<ApiChatEnvelope<ApiChatMessage[], ApiChatMessagesMeta>>(
     `/messages?after=${after}`,
+    { signal },
+  );
+}
+
+/**
+ * GET /chat/messages?tail=1 or ?before= — the newest messages, or the ones
+ * before an id; oldest first. meta.has_more: older messages exist.
+ */
+export function fetchHistory(before: number, limit: number, signal?: AbortSignal) {
+  const query = before > 0 ? `before=${before}` : "tail=1";
+  return request<ApiChatEnvelope<ApiChatMessage[], ApiChatMessagesMeta>>(
+    `/messages?${query}&limit=${limit}`,
     { signal },
   );
 }

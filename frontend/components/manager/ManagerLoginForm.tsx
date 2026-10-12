@@ -7,11 +7,8 @@ import { Loader2, LogIn } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useCountdown } from "@/components/chat/useCountdown";
 import { fetchMe, login } from "@/lib/api/manager";
-
-const notices: Record<string, string> = {
-  expired: "Сессия завершилась. Войдите снова.",
-  logout: "Вы вышли из раздела менеджера.",
-};
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { fill } from "@/lib/i18n";
 
 const fieldClass =
   "w-full rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-4 py-3 text-base text-[var(--text-primary)] placeholder:text-slate-500 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 sm:text-sm";
@@ -23,6 +20,8 @@ const fieldClass =
  */
 export default function ManagerLoginForm() {
   const router = useRouter();
+  const { t } = useLocale();
+  const l = t.manager.login;
   const reason = useSearchParams().get("reason") ?? "";
   const [checking, setChecking] = useState(true);
   const [email, setEmail] = useState("");
@@ -49,7 +48,7 @@ export default function ManagerLoginForm() {
     event.preventDefault();
     if (submitting || waitSeconds > 0) return;
     if (!email.trim() || !password) {
-      setError("Введите email и пароль.");
+      setError(l.enterBoth);
       return;
     }
     setSubmitting(true);
@@ -63,27 +62,27 @@ export default function ManagerLoginForm() {
         router.replace("/manager");
         return;
       case "unauthorized":
-        setError("Неверный email или пароль.");
+        setError(l.wrong);
         return;
       case "rate_limited":
         setLimitedUntil(Date.now() + result.retryAfterSeconds * 1000);
         setError(null);
         return;
       case "validation_error":
-        setError(result.message);
+        setError(l.invalid);
         return;
       case "network_error":
-        setError("Нет связи с сервером. Проверьте подключение и попробуйте снова.");
+        setError(l.network);
         return;
       case "forbidden":
-        setError("Вход отклонён. Обновите страницу и попробуйте снова.");
+        setError(l.forbidden);
         return;
       default:
-        setError("Не удалось войти. Попробуйте позже.");
+        setError(l.failed);
     }
   };
 
-  const notice = notices[reason];
+  const notice = reason === "expired" ? l.expired : reason === "logout" ? l.loggedOut : undefined;
 
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[var(--background)] px-4 py-10">
@@ -98,8 +97,8 @@ export default function ManagerLoginForm() {
           COMP
           <span className="bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent">NET</span>
         </p>
-        <h1 className="mt-4 text-2xl font-bold text-slate-100 light:text-slate-900">Вход для менеджера</h1>
-        <p className="mt-1 text-sm text-slate-400 light:text-slate-600">Диалоги с посетителями сайта.</p>
+        <h1 className="mt-4 text-2xl font-bold text-slate-100 light:text-slate-900">{l.title}</h1>
+        <p className="mt-1 text-sm text-slate-400 light:text-slate-600">{l.subtitle}</p>
 
         {notice ? (
           <p role="status" className="mt-4 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100 light:border-cyan-600/30 light:bg-cyan-500/10 light:text-cyan-900">
@@ -110,13 +109,13 @@ export default function ManagerLoginForm() {
         {checking ? (
           <p className="mt-6 flex items-center gap-2 text-sm text-slate-400 light:text-slate-600">
             <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-            Проверяем вход…
+            {l.checking}
           </p>
         ) : (
           <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
             <div>
               <label htmlFor="manager-email" className="mb-1.5 block text-sm font-medium text-slate-300 light:text-slate-700">
-                Email
+                {l.email}
               </label>
               <input
                 id="manager-email"
@@ -130,7 +129,7 @@ export default function ManagerLoginForm() {
             </div>
             <div>
               <label htmlFor="manager-password" className="mb-1.5 block text-sm font-medium text-slate-300 light:text-slate-700">
-                Пароль
+                {l.password}
               </label>
               <input
                 id="manager-password"
@@ -150,7 +149,7 @@ export default function ManagerLoginForm() {
             ) : null}
             {waitSeconds > 0 ? (
               <p role="status" className="text-sm text-amber-300 light:text-amber-700">
-                Слишком много попыток входа. Повторите через {waitSeconds} с.
+                {fill(l.rateLimited, { seconds: String(waitSeconds) })}
               </p>
             ) : null}
 
@@ -164,7 +163,7 @@ export default function ManagerLoginForm() {
               ) : (
                 <LogIn className="h-4 w-4" aria-hidden="true" />
               )}
-              {submitting ? "Входим…" : "Войти"}
+              {submitting ? l.submitting : l.submit}
             </button>
           </form>
         )}

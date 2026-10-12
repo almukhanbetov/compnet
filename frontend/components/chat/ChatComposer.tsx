@@ -10,17 +10,27 @@ import { fill } from "@/lib/i18n";
 interface ChatComposerProps {
   rateLimitSeconds: number;
   onSend: (text: string) => void;
+  /** Called on every edit (the caller throttles typing signals). */
+  onTyping?: () => void;
+  /** Text to start with, e.g. a saved draft. */
+  initialDraft?: string;
+  /** Called with every change, so a draft can outlive the composer. */
+  onDraftChange?: (draft: string) => void;
 }
 
 const COUNTER_FROM = MAX_MESSAGE_LENGTH - 200;
 
 const ChatComposer = forwardRef<HTMLTextAreaElement, ChatComposerProps>(function ChatComposer(
-  { rateLimitSeconds, onSend },
+  { rateLimitSeconds, onSend, onTyping, initialDraft = "", onDraftChange },
   ref,
 ) {
   const { t } = useLocale();
   const c = t.chat.composer;
-  const [draft, setDraft] = useState("");
+  const [draft, setDraftState] = useState(initialDraft);
+  const setDraft = (value: string) => {
+    setDraftState(value);
+    onDraftChange?.(value);
+  };
   const length = [...draft].length;
   const isTooLong = length > MAX_MESSAGE_LENGTH;
   const isBlocked = rateLimitSeconds > 0;
@@ -63,7 +73,10 @@ const ChatComposer = forwardRef<HTMLTextAreaElement, ChatComposerProps>(function
           id="chat-composer"
           ref={ref}
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            if (event.target.value.trim()) onTyping?.();
+          }}
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder={c.placeholder}

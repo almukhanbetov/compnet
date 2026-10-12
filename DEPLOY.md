@@ -268,6 +268,25 @@ Launch in this order — each step is checked before the next:
    it with an unread badge and `(1)` in the tab title → manager replies →
    visitor's chat button shows `1` and the reply → close/reopen the dialog.
 
+### Realtime (WebSocket)
+
+Details, event format and limits: [docs/CHAT_REALTIME.md](docs/CHAT_REALTIME.md).
+
+- **One backend process.** The realtime hub lives in the backend's memory;
+  the compose file runs exactly one backend and that must stay so (see
+  "Scaling" in the document before adding replicas).
+- **Nginx.** WebSocket handshakes need the two `location = /api/v1/…/ws`
+  blocks from docs/CHAT_REALTIME.md in `/etc/nginx/sites-available/compnet.kz`
+  (before `location /api/`), then `sudo nginx -t && sudo systemctl reload nginx`.
+  Without them the chat still works, over HTTP polling every few seconds.
+- **Order.** Deploy (migration `20261013100000_chat_realtime_indexes` only
+  adds indexes) → add the Nginx blocks → check the `101`/`403` curl commands
+  from the document → the widget flag (unchanged: only `true` turns it on).
+- **Verify live.** A normal window on `https://compnet.kz` (visitor) and a
+  private one on `/manager`: the visitor's message appears in the inbox
+  without a reload, the reply appears in the widget, the manager header says
+  "Онлайн — сообщения приходят сразу", the widget shows "Менеджер онлайн".
+
 ## 6. Rollback
 
 ### Turn the chat widget off (fast, no data touched)
