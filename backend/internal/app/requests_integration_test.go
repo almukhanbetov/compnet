@@ -373,3 +373,95 @@ func containsID(items []requestItem, id string) bool {
 	return false
 }
 
+// A visitor who accepted analytics and sends the form (or a first chat
+// message) before the tracker's first batch arrives keeps the link: the
+// conversion waits for the session instead of being lost.
+func TestRequests_FastSubmitKeepsAnalyticsLink(t *testing.T) {
+	e := newEnv(t)
+	s := e.startAnalytics()
+	mgr := s.actor(t)
+	mgr.login(e)
+	tag := randomHex(4)
+
+	session := uuid()
+	e.trackSession(session)
+	visitor := s.actor(t)
+	id := e.submitRequest(visitor, map[string]any{
+		"name": "Быстрый " + tag, "phone": "+77017770011", "email": "fast-" + tag + "@example.kz",
+		"analytics_session_id": session,
+	})
+	if n := e.count(`SELECT count(*) FROM analytics_pending_conversions WHERE session_id = $1 AND project_request_id = $2`, session, id); n != 1 {
+		t.Fatalf("conversion not kept while the session is unknown: %d", n)
+	}
+	if d := mgr.requestDetail(id); d.Analytics != nil {
+		t.Fatalf("source shown before the session exists: %+v", d.Analytics)
+	}
+
+	// The first chat message of the same visit, also before any batch.
+	visitor.startChat()
+	if code, body := visitor.do("POST", "/api/v1/chat/messages", map[string]string{"client_message_id": uuid(), "body": "Здравствуйте " + tag, "analytics_session_id": session}); code != 201 {
+		t.Fatalf("chat: %d %s", code, body)
+	}
+	var conv string
+	if err := e.pool.QueryRow(context.Background(), `SELECT conversation_id::text FROM analytics_pending_conversions WHERE session_id = $1 AND type = 'chat_first_message'`, session).Scan(&conv); err != nil {
+		t.Fatalf("chat conversion not kept: %v", err)
+	}
+	e.track(conv)
+
+	// The tracker's batch arrives afterwards and carries the UTM tags.
+	b := newBatch(uuid(), session, [2]string{"page_view", "/contact"})
+	b.Session["utm"] = map[string]string{"source": "google", "medium": "cpc", "campaign": "fast_" + tag}
+	if code, body := visitor.send("/api/v1/analytics/events", testOrigin, browserUA, b); code != 204 {
+		t.Fatalf("events: %d %s", code, body)
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_pending_conversions WHERE session_id = $1`, session); n != 0 {
+		t.Errorf("pending conversions left after the session arrived: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_events WHERE session_id = $1 AND type = 'lead_submit' AND project_request_id = $2`, session, id); n != 1 {
+		t.Errorf("lead not linked: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_events WHERE session_id = $1 AND type = 'chat_first_message' AND conversation_id = $2`, session, conv); n != 1 {
+		t.Errorf("chat not linked: %d", n)
+	}
+	// Dated when the request was saved, not when the batch came.
+	if n := e.count(`SELECT count(*) FROM analytics_events ev JOIN project_requests p ON p.id = ev.project_request_id
+		WHERE ev.project_request_id = $1 AND ev.occurred_at <= (SELECT started_at FROM analytics_sessions WHERE id = $2) AND ev.occurred_at >= p.created_at`, id, session); n != 1 {
+		t.Errorf("conversion not dated at the request")
+	}
+	d := mgr.requestDetail(id)
+	if d.Analytics == nil || d.Analytics.SessionID != session || d.Analytics.Source != "google" || d.Analytics.Campaign != "fast_"+tag {
+		t.Fatalf("source after the batch: %+v", d.Analytics)
+	}
+	// A repeated batch changes nothing.
+	visitor.send("/api/v1/analytics/events", testOrigin, browserUA, newBatch(b.VisitorID, session, [2]string{"page_view", "/"}))
+	if n := e.count(`SELECT count(*) FROM analytics_events WHERE session_id = $1 AND type IN ('lead_submit','chat_first_message')`, session); n != 2 {
+		t.Errorf("conversions duplicated: %d", n)
+	}
+	// Nothing personal in the analytics tables.
+	if n := e.count(`SELECT count(*) FROM analytics_events WHERE session_id = $1 AND (path LIKE '%' || $2 || '%')`, session, tag); n != 0 {
+		t.Errorf("personal data in events")
+	}
+
+	// Without consent the form sends no session id: nothing is recorded.
+	plain := e.submitRequest(s.actor(t), map[string]any{"name": "Без согласия " + tag, "phone": "+77017770012"})
+	if n := e.count(`SELECT (SELECT count(*) FROM analytics_pending_conversions WHERE project_request_id = $1) + (SELECT count(*) FROM analytics_events WHERE project_request_id = $1)`, plain); n != 0 {
+		t.Errorf("analytics recorded without consent: %d", n)
+	}
+
+	// A session that never arrives (consent withdrawn before the flush): the
+	// waiting row is removed by the cleanup task; the request stays.
+	lost := uuid()
+	orphan := e.submitRequest(s.actor(t), map[string]any{"name": "Отозвал " + tag, "phone": "+77017770013", "analytics_session_id": lost})
+	if _, err := e.pool.Exec(context.Background(), `UPDATE analytics_pending_conversions SET created_at = now() - interval '25 hours' WHERE session_id = $1`, lost); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.app.Analytics.Purge(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_pending_conversions WHERE session_id = $1`, lost); n != 0 {
+		t.Errorf("stale pending conversion not purged: %d", n)
+	}
+	if got := mgr.requestDetail(orphan); got.Analytics != nil || got.Name != "Отозвал "+tag {
+		t.Errorf("request after purge: %+v", got)
+	}
+}

@@ -86,7 +86,15 @@ legal certification is claimed).
 
 Requests and chat messages accept an optional `analytics_session_id`; the
 backend records the conversion after the save, once per request /
-conversation (unique indexes), and only if the session exists.
+conversation (unique indexes). The browser sends its events every ~2 s, so
+a visitor who consented and submits quickly can reach the backend before
+the session does: the conversion then waits in
+`analytics_pending_conversions` (session id + request/conversation id, no
+contacts) and becomes a `lead_submit` / `chat_first_message` event, dated at
+the save, as soon as that session's first batch arrives. Nothing delays the
+request itself. A session that never arrives (consent withdrawn before the
+flush, filtered bot, analytics off) leaves no link; its waiting row is
+deleted by the cleanup task after 24 hours.
 
 ## Time zone
 
