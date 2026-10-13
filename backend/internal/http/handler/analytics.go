@@ -24,6 +24,7 @@ type AnalyticsService interface {
 	Ingest(ctx context.Context, in analyticssvc.IngestInput) error
 	Report(ctx context.Context, fromDate, toDate string) (analyticssvc.ReportResult, error)
 	SessionDetail(ctx context.Context, id string) (analytics.SessionDetail, error)
+	Visits(ctx context.Context) (analyticssvc.VisitsResult, error)
 }
 
 // AnalyticsHandler serves event intake (public, write-only) and the
@@ -108,7 +109,57 @@ func (h *AnalyticsHandler) Session(c *gin.Context) {
 	response.OK(c, newSessionDetailResponse(detail))
 }
 
+// Visits handles GET /api/v1/manager/analytics/visits: the visit counter.
+func (h *AnalyticsHandler) Visits(c *gin.Context) {
+	if !requireAnalyticsRole(c) {
+		return
+	}
+	result, err := h.service.Visits(c.Request.Context())
+	if err != nil {
+		apierr.Write(c, err)
+		return
+	}
+	v := result.Visits
+	var since *string
+	if v.Since != nil {
+		day := v.Since.Format("2006-01-02")
+		since = &day
+	}
+	response.OK(c, visitsResponse{
+		Today:     result.Today,
+		TimeZone:  analyticssvc.ReportZone,
+		Since:     since,
+		Enabled:   h.service.ClientConfig().Enabled,
+		TodayData: todayCounts{Visits: v.TodaySessions, Visitors: v.TodayVisitors, PageViews: v.TodayPageViews},
+		AllTime:   allTimeCounts{Visits: v.AllSessions, PageViews: v.AllPageViews},
+	})
+}
+
 // ---- response shapes ----
+
+type todayCounts struct {
+	Visits    int `json:"visits"`
+	Visitors  int `json:"visitors"`
+	PageViews int `json:"page_views"`
+}
+
+// allTimeCounts has no visitors: browser ids are not kept beyond the
+// retention period, so distinct visitors over all time cannot be known.
+type allTimeCounts struct {
+	Visits    int64 `json:"visits"`
+	PageViews int64 `json:"page_views"`
+}
+
+// visitsResponse: today is an Asia/Almaty date; since is the first day
+// counted (null before the first visit).
+type visitsResponse struct {
+	Today     string        `json:"today"`
+	TimeZone  string        `json:"time_zone"`
+	Since     *string       `json:"since"`
+	Enabled   bool          `json:"enabled"`
+	TodayData todayCounts   `json:"today_counts"`
+	AllTime   allTimeCounts `json:"all_time"`
+}
 
 type reportResponse struct {
 	Period struct {

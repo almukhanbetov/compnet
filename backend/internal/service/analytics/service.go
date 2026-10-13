@@ -24,7 +24,18 @@ type Repository interface {
 	Purge(ctx context.Context, before time.Time) (events, sessions int64, err error)
 	Report(ctx context.Context, from, to time.Time, fromDate, toDate string) (analytics.Report, error)
 	SessionDetail(ctx context.Context, id string) (analytics.SessionDetail, error)
+	Visits(ctx context.Context, todayFrom, todayTo time.Time) (analytics.Visits, error)
 }
+
+// Notifier tells connected managers that new visits or page views were
+// stored (see internal/service/analyticsevents). Best effort.
+type Notifier interface {
+	VisitsChanged()
+}
+
+type noNotifier struct{}
+
+func (noNotifier) VisitsChanged() {}
 
 // Options come from configuration (ANALYTICS_*).
 type Options struct {
@@ -38,9 +49,10 @@ type Options struct {
 
 // Service implements the analytics use cases.
 type Service struct {
-	repo Repository
-	opts Options
-	now  func() time.Time
+	repo     Repository
+	opts     Options
+	now      func() time.Time
+	notifier Notifier
 }
 
 // NewService builds a Service.
@@ -48,7 +60,14 @@ func NewService(repo Repository, opts Options) *Service {
 	if opts.RetentionDays <= 0 {
 		opts.RetentionDays = 90
 	}
-	return &Service{repo: repo, opts: opts, now: time.Now}
+	return &Service{repo: repo, opts: opts, now: time.Now, notifier: noNotifier{}}
+}
+
+// SetNotifier enables live updates of the statistics.
+func (s *Service) SetNotifier(n Notifier) {
+	if n != nil {
+		s.notifier = n
+	}
 }
 
 // Settings are shown on the dashboard.
@@ -133,12 +152,15 @@ func (s *Service) Ingest(ctx context.Context, in IngestInput) error {
 		return nil
 	}
 
-	_, err := s.repo.Ingest(ctx, session, events)
+	inserted, err := s.repo.Ingest(ctx, session, events)
 	if errors.Is(err, analytics.ErrSessionMismatch) {
 		return nil // someone else's session id: ignore without telling
 	}
 	if err != nil {
 		return apperr.Internal(err)
+	}
+	if inserted > 0 { // a resent batch (same event ids) changes nothing
+		s.notifier.VisitsChanged()
 	}
 	return nil
 }
@@ -214,6 +236,27 @@ func (s *Service) SessionDetail(ctx context.Context, id string) (analytics.Sessi
 		return d, apperr.Internal(err)
 	}
 	return d, nil
+}
+
+// VisitsResult is the visit counter plus the day "today" refers to.
+type VisitsResult struct {
+	Today  string // YYYY-MM-DD, Asia/Almaty
+	Visits analytics.Visits
+}
+
+// Visits returns the visit counter for today (Asia/Almaty) and all time.
+func (s *Service) Visits(ctx context.Context) (VisitsResult, error) {
+	loc, err := time.LoadLocation(ReportZone)
+	if err != nil {
+		return VisitsResult{}, apperr.Internal(err)
+	}
+	today := s.now().In(loc).Format("2006-01-02")
+	period, _ := ParsePeriod(today, today)
+	v, err := s.repo.Visits(ctx, period.From, period.To)
+	if err != nil {
+		return VisitsResult{}, apperr.Internal(err)
+	}
+	return VisitsResult{Today: today, Visits: v}, nil
 }
 
 // Purge deletes detailed analytics older than the retention period.

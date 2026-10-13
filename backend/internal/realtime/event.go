@@ -42,6 +42,9 @@ const (
 	// counters only, never contacts; clients re-read the HTTP API.
 	EventProjectRequestCreated EventType = "project_request_created"
 	EventProjectRequestUpdated EventType = "project_request_updated"
+	// EventAnalyticsUpdated (managers only): new visits or page views were
+	// stored. No payload; the statistics page re-reads the HTTP API.
+	EventAnalyticsUpdated EventType = "analytics_updated"
 )
 
 // Event is the envelope of every server → client message.

@@ -18,6 +18,7 @@ import (
 	"github.com/almukha/compnet-backend/internal/repository/postgres"
 	"github.com/almukha/compnet-backend/internal/security"
 	analyticssvc "github.com/almukha/compnet-backend/internal/service/analytics"
+	"github.com/almukha/compnet-backend/internal/service/analyticsevents"
 	chatsvc "github.com/almukha/compnet-backend/internal/service/chat"
 	"github.com/almukha/compnet-backend/internal/service/chatevents"
 	contentsvc "github.com/almukha/compnet-backend/internal/service/content"
@@ -52,6 +53,10 @@ func DefaultLimiters() Limiters {
 		AnalyticsIP: ratelimit.New(60, time.Minute, 30),
 	}
 }
+
+// analyticsNotifyInterval: the statistics page is told about new visits at
+// most this often (many browsers send events every few seconds).
+const analyticsNotifyInterval = 3 * time.Second
 
 // Options tune Build; zero values mean production defaults.
 type Options struct {
@@ -100,6 +105,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 	})
 
 	hub := realtime.NewHub(rtLimits)
+	analyticsService.SetNotifier(analyticsevents.New(hub, analyticsNotifyInterval))
 
 	projectRequestRepo := postgres.NewProjectRequestRepository(pool)
 	requestEvents := requestevents.New(projectRequestRepo, hub)
