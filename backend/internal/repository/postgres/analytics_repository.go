@@ -31,6 +31,9 @@ func (r *AnalyticsRepository) Ingest(ctx context.Context, s analytics.Session, e
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, lockSession, s.ID); err != nil {
+		return 0, err
+	}
 
 	const upsert = `
 		INSERT INTO analytics_sessions (
@@ -55,6 +58,12 @@ func (r *AnalyticsRepository) Ingest(ctx context.Context, s analytics.Session, e
 		return 0, analytics.ErrSessionMismatch
 	}
 
+	// A request or first chat message sent before this batch: link it now.
+	resolved, err := resolvePending(ctx, tx, s.ID, s.VisitorID)
+	if err != nil {
+		return 0, err
+	}
+
 	inserted := 0
 	for _, e := range events {
 		if count+inserted >= analytics.MaxEventsPerSession {
@@ -70,8 +79,8 @@ func (r *AnalyticsRepository) Ingest(ctx context.Context, s analytics.Session, e
 		}
 		inserted += int(tag.RowsAffected())
 	}
-	if inserted > 0 {
-		if _, err := tx.Exec(ctx, `UPDATE analytics_sessions SET event_count = event_count + $2 WHERE id = $1`, s.ID, inserted); err != nil {
+	if inserted+resolved > 0 {
+		if _, err := tx.Exec(ctx, `UPDATE analytics_sessions SET event_count = event_count + $2 WHERE id = $1`, s.ID, inserted+resolved); err != nil {
 			return 0, err
 		}
 	}
@@ -79,45 +88,94 @@ func (r *AnalyticsRepository) Ingest(ctx context.Context, s analytics.Session, e
 }
 
 // RecordLead links a stored request to the session that sent it. At most
-// once per request (unique index); unknown sessions are ignored.
+// once per request (unique indexes). When the session is not known yet —
+// the request was sent before the browser's first event batch — the link
+// waits in analytics_pending_conversions and is made by Ingest once the
+// session arrives. Reports whether the link was made now.
 func (r *AnalyticsRepository) RecordLead(ctx context.Context, sessionID, requestID string) (bool, error) {
-	return r.recordConversion(ctx, `
-		INSERT INTO analytics_events (id, session_id, visitor_id, type, project_request_id)
-		SELECT gen_random_uuid(), s.id, s.visitor_id, 'lead_submit', $2
-		FROM analytics_sessions s
-		WHERE s.id = $1
-		ON CONFLICT DO NOTHING`, sessionID, requestID)
+	return r.recordConversion(ctx, analytics.EventLeadSubmit, "project_request_id", "TRUE", sessionID, requestID)
 }
 
 // RecordFirstChatMessage links a conversation to the session, only if the
 // message just stored is the conversation's first visitor message, and at
-// most once per conversation (unique index).
+// most once per conversation. Waits for the session like RecordLead.
 func (r *AnalyticsRepository) RecordFirstChatMessage(ctx context.Context, sessionID, conversationID string) (bool, error) {
-	return r.recordConversion(ctx, `
-		INSERT INTO analytics_events (id, session_id, visitor_id, type, conversation_id)
-		SELECT gen_random_uuid(), s.id, s.visitor_id, 'chat_first_message', $2
-		FROM analytics_sessions s
-		WHERE s.id = $1
-		  AND (SELECT count(*) FROM chat_messages m
-		        WHERE m.conversation_id = $2 AND m.author = 'visitor') = 1
-		ON CONFLICT DO NOTHING`, sessionID, conversationID)
+	return r.recordConversion(ctx, analytics.EventChatFirstMsg, "conversation_id",
+		`(SELECT count(*) FROM chat_messages m WHERE m.conversation_id = $2 AND m.author = 'visitor') = 1`,
+		sessionID, conversationID)
 }
 
-func (r *AnalyticsRepository) recordConversion(ctx context.Context, query, sessionID, targetID string) (bool, error) {
-	tag, err := r.pool.Exec(ctx, query, sessionID, targetID)
+// lockSession serialises conversion recording and event intake of one
+// session, so a conversion can never slip between "session not found" and
+// the session being created (it would then wait for a later batch).
+const lockSession = `SELECT pg_advisory_xact_lock(hashtextextended('analytics_session:' || $1::text, 0))`
+
+// recordConversion: column is the link column for typ, condition an extra
+// SQL predicate on $2 (the linked id). Both are constants of this file.
+func (r *AnalyticsRepository) recordConversion(ctx context.Context, typ analytics.EventType, column, condition, sessionID, targetID string) (bool, error) {
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return false, err
 	}
-	if tag.RowsAffected() == 0 {
-		return false, nil
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, lockSession, sessionID); err != nil {
+		return false, err
 	}
-	_, err = r.pool.Exec(ctx,
-		`UPDATE analytics_sessions SET last_seen_at = now(), event_count = event_count + 1 WHERE id = $1`, sessionID)
-	return true, err
+
+	tag, err := tx.Exec(ctx, `
+		INSERT INTO analytics_events (id, session_id, visitor_id, type, `+column+`)
+		SELECT gen_random_uuid(), s.id, s.visitor_id, $3, $2
+		FROM analytics_sessions s
+		WHERE s.id = $1 AND `+condition+`
+		ON CONFLICT DO NOTHING`, sessionID, targetID, string(typ))
+	if err != nil {
+		return false, err
+	}
+	if tag.RowsAffected() > 0 {
+		if _, err := tx.Exec(ctx,
+			`UPDATE analytics_sessions SET last_seen_at = now(), event_count = event_count + 1 WHERE id = $1`, sessionID); err != nil {
+			return false, err
+		}
+		return true, tx.Commit(ctx)
+	}
+
+	// The session has not arrived yet: remember the conversion until it does.
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO analytics_pending_conversions (session_id, type, `+column+`)
+		SELECT $1, $3, $2
+		WHERE NOT EXISTS (SELECT 1 FROM analytics_sessions WHERE id = $1) AND `+condition+`
+		ON CONFLICT DO NOTHING`, sessionID, targetID, string(typ)); err != nil {
+		return false, err
+	}
+	return false, tx.Commit(ctx)
 }
+
+// resolvePending turns the conversions that waited for this session into
+// its events, dated when they happened. Called inside Ingest's transaction.
+func resolvePending(ctx context.Context, tx pgx.Tx, sessionID, visitorID string) (int, error) {
+	tag, err := tx.Exec(ctx, `
+		WITH p AS (
+			DELETE FROM analytics_pending_conversions WHERE session_id = $1
+			RETURNING type, project_request_id, conversation_id, created_at
+		)
+		INSERT INTO analytics_events (id, session_id, visitor_id, type, occurred_at, project_request_id, conversation_id)
+		SELECT gen_random_uuid(), $1, $2, p.type, p.created_at, p.project_request_id, p.conversation_id FROM p
+		ON CONFLICT DO NOTHING`, sessionID, visitorID)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+// pendingTTL: a conversion whose session has not arrived by then never will
+// (consent withdrawn before the flush, filtered bot, analytics turned off).
+const pendingTTL = 24 * time.Hour
 
 // Purge deletes events, and sessions without activity, older than before.
 func (r *AnalyticsRepository) Purge(ctx context.Context, before time.Time) (events, sessions int64, err error) {
+	if _, err := r.pool.Exec(ctx, `DELETE FROM analytics_pending_conversions WHERE created_at < $1`, time.Now().Add(-pendingTTL)); err != nil {
+		return 0, 0, err
+	}
 	tag, err := r.pool.Exec(ctx, `DELETE FROM analytics_events WHERE occurred_at < $1`, before)
 	if err != nil {
 		return 0, 0, err
@@ -317,14 +375,14 @@ func (r *AnalyticsRepository) SessionDetail(ctx context.Context, id string) (ana
 	}
 
 	rows, err = r.pool.Query(ctx, `
-		SELECT id, project_type, status, created_at FROM project_requests
+		SELECT id, number, project_type, status, created_at FROM project_requests
 		WHERE id = ANY($1::uuid[]) ORDER BY created_at`, d.Session.RequestIDs)
 	if err != nil {
 		return d, err
 	}
 	if d.Requests, err = collect(rows, func(row pgx.Rows) (analytics.LinkedRequest, error) {
 		var l analytics.LinkedRequest
-		return l, row.Scan(&l.ID, &l.ProjectType, &l.Status, &l.CreatedAt)
+		return l, row.Scan(&l.ID, &l.Number, &l.ProjectType, &l.Status, &l.CreatedAt)
 	}); err != nil {
 		return d, err
 	}

@@ -80,6 +80,6 @@ export interface ApiAnalyticsSessionDetail {
     project_request_id?: string;
     conversation_id?: string;
   }>;
-  requests: Array<{ id: string; project_type: string; status: string; created_at: string }>;
+  requests: Array<{ id: string; number: number; project_type: string; status: string; created_at: string }>;
   conversations: Array<{ id: string; status: string; visitor_name: string; visitor_contact: string }>;
 }

@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, LogOut, MessagesSquare, WifiOff } from "lucide-react";
-import ThemeToggle from "@/components/layout/ThemeToggle";
+import { Loader2, MessagesSquare, WifiOff } from "lucide-react";
 import { useCountdown } from "@/components/chat/useCountdown";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { useManagerRealtime } from "@/components/manager/ManagerRealtime";
-import { ManagerNav } from "@/components/manager/analytics/AnalyticsDashboard";
+import ManagerHeader from "@/components/manager/ManagerHeader";
 import { fill } from "@/lib/i18n";
 import ConversationList from "@/components/manager/ConversationList";
 import ConversationView from "@/components/manager/ConversationView";
@@ -63,41 +62,16 @@ export default function ManagerShell({ user, onAuthError, onLogout }: ManagerShe
 
   return (
     <div className="flex h-[100dvh] flex-col bg-[var(--background)]">
-      <header className="border-b border-[var(--text-primary)]/10 bg-[var(--background)]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-4 md:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="shrink-0 text-lg font-bold tracking-tight">
-              COMP
-              <span className="bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent">NET</span>
-            </span>
-            <ManagerNav current="inbox" />
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--text-primary)]/15 px-2.5 py-1 text-xs text-slate-300 light:text-slate-700"
-              title={sh.unreadTitle}
-            >
-              <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="sr-only">{sh.unreadSr}</span>
-              <span className={unreadMessages > 0 ? "font-semibold text-pink-400 light:text-pink-600" : ""}>{unreadMessages}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden max-w-[16rem] truncate text-sm text-slate-300 light:text-slate-700 md:inline">
-              {user.display_name}
-            </span>
-            <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => void handleLogout()}
-              disabled={loggingOut}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-3 text-sm font-medium text-slate-200 light:text-slate-800 transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:opacity-60"
-            >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">{t.manager.gate.logout}</span>
-              <span className="sr-only sm:hidden">{t.manager.gate.logout}</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <ManagerHeader current="inbox" user={user} onLogout={() => void handleLogout()} loggingOut={loggingOut}>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--text-primary)]/15 px-2.5 py-1 text-xs text-slate-300 light:text-slate-700"
+          title={sh.unreadTitle}
+        >
+          <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="sr-only">{sh.unreadSr}</span>
+          <span className={unreadMessages > 0 ? "font-semibold text-pink-400 light:text-pink-600" : ""}>{unreadMessages}</span>
+        </span>
+      </ManagerHeader>
 
       <RealtimeBar />
 
@@ -167,7 +141,7 @@ export default function ManagerShell({ user, onAuthError, onLogout }: ManagerShe
  * or the polling fallback — so a manager always knows whether the list is
  * instant or refreshed every few seconds.
  */
-function RealtimeBar() {
+export function RealtimeBar() {
   const { t } = useLocale();
   const r = t.manager.realtime;
   const { status, wasLive, onlineManagers } = useManagerRealtime();

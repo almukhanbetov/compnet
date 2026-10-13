@@ -84,6 +84,7 @@ type Report struct {
 // needs to recognise it; contacts stay in the request itself.
 type LinkedRequest struct {
 	ID          string
+	Number      int64
 	ProjectType string
 	Status      string
 	CreatedAt   time.Time

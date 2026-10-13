@@ -26,6 +26,8 @@ type Deps struct {
 	ChatIPLimiter middleware.Limiter
 	ManagerAuth   *handler.ManagerAuthHandler
 	ManagerChat   *handler.ManagerChatHandler
+	// ManagerRequests: project requests with the clients' contacts.
+	ManagerRequests *handler.ManagerRequestsHandler
 	// Realtime serves the visitor and manager WebSockets.
 	Realtime *handler.RealtimeHandler
 	// Analytics: public event intake and the managers' statistics.
@@ -114,6 +116,11 @@ func New(deps Deps) (*gin.Engine, error) {
 	staffOnly.PATCH("/conversations/:id", deps.ManagerChat.UpdateConversation)
 	staffOnly.GET("/unread-count", deps.ManagerChat.UnreadCount)
 	staffOnly.GET("/ws", deps.Realtime.Manager)
+	// Project requests: staff session + a role allowed to see contacts.
+	staffOnly.GET("/project-requests", deps.ManagerRequests.List)
+	staffOnly.GET("/project-requests/summary", deps.ManagerRequests.Summary)
+	staffOnly.GET("/project-requests/:id", deps.ManagerRequests.Get)
+	staffOnly.PATCH("/project-requests/:id", deps.ManagerRequests.Update)
 	// Statistics: staff session + a role with analytics rights.
 	staffOnly.GET("/analytics/report", deps.Analytics.Report)
 	staffOnly.GET("/analytics/sessions/:id", deps.Analytics.Session)

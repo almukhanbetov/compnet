@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert, WifiOff } from "lucide-react";
 import ManagerShell from "@/components/manager/ManagerShell";
 import AnalyticsDashboard from "@/components/manager/analytics/AnalyticsDashboard";
+import RequestsPage from "@/components/manager/requests/RequestsPage";
 import { ManagerRealtimeProvider } from "@/components/manager/ManagerRealtime";
+import type { ManagerSection } from "@/components/manager/ManagerNav";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { fetchMe, logout } from "@/lib/api/manager";
 import type { ApiStaffUser } from "@/types/api/manager";
@@ -24,10 +26,12 @@ type Gate =
  * stops and loaded data is dropped — and sends the user to the login page.
  */
 /**
- * section: "inbox" (/manager) or "analytics" (/manager/analytics). Both use
- * the same session check; the statistics API additionally checks the role.
+ * section: "inbox" (/manager), "requests" (/manager/requests) or "analytics"
+ * (/manager/analytics). All use the same session check and one realtime
+ * connection (it keeps the "new requests" badge current everywhere); the
+ * requests and statistics APIs additionally check the role.
  */
-export default function ManagerApp({ section = "inbox" }: { section?: "inbox" | "analytics" }) {
+export default function ManagerApp({ section = "inbox" }: { section?: ManagerSection }) {
   const router = useRouter();
   const { t } = useLocale();
   const g = t.manager.gate;
@@ -80,14 +84,16 @@ export default function ManagerApp({ section = "inbox" }: { section?: "inbox" | 
     return result.kind === "network_error" ? g.logoutNetwork : g.logoutFailed;
   }, [router, g.logoutNetwork, g.logoutFailed]);
 
-  if (gate.kind === "authed" && section === "analytics") {
-    return <AnalyticsDashboard user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />;
-  }
-
   if (gate.kind === "authed") {
     return (
       <ManagerRealtimeProvider onSessionEnded={handleSessionEnded}>
-        <ManagerShell user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />
+        {section === "analytics" ? (
+          <AnalyticsDashboard user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />
+        ) : section === "requests" ? (
+          <RequestsPage user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />
+        ) : (
+          <ManagerShell user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />
+        )}
       </ManagerRealtimeProvider>
     );
   }

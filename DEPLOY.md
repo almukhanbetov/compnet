@@ -333,6 +333,57 @@ private one on `/manager`. DevTools → Network → WS shows
 appear on the other side without a reload; turning the network off and on
 (DevTools → Offline) reconnects and shows each message once.
 
+## Manager requests (`/manager/requests`)
+
+The release adds two migrations, applied by the deploy before the new images
+start (backup first, as always):
+
+| Migration | What it does to existing data |
+|---|---|
+| `20261013150000_project_request_management.sql` | adds `number` to `project_requests` (existing requests numbered 1…N by date received), the statuses `in_progress` / `completed` (earlier values stay valid), the manager note columns and the table `project_request_status_changes`. No request is changed or deleted. |
+| `20261013160000_analytics_pending_conversions.sql` | new table `analytics_pending_conversions` (conversions waiting for their analytics session, see docs/ANALYTICS.md). |
+
+Both are additive: the previous backend image keeps working on the migrated
+schema, so **rolling back the application never needs a database rollback**
+— use "Return to previous images" below. Managers need no new setting; the
+section uses the existing staff accounts, roles, WebSocket and analytics
+configuration.
+
+Verify after the deploy:
+
+```bash
+set -a; source .env; set +a
+docker exec compnet-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
+  "select count(*), min(number), max(number), count(distinct number) from project_requests"
+curl -s -o /dev/null -w '%{http_code}\n' https://compnet.kz/api/v1/manager/project-requests   # 401 without a session
+```
+
+Then sign in at `https://compnet.kz/manager/requests`: the list shows every
+request received so far; open one, set a status and a note, reload — both
+stay, and the status history names you.
+
+### Rolling the migrations back deletes manager work
+
+`goose down` for these migrations is **destructive** and is not part of an
+application rollback:
+
+- `20261013150000` down **deletes every manager note, the whole status
+  history and the request numbers**, and rewrites the new statuses to the
+  closest earlier ones (`in_progress` → `contacted`, `completed` →
+  `accepted`); a later `up` renumbers requests and starts an empty history.
+- `20261013160000` down drops conversions still waiting for their session —
+  those requests keep no analytics source.
+
+Requests, contacts, descriptions and estimates themselves are kept either
+way. If a down migration is ever unavoidable, export the manager data first:
+
+```bash
+set -a; source .env; set +a; umask 077
+docker exec compnet-postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
+  -t project_requests -t project_request_status_changes -t analytics_pending_conversions \
+  > "backups/compnet-requests-$(date +%F-%H%M%S).dump"
+```
+
 ## 6. Rollback
 
 ### Turn the chat widget off (fast, no data touched)
@@ -400,7 +451,7 @@ docker compose down -v
 docker system prune -a --volumes
 docker rm -f $(docker ps -aq)
 docker volume prune
-goose down        # on production, with real chat messages
+goose down        # on production, with real chat messages or manager notes
 ```
 
 Plain `docker image prune -f` (no `-a`, used by the deploy workflow) only

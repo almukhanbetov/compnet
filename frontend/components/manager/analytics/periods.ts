@@ -43,6 +43,21 @@ const dateTime = new Intl.DateTimeFormat("ru-RU", {
 });
 const time = new Intl.DateTimeFormat("ru-RU", { timeZone: REPORT_TZ, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
+const fullDateTime = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: REPORT_TZ,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** "13.10.2026, 14:05" in Asia/Almaty. */
+export function formatAlmatyFull(iso: string | null | undefined): string {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? fullDateTime.format(d) : "";
+}
+
 /** "13.10, 14:05" in Asia/Almaty. */
 export function formatAlmaty(iso: string): string {
   const d = new Date(iso);

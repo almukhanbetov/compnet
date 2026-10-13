@@ -16,7 +16,9 @@ export type RealtimeEventType =
   | "typing"
   | "presence"
   | "error"
-  | "pong";
+  | "pong"
+  | "project_request_created"
+  | "project_request_updated";
 
 /** Envelope of every server → client message. */
 export interface RealtimeEvent<T = unknown> {
@@ -91,6 +93,12 @@ export interface ManagerReadData {
 export interface ManagerConversationData {
   conversation: ApiManagerConversation;
   unread_total: ApiUnreadCount;
+}
+
+/** project_request_created / project_request_updated: ids and counters only. */
+export interface ProjectRequestEventData {
+  request_id: string;
+  new_count: number;
 }
 
 /** Client → server frames. */

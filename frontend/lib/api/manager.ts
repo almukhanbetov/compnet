@@ -1,5 +1,12 @@
 import type { ApiAnalyticsReport, ApiAnalyticsSessionDetail } from "@/types/api/analytics";
 import type {
+  ApiRequestDetail,
+  ApiRequestItem,
+  ApiRequestListMeta,
+  RequestListQuery,
+  RequestStatus,
+} from "@/types/api/managerRequests";
+import type {
   ApiEnvelope,
   ApiInboxItem,
   ApiInboxMeta,
@@ -171,4 +178,25 @@ export function fetchAnalyticsReport(from: string, to: string, signal?: AbortSig
 
 export function fetchAnalyticsSession(id: string, signal?: AbortSignal) {
   return request<ApiEnvelope<ApiAnalyticsSessionDetail>>(`/analytics/sessions/${encodeURIComponent(id)}`, { signal });
+}
+
+/** Project requests, newest first. Contacts are only ever read here. */
+export function fetchRequests(params: RequestListQuery, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiRequestItem[], ApiRequestListMeta>>(`/project-requests${query({ ...params })}`, { signal });
+}
+
+/** The "new requests" badge. */
+export function fetchRequestSummary(signal?: AbortSignal) {
+  return request<ApiEnvelope<{ new_count: number }>>("/project-requests/summary", { signal });
+}
+
+export function fetchRequest(id: string, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiRequestDetail>>(`/project-requests/${encodeURIComponent(id)}`, { signal });
+}
+
+export function updateRequest(id: string, change: { status?: RequestStatus; note?: string }) {
+  return request<ApiEnvelope<ApiRequestDetail>>(`/project-requests/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(change),
+  });
 }

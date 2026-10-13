@@ -35,15 +35,33 @@ type noRecorder struct{}
 
 func (noRecorder) LeadCreated(context.Context, string, string) {}
 
+// Notifier tells connected managers that a request was saved (see
+// internal/service/requestevents). Best effort, after the commit.
+type Notifier interface {
+	RequestCreated(ctx context.Context, requestID string)
+}
+
+type noNotifier struct{}
+
+func (noNotifier) RequestCreated(context.Context, string) {}
+
 // Service implements the project-request use cases.
 type Service struct {
 	repo        Repository
 	conversions ConversionRecorder
+	notifier    Notifier
 }
 
 // NewService builds a Service backed by the given Repository.
 func NewService(repo Repository) *Service {
-	return &Service{repo: repo, conversions: noRecorder{}}
+	return &Service{repo: repo, conversions: noRecorder{}, notifier: noNotifier{}}
+}
+
+// SetNotifier enables realtime notifications of new requests.
+func (s *Service) SetNotifier(n Notifier) {
+	if n != nil {
+		s.notifier = n
+	}
 }
 
 // SetConversionRecorder enables linking requests to analytics sessions.
@@ -150,6 +168,7 @@ func (s *Service) CreateProjectRequest(
 	if req.AnalyticsSessionID != "" {
 		s.conversions.LeadCreated(ctx, req.AnalyticsSessionID, savedRequest.ID)
 	}
+	s.notifier.RequestCreated(ctx, savedRequest.ID)
 
 	return savedRequest, savedEstimate, nil
 }

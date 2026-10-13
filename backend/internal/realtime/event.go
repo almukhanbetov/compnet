@@ -37,6 +37,11 @@ const (
 	EventError EventType = "error"
 	// EventPong: answer to the client's application-level ping.
 	EventPong EventType = "pong"
+	// EventProjectRequestCreated / EventProjectRequestUpdated (managers
+	// only): a request was saved or changed. The payload carries ids and
+	// counters only, never contacts; clients re-read the HTTP API.
+	EventProjectRequestCreated EventType = "project_request_created"
+	EventProjectRequestUpdated EventType = "project_request_updated"
 )
 
 // Event is the envelope of every server → client message.
