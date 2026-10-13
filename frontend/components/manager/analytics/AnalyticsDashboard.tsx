@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowRight,
   BarChart3,
   EyeOff,
   Info,
   Loader2,
-  LogOut,
   MessageCircle,
   MessagesSquare,
   MonitorSmartphone,
@@ -17,7 +17,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import ThemeToggle from "@/components/layout/ThemeToggle";
+import ManagerHeader from "@/components/manager/ManagerHeader";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { AuthErrorHandler } from "@/components/manager/useInbox";
 import {
@@ -58,7 +58,10 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
   const [attempt, setAttempt] = useState(0);
   // Which request the shown data / error belongs to; anything else is loading.
   const [settled, setSettled] = useState<{ key: string; ok: boolean } | null>(null);
-  const [openSession, setOpenSession] = useState<string | null>(null);
+  // ?session=<id> (link from a request card) opens that visit's history.
+  const [openSession, setOpenSession] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("session"),
+  );
   // Rendered only in the browser (after the sign-in check), so storage is available.
   const [optedOut, setOptedOutState] = useState(() => isOptedOut());
   const requestKey = `${range.from}|${range.to}|${attempt}`;
@@ -88,6 +91,15 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
     setDraft(next);
   };
 
+  const closeSession = useCallback(() => {
+    setOpenSession(null);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("session")) {
+      url.searchParams.delete("session");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  }, []);
+
   const toggleOptOut = () => {
     setOptedOut(!optedOut);
     setOptedOutState(!optedOut);
@@ -101,30 +113,7 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
 
   return (
     <div className="min-h-[100dvh] bg-[var(--background)]">
-      <header className="sticky top-0 z-20 border-b border-[var(--text-primary)]/10 bg-[var(--background)]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-4 md:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="shrink-0 text-lg font-bold tracking-tight">
-              COMP
-              <span className="bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent">NET</span>
-            </span>
-            <ManagerNav current="analytics" />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden max-w-[16rem] truncate text-sm text-slate-300 light:text-slate-700 md:inline">{user.display_name}</span>
-            <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => void onLogout()}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-3 text-sm font-medium text-slate-200 transition hover:bg-[var(--text-primary)]/10 light:text-slate-800"
-            >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">{t.manager.gate.logout}</span>
-              <span className="sr-only sm:hidden">{t.manager.gate.logout}</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <ManagerHeader current="analytics" user={user} onLogout={() => void onLogout()} sticky />
 
       <main className="mx-auto max-w-[1440px] space-y-5 px-4 py-5 md:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -254,34 +243,9 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
       </main>
 
       {openSession ? (
-        <SessionPanel id={openSession} labelOf={sourceLabel} onClose={() => setOpenSession(null)} onAuthError={onAuthError} />
+        <SessionPanel id={openSession} labelOf={sourceLabel} onClose={closeSession} onAuthError={onAuthError} />
       ) : null}
     </div>
-  );
-}
-
-/** Dialogs ↔ Statistics switch, shared with the inbox header. */
-export function ManagerNav({ current }: { current: "inbox" | "analytics" }) {
-  const { t } = useLocale();
-  const n = t.manager.analytics.nav;
-  const item = (href: string, active: boolean, label: string, Icon: typeof BarChart3) => (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-medium transition ${
-        active ? "bg-[var(--text-primary)]/10 text-slate-100 light:text-slate-900" : "text-slate-400 hover:bg-[var(--text-primary)]/5 light:text-slate-600"
-      }`}
-    >
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      <span className="hidden sm:inline">{label}</span>
-      <span className="sr-only sm:hidden">{label}</span>
-    </Link>
-  );
-  return (
-    <nav aria-label={n.label} className="flex items-center gap-1">
-      {item("/manager", current === "inbox", n.inbox, MessagesSquare)}
-      {item("/manager/analytics", current === "analytics", n.analytics, BarChart3)}
-    </nav>
   );
 }
 
@@ -289,27 +253,48 @@ function Cards({ report }: { report: ApiAnalyticsReport }) {
   const { t } = useLocale();
   const c = t.manager.analytics.cards;
   const x = report.totals;
-  const items = [
+  const requestsHref = `/manager/requests?from=${report.period.from}&to=${report.period.to}`;
+  const items: Array<{ icon: typeof Users; label: string; value: number; hint?: string; href?: string }> = [
     { icon: Users, label: c.visitors, value: x.visitors, hint: c.visitorsHint },
     { icon: MonitorSmartphone, label: c.sessions, value: x.sessions },
     { icon: BarChart3, label: c.pageViews, value: x.page_views },
-    { icon: MessagesSquare, label: c.requests, value: x.requests, hint: fill(c.linked, { count: String(x.linked_requests) }) },
+    { icon: MessagesSquare, label: c.requests, value: x.requests, hint: fill(c.linked, { count: String(x.linked_requests) }), href: requestsHref },
     { icon: MessageCircle, label: c.newChats, value: x.new_chats, hint: fill(c.linked, { count: String(x.linked_chats) }) },
     { icon: MousePointerClick, label: c.whatsapp, value: x.whatsapp_clicks, hint: c.clicksHint },
     { icon: Phone, label: c.phone, value: x.phone_clicks, hint: c.clicksHint },
   ];
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-      {items.map(({ icon: Icon, label, value, hint }) => (
-        <div key={label} className={card}>
-          <p className="flex items-center gap-1.5 text-xs text-slate-400 light:text-slate-600">
-            <Icon className="h-3.5 w-3.5 shrink-0 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
-            {label}
-          </p>
-          <p className="mt-2 text-2xl font-bold tabular-nums text-slate-100 light:text-slate-900">{value}</p>
-          {hint ? <p className="mt-0.5 text-[11px] text-slate-500">{hint}</p> : null}
-        </div>
-      ))}
+      {items.map(({ icon: Icon, label, value, hint, href }) => {
+        const body = (
+          <>
+            <p className="flex items-center gap-1.5 text-xs text-slate-400 light:text-slate-600">
+              <Icon className="h-3.5 w-3.5 shrink-0 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
+              {label}
+            </p>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-100 light:text-slate-900">{value}</p>
+            {hint ? <p className="mt-0.5 text-[11px] text-slate-500">{hint}</p> : null}
+          </>
+        );
+        return href ? (
+          <Link
+            key={label}
+            href={href}
+            title={c.openRequests}
+            className={`${card} group block transition hover:border-cyan-400/40 hover:bg-[var(--text-primary)]/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60`}
+          >
+            {body}
+            <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-300 light:text-cyan-700">
+              {c.openRequests}
+              <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" aria-hidden="true" />
+            </span>
+          </Link>
+        ) : (
+          <div key={label} className={card}>
+            {body}
+          </div>
+        );
+      })}
       <p className="col-span-2 flex items-start gap-2 rounded-xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] px-3 py-2 text-xs leading-5 text-slate-300 md:col-span-4 xl:order-last xl:col-span-8 light:text-slate-700">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300 light:text-cyan-700" aria-hidden="true" />
         {fill(c.split, {
@@ -676,8 +661,11 @@ function SessionPanel({
               <div className="mt-4 space-y-2">
                 {detail.requests.map((r) => (
                   <div key={r.id} className="rounded-xl border border-emerald-400/25 bg-emerald-400/10 p-3 text-xs text-emerald-100 light:text-emerald-900">
-                    <p className="font-semibold">{fill(d.request, { id: r.id.slice(0, 8) })} · {r.project_type} · {formatAlmaty(r.created_at)}</p>
+                    <p className="font-semibold">{fill(d.request, { number: String(r.number) })} · {r.project_type} · {formatAlmaty(r.created_at)}</p>
                     <p className="mt-0.5 opacity-80">{d.requestNote}</p>
+                    <Link href={`/manager/requests?id=${r.id}`} className="mt-1 inline-block font-semibold underline underline-offset-2">
+                      {d.openRequest}
+                    </Link>
                   </div>
                 ))}
                 {detail.conversations.map((c) => (

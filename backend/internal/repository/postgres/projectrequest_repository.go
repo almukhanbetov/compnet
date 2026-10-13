@@ -38,7 +38,7 @@ func (r *ProjectRequestRepository) Create(
 			(name, phone, email, company, project_type, description,
 			 budget_range, desired_timeline, contact_method, consent, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		RETURNING id, status, created_at, updated_at`
+		RETURNING id, number, status, created_at, updated_at`
 
 	err = tx.QueryRow(ctx, insertRequest,
 		request.Name,
@@ -52,7 +52,7 @@ func (r *ProjectRequestRepository) Create(
 		string(request.ContactMethod),
 		request.Consent,
 		string(request.Status),
-	).Scan(&request.ID, &request.Status, &request.CreatedAt, &request.UpdatedAt)
+	).Scan(&request.ID, &request.Number, &request.Status, &request.CreatedAt, &request.UpdatedAt)
 	if err != nil {
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
 	}

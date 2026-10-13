@@ -211,6 +211,7 @@ type eventResponse struct {
 // linkedRequestResponse identifies a request without its contacts.
 type linkedRequestResponse struct {
 	ID          string    `json:"id"`
+	Number      int64     `json:"number"`
 	ProjectType string    `json:"project_type"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -304,7 +305,7 @@ func newSessionDetailResponse(d analytics.SessionDetail) sessionDetailResponse {
 	}
 	out.Requests = make([]linkedRequestResponse, 0, len(d.Requests))
 	for _, r := range d.Requests {
-		out.Requests = append(out.Requests, linkedRequestResponse{r.ID, r.ProjectType, r.Status, r.CreatedAt.UTC()})
+		out.Requests = append(out.Requests, linkedRequestResponse{r.ID, r.Number, r.ProjectType, r.Status, r.CreatedAt.UTC()})
 	}
 	out.Conversations = make([]linkedConversationResponse, 0, len(d.Conversations))
 	for _, c := range d.Conversations {

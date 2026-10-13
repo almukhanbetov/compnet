@@ -22,7 +22,9 @@ import (
 	"github.com/almukha/compnet-backend/internal/service/chatevents"
 	contentsvc "github.com/almukha/compnet-backend/internal/service/content"
 	"github.com/almukha/compnet-backend/internal/service/managerchat"
+	"github.com/almukha/compnet-backend/internal/service/managerrequests"
 	projectrequestsvc "github.com/almukha/compnet-backend/internal/service/projectrequest"
+	"github.com/almukha/compnet-backend/internal/service/requestevents"
 	"github.com/almukha/compnet-backend/internal/service/staffauth"
 )
 
@@ -97,12 +99,21 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 		GA4MeasurementID: cfg.Analytics.GA4MeasurementID,
 	})
 
-	projectRequestService := projectrequestsvc.NewService(postgres.NewProjectRequestRepository(pool))
+	hub := realtime.NewHub(rtLimits)
+
+	projectRequestRepo := postgres.NewProjectRequestRepository(pool)
+	requestEvents := requestevents.New(projectRequestRepo, hub)
+	projectRequestService := projectrequestsvc.NewService(projectRequestRepo)
 	projectRequestService.SetConversionRecorder(analyticsService)
+	projectRequestService.SetNotifier(requestEvents)
 	projectRequestHandler := handler.NewProjectRequestHandler(projectRequestService)
 	contentHandler := handler.NewContentHandler(contentsvc.NewService(postgres.NewContentRepository(pool)))
 
-	hub := realtime.NewHub(rtLimits)
+	managerRequestsService, err := managerrequests.NewService(projectRequestRepo)
+	if err != nil {
+		return nil, err
+	}
+	managerRequestsService.SetPublisher(requestEvents)
 	chatRepo := postgres.NewChatRepository(pool)
 	publisher := chatevents.New(chatRepo, hub)
 
@@ -140,6 +151,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 		ChatIPLimiter:      limiters.ChatIP,
 		ManagerAuth:        managerAuthHandler,
 		ManagerChat:        managerChatHandler,
+		ManagerRequests:    handler.NewManagerRequestsHandler(managerRequestsService),
 		Realtime:           realtimeHandler,
 		Analytics:          handler.NewAnalyticsHandler(analyticsService),
 		AnalyticsIPLimiter: limiters.AnalyticsIP,

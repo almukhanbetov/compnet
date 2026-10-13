@@ -41,6 +41,15 @@ func (r Role) CanViewAnalytics() bool {
 	return analyticsRoles[r]
 }
 
+// requestRoles may open project requests, with the client's contacts, and
+// change their status and note. Today every manager role.
+var requestRoles = map[Role]bool{RoleManager: true, RoleAdmin: true}
+
+// CanManageRequests reports whether the role may work with project requests.
+func (r Role) CanManageRequests() bool {
+	return requestRoles[r]
+}
+
 // Limits shared by validation and the database CHECK constraints.
 const (
 	MaxEmailLength       = 254

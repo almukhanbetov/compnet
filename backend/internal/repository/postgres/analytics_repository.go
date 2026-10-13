@@ -317,14 +317,14 @@ func (r *AnalyticsRepository) SessionDetail(ctx context.Context, id string) (ana
 	}
 
 	rows, err = r.pool.Query(ctx, `
-		SELECT id, project_type, status, created_at FROM project_requests
+		SELECT id, number, project_type, status, created_at FROM project_requests
 		WHERE id = ANY($1::uuid[]) ORDER BY created_at`, d.Session.RequestIDs)
 	if err != nil {
 		return d, err
 	}
 	if d.Requests, err = collect(rows, func(row pgx.Rows) (analytics.LinkedRequest, error) {
 		var l analytics.LinkedRequest
-		return l, row.Scan(&l.ID, &l.ProjectType, &l.Status, &l.CreatedAt)
+		return l, row.Scan(&l.ID, &l.Number, &l.ProjectType, &l.Status, &l.CreatedAt)
 	}); err != nil {
 		return d, err
 	}

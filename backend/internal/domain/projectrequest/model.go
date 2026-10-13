@@ -4,20 +4,37 @@
 // drivers.
 package projectrequest
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ErrNotFound is returned when a request does not exist.
+var ErrNotFound = errors.New("projectrequest: not found")
 
 // Status is the lifecycle state of a project request.
 type Status string
 
 const (
-	StatusNew          Status = "new"
+	// The working statuses managers set.
+	StatusNew        Status = "new"
+	StatusInProgress Status = "in_progress"
+	StatusCompleted  Status = "completed"
+	StatusRejected   Status = "rejected"
+
+	// Earlier values still accepted by the database. No code path sets them;
+	// rows carrying them are shown with their own labels.
 	StatusContacted    Status = "contacted"
 	StatusQualified    Status = "qualified"
 	StatusProposalSent Status = "proposal_sent"
 	StatusAccepted     Status = "accepted"
-	StatusRejected     Status = "rejected"
 	StatusArchived     Status = "archived"
 )
+
+// ManagerStatuses are the statuses a manager can set and filter by.
+var ManagerStatuses = map[Status]bool{
+	StatusNew: true, StatusInProgress: true, StatusCompleted: true, StatusRejected: true,
+}
 
 // ContactMethod is how the client prefers to be reached back.
 type ContactMethod string
@@ -32,6 +49,7 @@ const (
 // ProjectRequest is a lead submitted through the public estimate form.
 type ProjectRequest struct {
 	ID              string
+	Number          int64
 	Name            string
 	Phone           string
 	Email           string
@@ -96,4 +114,75 @@ type BreakdownModule struct {
 	Quantity       int    `json:"quantity"`
 	UnitPriceTenge int64  `json:"unit_price_tenge"`
 	TotalTenge     int64  `json:"total_tenge"`
+}
+
+// MaxNoteLength is the limit of the manager's note, in characters (the
+// database CHECK uses the same value).
+const MaxNoteLength = 4000
+
+// ListFilter selects requests for the manager list. Zero values mean "any".
+type ListFilter struct {
+	Query  string    // matched against number, name, contacts, company, description
+	Status Status    // one status, or "" for all
+	From   time.Time // created_at >= From
+	To     time.Time // created_at < To
+	Limit  int
+	Offset int
+}
+
+// StaffRef names the staff member who did something.
+type StaffRef struct {
+	ID   string
+	Name string
+}
+
+// Note is the manager's internal note on a request.
+type Note struct {
+	Text      string
+	UpdatedAt *time.Time
+	UpdatedBy *StaffRef
+}
+
+// StatusChange is one entry of a request's status history.
+type StatusChange struct {
+	ID        int64
+	OldStatus Status
+	NewStatus Status
+	Staff     StaffRef
+	ChangedAt time.Time
+}
+
+// AnalyticsLink is the visit a request was sent from — only when the
+// browser had accepted analytics and the session is still kept.
+type AnalyticsLink struct {
+	SessionID     string
+	LinkedAt      time.Time
+	LandingPath   string
+	Source        string
+	Medium        string
+	Campaign      string
+	Term          string
+	Content       string
+	ReferrerHost  string
+	FirstSource   string
+	FirstMedium   string
+	FirstCampaign string
+	Device        string
+	Language      string
+}
+
+// Detail is everything the manager sees on one request.
+type Detail struct {
+	Request   ProjectRequest
+	Note      Note
+	Estimate  *Estimate
+	History   []StatusChange
+	Analytics *AnalyticsLink
+}
+
+// Update is a manager's change to a request; nil fields stay as they are.
+// An empty Note clears it.
+type Update struct {
+	Status *Status
+	Note   *string
 }
