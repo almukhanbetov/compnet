@@ -83,3 +83,15 @@ export interface ApiAnalyticsSessionDetail {
   requests: Array<{ id: string; number: number; project_type: string; status: string; created_at: string }>;
   conversations: Array<{ id: string; status: string; visitor_name: string; visitor_contact: string }>;
 }
+
+/** GET /api/v1/manager/analytics/visits — the visit counter. */
+export interface ApiAnalyticsVisits {
+  /** Asia/Almaty date "today" refers to. */
+  today: string;
+  time_zone: string;
+  /** First day counted (YYYY-MM-DD), null before the first visit. */
+  since: string | null;
+  enabled: boolean;
+  today_counts: { visits: number; visitors: number; page_views: number };
+  all_time: { visits: number; page_views: number };
+}

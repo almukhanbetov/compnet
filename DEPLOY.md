@@ -384,6 +384,41 @@ docker exec compnet-postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
   > "backups/compnet-requests-$(date +%F-%H%M%S).dump"
 ```
 
+## Visit counter ("Посещаемость" on `/manager/analytics`)
+
+One additive migration, applied by the deploy before the new images start:
+`20261013170000_analytics_daily_totals.sql` creates `analytics_daily_totals`
+(per Asia/Almaty day: visits, visitors, page views — counts only). It
+changes no existing row. Nothing to configure: the counter uses the existing
+`ANALYTICS_*` settings, GA4 and the manager WebSocket as they are.
+
+How it keeps "all time": the cleanup job (at start-up and every 6 hours)
+first stores the totals of each finished day that is about to lose details,
+then deletes the details, in one transaction. The counter adds those totals
+to the details still kept, so cleanup never lowers it. It starts at the
+first recorded visit.
+
+Verify after the deploy:
+
+```bash
+set -a; source .env; set +a
+docker exec compnet-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
+  "select count(*), (select count(*) from analytics_events where type = 'page_view') from analytics_sessions"
+docker logs compnet-backend 2>&1 | grep -i 'analytics' | tail -3   # no "retention failed"
+```
+
+Then open `/manager/analytics`: "Visits, all time" equals the first number,
+and "Visits today" grows within seconds after a visit from a browser that
+allowed analytics.
+
+Rollback: return to the previous images only (below) — the previous backend
+ignores the new table. **Do not run `goose down` for this migration while
+the new backend runs** (its cleanup then fails until the table is back), and
+know that `down` deletes the stored day totals: "all time" shrinks to the
+retention period (`ANALYTICS_RETENTION_DAYS`). If the previous backend runs
+past a retention cleanup, the days it deletes are not stored as totals
+either.
+
 ## 6. Rollback
 
 ### Turn the chat widget off (fast, no data touched)

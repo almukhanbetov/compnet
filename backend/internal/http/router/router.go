@@ -123,6 +123,7 @@ func New(deps Deps) (*gin.Engine, error) {
 	staffOnly.PATCH("/project-requests/:id", deps.ManagerRequests.Update)
 	// Statistics: staff session + a role with analytics rights.
 	staffOnly.GET("/analytics/report", deps.Analytics.Report)
+	staffOnly.GET("/analytics/visits", deps.Analytics.Visits)
 	staffOnly.GET("/analytics/sessions/:id", deps.Analytics.Session)
 
 	return engine, nil

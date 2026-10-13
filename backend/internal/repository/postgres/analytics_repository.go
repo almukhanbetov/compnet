@@ -173,19 +173,80 @@ const pendingTTL = 24 * time.Hour
 
 // Purge deletes events, and sessions without activity, older than before.
 func (r *AnalyticsRepository) Purge(ctx context.Context, before time.Time) (events, sessions int64, err error) {
-	if _, err := r.pool.Exec(ctx, `DELETE FROM analytics_pending_conversions WHERE created_at < $1`, time.Now().Add(-pendingTTL)); err != nil {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
 		return 0, 0, err
 	}
-	tag, err := r.pool.Exec(ctx, `DELETE FROM analytics_events WHERE occurred_at < $1`, before)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Keep the visit counter: every finished day that is about to lose
+	// details is stored as totals first (once — a past day cannot change).
+	if _, err := tx.Exec(ctx, rollUpDays, before); err != nil {
+		return 0, 0, err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM analytics_pending_conversions WHERE created_at < $1`, time.Now().Add(-pendingTTL)); err != nil {
+		return 0, 0, err
+	}
+	tag, err := tx.Exec(ctx, `DELETE FROM analytics_events WHERE occurred_at < $1`, before)
 	if err != nil {
 		return 0, 0, err
 	}
 	events = tag.RowsAffected()
-	tag, err = r.pool.Exec(ctx, `DELETE FROM analytics_sessions WHERE last_seen_at < $1`, before)
+	tag, err = tx.Exec(ctx, `DELETE FROM analytics_sessions WHERE last_seen_at < $1`, before)
 	if err != nil {
-		return events, 0, err
+		return 0, 0, err
 	}
-	return events, tag.RowsAffected(), nil
+	sessions = tag.RowsAffected()
+	return events, sessions, tx.Commit(ctx)
+}
+
+// rollUpDays stores the totals of every Asia/Almaty day, before today, that
+// has sessions or page views older than $1. The whole day is counted from
+// the details still present (nothing of it has been deleted yet).
+const rollUpDays = `
+	WITH days AS (
+		SELECT (started_at AT TIME ZONE 'Asia/Almaty')::date AS day FROM analytics_sessions WHERE started_at < $1
+		UNION
+		SELECT (occurred_at AT TIME ZONE 'Asia/Almaty')::date FROM analytics_events WHERE type = 'page_view' AND occurred_at < $1
+	), b AS (
+		SELECT day, (day::timestamp AT TIME ZONE 'Asia/Almaty') AS from_at, ((day + 1)::timestamp AT TIME ZONE 'Asia/Almaty') AS to_at
+		FROM days
+		WHERE day < (now() AT TIME ZONE 'Asia/Almaty')::date
+	)
+	INSERT INTO analytics_daily_totals (day, sessions, visitors, page_views)
+	SELECT b.day,
+		(SELECT count(*) FROM analytics_sessions s WHERE s.started_at >= b.from_at AND s.started_at < b.to_at),
+		(SELECT count(DISTINCT visitor_id) FROM analytics_sessions s WHERE s.started_at >= b.from_at AND s.started_at < b.to_at),
+		(SELECT count(*) FROM analytics_events e WHERE e.type = 'page_view' AND e.occurred_at >= b.from_at AND e.occurred_at < b.to_at)
+	FROM b
+	ON CONFLICT (day) DO NOTHING`
+
+// Visits reads the visit counter: today [todayFrom, todayTo) from the
+// details, all time as stored day totals plus the details of every day not
+// stored yet, and the first day counted.
+func (r *AnalyticsRepository) Visits(ctx context.Context, todayFrom, todayTo time.Time) (analytics.Visits, error) {
+	var v analytics.Visits
+	err := r.pool.QueryRow(ctx, `
+		WITH live_sessions AS (
+			SELECT s.visitor_id, s.started_at FROM analytics_sessions s
+			WHERE NOT EXISTS (SELECT 1 FROM analytics_daily_totals t WHERE t.day = (s.started_at AT TIME ZONE 'Asia/Almaty')::date)
+		), live_views AS (
+			SELECT e.occurred_at FROM analytics_events e
+			WHERE e.type = 'page_view'
+			  AND NOT EXISTS (SELECT 1 FROM analytics_daily_totals t WHERE t.day = (e.occurred_at AT TIME ZONE 'Asia/Almaty')::date)
+		)
+		SELECT
+			(SELECT count(*) FROM analytics_sessions WHERE started_at >= $1 AND started_at < $2),
+			(SELECT count(DISTINCT visitor_id) FROM analytics_sessions WHERE started_at >= $1 AND started_at < $2),
+			(SELECT count(*) FROM analytics_events WHERE type = 'page_view' AND occurred_at >= $1 AND occurred_at < $2),
+			COALESCE((SELECT sum(sessions) FROM analytics_daily_totals), 0) + (SELECT count(*) FROM live_sessions),
+			COALESCE((SELECT sum(page_views) FROM analytics_daily_totals), 0) + (SELECT count(*) FROM live_views),
+			LEAST(
+				(SELECT min(day) FROM analytics_daily_totals WHERE sessions > 0 OR page_views > 0),
+				(SELECT (min(started_at) AT TIME ZONE 'Asia/Almaty')::date FROM analytics_sessions)
+			)`, todayFrom, todayTo).Scan(
+		&v.TodaySessions, &v.TodayVisitors, &v.TodayPageViews, &v.AllSessions, &v.AllPageViews, &v.Since)
+	return v, err
 }
 
 // sessionsInPeriod: sessions started in [$1, $2) with a "converted" flag —

@@ -18,6 +18,8 @@ import {
   X,
 } from "lucide-react";
 import ManagerHeader from "@/components/manager/ManagerHeader";
+import { useManagerEvents } from "@/components/manager/ManagerRealtime";
+import VisitCounter from "@/components/manager/analytics/VisitCounter";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { AuthErrorHandler } from "@/components/manager/useInbox";
 import {
@@ -32,6 +34,7 @@ import { fetchAnalyticsReport, fetchAnalyticsSession } from "@/lib/api/manager";
 import { isOptedOut, setOptedOut } from "@/lib/analytics/tracker";
 import { fill } from "@/lib/i18n";
 import type { ApiStaffUser } from "@/types/api/manager";
+import type { RealtimeEvent } from "@/types/api/realtime";
 import type { ApiAnalyticsReport, ApiAnalyticsSession, ApiAnalyticsSessionDetail, ApiAnalyticsSource } from "@/types/api/analytics";
 
 interface Props {
@@ -83,6 +86,19 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
     });
     return () => controller.abort();
   }, [range, requestKey, onAuthError]);
+
+  // New visits stored: re-read the report quietly (no loading state).
+  useManagerEvents(
+    useCallback(
+      (event: RealtimeEvent) => {
+        if (event.type !== "analytics_updated" || settled?.key !== requestKey) return;
+        void fetchAnalyticsReport(range.from, range.to).then((result) => {
+          if (result.kind === "ok") setReport(result.data.data);
+        });
+      },
+      [range, requestKey, settled],
+    ),
+  );
 
   const choose = (key: Exclude<PeriodKey, "custom">) => {
     setPeriod(key);
@@ -136,6 +152,8 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
             {optedOut ? a.exclude.on : a.exclude.off}
           </button>
         </div>
+
+        <VisitCounter onAuthError={onAuthError} />
 
         <div role="group" aria-label={a.periodLabel} className="flex flex-wrap items-center gap-2">
           {presets.map((key) => (

@@ -18,7 +18,8 @@ export type RealtimeEventType =
   | "error"
   | "pong"
   | "project_request_created"
-  | "project_request_updated";
+  | "project_request_updated"
+  | "analytics_updated";
 
 /** Envelope of every server → client message. */
 export interface RealtimeEvent<T = unknown> {

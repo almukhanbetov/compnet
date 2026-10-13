@@ -106,3 +106,17 @@ type SessionDetail struct {
 	Requests      []LinkedRequest
 	Conversations []LinkedConversation
 }
+
+// Visits is the visit counter at the top of the statistics. A visit is a
+// session; a visitor an anonymous browser id; a page view one opened page.
+// Today is Asia/Almaty; all time includes days whose details were already
+// deleted (stored as daily totals). Since is the first day counted, nil
+// before the first visit.
+type Visits struct {
+	TodaySessions  int
+	TodayVisitors  int
+	TodayPageViews int
+	AllSessions    int64
+	AllPageViews   int64
+	Since          *time.Time
+}

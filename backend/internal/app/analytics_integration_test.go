@@ -455,3 +455,147 @@ func sessionsFrom(r reportData, day string) int {
 	}
 	return 0
 }
+
+type visitsJSON struct {
+	Data struct {
+		Today       string  `json:"today"`
+		Since       *string `json:"since"`
+		TodayCounts struct {
+			Visits    int64 `json:"visits"`
+			Visitors  int64 `json:"visitors"`
+			PageViews int64 `json:"page_views"`
+		} `json:"today_counts"`
+		AllTime struct {
+			Visits    int64 `json:"visits"`
+			PageViews int64 `json:"page_views"`
+		} `json:"all_time"`
+	} `json:"data"`
+}
+
+func visits(t *testing.T, a *actor) visitsJSON {
+	t.Helper()
+	code, body := a.do("GET", "/api/v1/manager/analytics/visits", nil)
+	if code != 200 {
+		t.Fatalf("visits: %d %s", code, body)
+	}
+	var v visitsJSON
+	if err := json.Unmarshal(body, &v); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+// The visit counter: today and all time, no double counting of resent
+// batches, live notice to managers, and totals that survive the cleanup.
+func TestAnalytics_VisitCounter(t *testing.T) {
+	e := newEnv(t)
+	s := e.startAnalytics()
+	mgr := s.actor(t)
+	mgr.login(e)
+	sock := mgr.ws("/api/v1/manager/ws")
+
+	if code, _ := s.actor(t).do("GET", "/api/v1/manager/analytics/visits", nil); code != 401 {
+		t.Fatalf("visits without a session: %d", code)
+	}
+	code, raw := mgr.do("GET", "/api/v1/manager/analytics/visits", nil)
+	if code != 200 || !strings.Contains(string(raw), `"visitors":`) || !strings.Contains(string(raw), `"page_views":`) {
+		t.Fatalf("every today figure must be present, zeros included: %d %s", code, raw)
+	}
+	before := visits(t, mgr).Data
+	if before.Today != almatyToday() {
+		t.Fatalf("today = %s, want %s", before.Today, almatyToday())
+	}
+
+	// A visit: landing page, a second page.
+	visitor, session := uuid(), uuid()
+	e.trackSession(session)
+	v := s.actor(t)
+	first := newBatch(visitor, session, [2]string{"page_view", "/"}, [2]string{"promo_view", "/"}, [2]string{"page_view", "/pricing"})
+	if code, body := v.send("/api/v1/analytics/events", testOrigin, browserUA, first); code != 204 {
+		t.Fatalf("events: %d %s", code, body)
+	}
+	sock.wait("analytics_updated", fast, nil)
+	now := visits(t, mgr).Data
+	if now.TodayCounts.Visits != before.TodayCounts.Visits+1 || now.TodayCounts.Visitors != before.TodayCounts.Visitors+1 || now.TodayCounts.PageViews != before.TodayCounts.PageViews+2 {
+		t.Fatalf("after a visit: %+v → %+v", before.TodayCounts, now.TodayCounts)
+	}
+	if now.AllTime.Visits != before.AllTime.Visits+1 || now.AllTime.PageViews != before.AllTime.PageViews+2 || now.Since == nil {
+		t.Fatalf("all time: %+v → %+v (since %v)", before.AllTime, now.AllTime, now.Since)
+	}
+
+	// The same batch again (a retry): nothing changes, no notice.
+	v.send("/api/v1/analytics/events", testOrigin, browserUA, first)
+	sock.never("analytics_updated", 3500*time.Millisecond)
+	if again := visits(t, mgr).Data; again.TodayCounts != now.TodayCounts || again.AllTime != now.AllTime {
+		t.Fatalf("resent batch counted: %+v", again)
+	}
+
+	// A reload in the same visit: one more view, same visit.
+	v.send("/api/v1/analytics/events", testOrigin, browserUA, newBatch(visitor, session, [2]string{"page_view", "/pricing"}))
+	sock.wait("analytics_updated", 4*time.Second, nil)
+	reload := visits(t, mgr).Data
+	if reload.TodayCounts.Visits != now.TodayCounts.Visits || reload.TodayCounts.PageViews != now.TodayCounts.PageViews+1 {
+		t.Fatalf("reload: %+v → %+v", now.TodayCounts, reload.TodayCounts)
+	}
+
+	// A new session of the same browser (after 30 min idle): a new visit,
+	// the same visitor.
+	session2 := uuid()
+	e.trackSession(session2)
+	v.send("/api/v1/analytics/events", testOrigin, browserUA, newBatch(visitor, session2, [2]string{"page_view", "/"}))
+	second := visits(t, mgr).Data
+	if second.TodayCounts.Visits != reload.TodayCounts.Visits+1 || second.TodayCounts.Visitors != reload.TodayCounts.Visitors {
+		t.Fatalf("second session: %+v → %+v", reload.TodayCounts, second.TodayCounts)
+	}
+
+	// An old day (past the retention period): counted in all time, then
+	// stored as a daily total when the cleanup deletes its details.
+	ctx := context.Background()
+	oldDay := "2025-01-15"
+	oldSession := uuid()
+	t.Cleanup(func() {
+		_, _ = e.pool.Exec(ctx, `DELETE FROM analytics_sessions WHERE id = $1`, oldSession)
+		_, _ = e.pool.Exec(ctx, `DELETE FROM analytics_daily_totals WHERE day = $1`, oldDay)
+	})
+	if _, err := e.pool.Exec(ctx, `DELETE FROM analytics_daily_totals WHERE day = $1`, oldDay); err != nil {
+		t.Fatal(err)
+	}
+	at := `('2025-01-15 10:00'::timestamp AT TIME ZONE 'Asia/Almaty')`
+	if _, err := e.pool.Exec(ctx, `INSERT INTO analytics_sessions (id, visitor_id, started_at, last_seen_at, landing_path, source, medium, first_source, first_medium, device, event_count)
+		VALUES ($1, $2, `+at+`, `+at+`, '/', '(direct)', '(none)', '(direct)', '(none)', 'desktop', 3)`, oldSession, uuid()); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if _, err := e.pool.Exec(ctx, `INSERT INTO analytics_events (id, session_id, visitor_id, type, occurred_at, path)
+			SELECT gen_random_uuid(), id, visitor_id, 'page_view', `+at+`, '/' FROM analytics_sessions WHERE id = $1`, oldSession); err != nil {
+			t.Fatal(err)
+		}
+	}
+	withOld := visits(t, mgr).Data
+	if withOld.AllTime.Visits != second.AllTime.Visits+1 || withOld.AllTime.PageViews != second.AllTime.PageViews+3 || withOld.Since == nil || *withOld.Since > oldDay {
+		t.Fatalf("old day not counted: %+v since %v", withOld.AllTime, withOld.Since)
+	}
+	if err := s.app.Analytics.Purge(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_sessions WHERE id = $1`, oldSession); n != 0 {
+		t.Fatalf("old details not deleted")
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_daily_totals WHERE day = $1 AND sessions = 1 AND visitors = 1 AND page_views = 3`, oldDay); n != 1 {
+		t.Fatalf("day total not stored")
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_daily_totals WHERE day >= ((now() AT TIME ZONE 'Asia/Almaty')::date - 1)`); n != 0 {
+		t.Fatalf("recent days stored as totals: %d", n)
+	}
+	afterPurge := visits(t, mgr).Data
+	if afterPurge.AllTime != withOld.AllTime || afterPurge.TodayCounts != withOld.TodayCounts || afterPurge.Since == nil || *afterPurge.Since != oldDay {
+		t.Fatalf("cleanup changed the counter: %+v → %+v (since %v)", withOld, afterPurge, afterPurge.Since)
+	}
+	// A second cleanup changes nothing.
+	if err := s.app.Analytics.Purge(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if again := visits(t, mgr).Data; again.AllTime != afterPurge.AllTime {
+		t.Fatalf("second cleanup: %+v", again.AllTime)
+	}
+}

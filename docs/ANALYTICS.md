@@ -107,6 +107,17 @@ Stored in UTC. Report days start at 00:00 Asia/Almaty (UTC+5);
 deletes older events and inactive sessions at startup and every 6 hours.
 Requests and conversations themselves are not touched.
 
+Before deleting, the same job stores the totals of every finished
+Asia/Almaty day that is about to lose details in `analytics_daily_totals`
+(visits = sessions, visitors = distinct browser ids, page views — counts
+only). The "Посещаемость" block (`GET /api/v1/manager/analytics/visits`)
+adds these totals to the details still kept, so "visits, all time" never
+goes down; it starts at the first recorded visit and is not reconstructed
+from requests. "Today" is Asia/Almaty. Managers' pages are told about new
+visits over the manager WebSocket (`analytics_updated`, no payload, at most
+every 3 s) and re-read the API; they also re-read after every reconnect and
+poll while the socket is down.
+
 ## Configuration
 
 | Variable | Default | Meaning |
