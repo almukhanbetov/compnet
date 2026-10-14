@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, LogIn } from "lucide-react";
+import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useCountdown } from "@/components/chat/useCountdown";
 import { fetchMe, login } from "@/lib/api/manager";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { fill } from "@/lib/i18n";
 
-const fieldClass =
-  "w-full rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-4 py-3 text-base text-[var(--text-primary)] placeholder:text-slate-500 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 sm:text-sm";
+const fieldBaseClass =
+  "w-full rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 py-3 text-base text-[var(--text-primary)] placeholder:text-slate-500 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 sm:text-sm";
+const fieldClass = `${fieldBaseClass} px-4`;
+// Room on the right for the show/hide button; Edge's own reveal button is
+// hidden so there is only one eye.
+const passwordFieldClass = `${fieldBaseClass} pl-4 pr-12 [&::-ms-reveal]:hidden`;
 
 /**
  * Staff login. The password lives only in this component's state for the
@@ -26,6 +30,9 @@ export default function ManagerLoginForm() {
   const [checking, setChecking] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const passwordSelection = useRef<[number, number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [limitedUntil, setLimitedUntil] = useState<number | null>(null);
@@ -44,8 +51,31 @@ export default function ManagerLoginForm() {
     return () => controller.abort();
   }, [router]);
 
+  // Switching the input type resets the caret in Chromium, after the click
+  // has finished; restore it now and once more on the next frame.
+  useLayoutEffect(() => {
+    const saved = passwordSelection.current;
+    const input = passwordRef.current;
+    passwordSelection.current = null;
+    if (!saved || !input) return;
+    const restore = () => input.setSelectionRange(saved[0], saved[1]);
+    restore();
+    const frame = requestAnimationFrame(restore);
+    return () => cancelAnimationFrame(frame);
+  }, [showPassword]);
+
+  const togglePassword = () => {
+    const input = passwordRef.current;
+    if (input && input.selectionStart !== null && input.selectionEnd !== null) {
+      passwordSelection.current = [input.selectionStart, input.selectionEnd];
+    }
+    setShowPassword((shown) => !shown);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Submit with a masked field so password managers recognise the login.
+    setShowPassword(false);
     if (submitting || waitSeconds > 0) return;
     if (!email.trim() || !password) {
       setError(l.enterBoth);
@@ -131,15 +161,36 @@ export default function ManagerLoginForm() {
               <label htmlFor="manager-password" className="mb-1.5 block text-sm font-medium text-slate-300 light:text-slate-700">
                 {l.password}
               </label>
-              <input
-                id="manager-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className={fieldClass}
-                required
-              />
+              <div className="relative">
+                <input
+                  ref={passwordRef}
+                  id="manager-password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className={passwordFieldClass}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={togglePassword}
+                  // Keep focus (and the caret) in the field on mouse/touch.
+                  onMouseDown={(event) => event.preventDefault()}
+                  aria-label={showPassword ? l.hidePassword : l.showPassword}
+                  aria-controls="manager-password"
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-slate-400 transition hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/60 light:text-slate-500 light:hover:text-slate-800"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-5 w-5" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {error ? (
