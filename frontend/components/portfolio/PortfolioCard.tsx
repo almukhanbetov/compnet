@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, ExternalLink, TrendingUp } from "lucide-react";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { fill } from "@/lib/i18n";
+import { byId, fill } from "@/lib/i18n";
+import { caseStudyPages } from "@/data/caseStudyPages";
 import type { PortfolioCaseStudy } from "@/types/portfolioPage";
 
 interface PortfolioCardProps {
@@ -12,11 +13,20 @@ interface PortfolioCardProps {
 const cardClass =
   "group flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] backdrop-blur-xl transition hover:-translate-y-1 hover:border-violet-400/30 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)]";
 const ctaClass =
-  "mt-6 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-3 text-sm font-semibold transition group-hover:bg-[var(--text-primary)]/10";
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-3 text-sm font-semibold transition group-hover:bg-[var(--text-primary)]/10";
 
 export default function PortfolioCard({ project }: PortfolioCardProps) {
   const { t } = useLocale();
   const isExternal = Boolean(project.externalUrl);
+  // A case with its own page gets two buttons, so the card itself can't be
+  // the external link (links can't be nested).
+  const detailsHref = byId(caseStudyPages, project.slug);
+  const externalLabel = (
+    <>
+      {t.portfolio.card.openSite}
+      <ExternalLink className="h-4 w-4" aria-hidden="true" />
+    </>
+  );
 
   const body = (
     <>
@@ -85,13 +95,27 @@ export default function PortfolioCard({ project }: PortfolioCardProps) {
           </span>
         </div>
 
-        {isExternal ? (
-          <span className={ctaClass}>
-            {t.portfolio.card.openSite}
-            <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          </span>
+        {detailsHref ? (
+          <div className="mt-6 flex flex-col gap-2">
+            <Link href={detailsHref} className={ctaClass}>
+              {t.portfolio.card.details}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+            {isExternal ? (
+              <a
+                href={project.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={ctaClass}
+              >
+                {externalLabel}
+              </a>
+            ) : null}
+          </div>
+        ) : isExternal ? (
+          <span className={`mt-6 ${ctaClass}`}>{externalLabel}</span>
         ) : (
-          <Link href={`/portfolio/${project.slug}`} className={ctaClass}>
+          <Link href={`/portfolio/${project.slug}`} className={`mt-6 ${ctaClass}`}>
             {t.portfolio.card.more}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
@@ -100,7 +124,7 @@ export default function PortfolioCard({ project }: PortfolioCardProps) {
     </>
   );
 
-  if (isExternal) {
+  if (isExternal && !detailsHref) {
     return (
       <a
         href={project.externalUrl}
