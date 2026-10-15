@@ -13,6 +13,8 @@ export interface PortfolioTranslations {
     screenshotAlt: string;
     openSite: string;
     more: string;
+    /** Button to a case's own page, next to "open site". */
+    details: string;
   };
   caseStudy: {
     breadcrumb: string;
@@ -48,7 +50,7 @@ export const portfolioTranslations: Record<Locale, PortfolioTranslations> = {
       "AI-решения": "AI-решения",
     },
     empty: "В этой категории пока нет кейсов — уточните задачу, и мы предложим похожие проекты.",
-    card: { screenshotAlt: "Скриншот сайта: {title}", openSite: "Открыть сайт", more: "Подробнее" },
+    card: { screenshotAlt: "Скриншот сайта: {title}", openSite: "Открыть сайт", more: "Подробнее", details: "Подробнее о проекте" },
     caseStudy: {
       breadcrumb: "Портфолио",
       duration: "Срок: {duration}",
@@ -81,7 +83,7 @@ export const portfolioTranslations: Record<Locale, PortfolioTranslations> = {
       "AI-решения": "ЖИ шешімдері",
     },
     empty: "Бұл санатта әзірге кейстер жоқ — міндетті нақтылаңыз, біз ұқсас жобаларды ұсынамыз.",
-    card: { screenshotAlt: "Сайттың скриншоты: {title}", openSite: "Сайтты ашу", more: "Толығырақ" },
+    card: { screenshotAlt: "Сайттың скриншоты: {title}", openSite: "Сайтты ашу", more: "Толығырақ", details: "Жоба туралы толығырақ" },
     caseStudy: {
       breadcrumb: "Портфолио",
       duration: "Мерзімі: {duration}",
@@ -114,7 +116,7 @@ export const portfolioTranslations: Record<Locale, PortfolioTranslations> = {
       "AI-решения": "AI solutions",
     },
     empty: "There are no case studies in this category yet — tell us about your task and we will suggest similar projects.",
-    card: { screenshotAlt: "Website screenshot: {title}", openSite: "Open website", more: "Learn more" },
+    card: { screenshotAlt: "Website screenshot: {title}", openSite: "Open website", more: "Learn more", details: "Project details" },
     caseStudy: {
       breadcrumb: "Portfolio",
       duration: "Timeline: {duration}",
