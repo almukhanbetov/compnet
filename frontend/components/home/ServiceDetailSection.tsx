@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "motion/react";
 import {
   LayoutTemplate,
@@ -15,6 +16,7 @@ import {
   Workflow,
   Sparkles,
   CheckCircle2,
+  ArrowRight,
   type LucideIcon,
 } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
@@ -39,12 +41,15 @@ interface ServiceDetailSectionProps {
   detail: ServiceDetail;
   reversed?: boolean;
   tinted?: boolean;
+  /** Optional link to the service's own page, shown under the points. */
+  link?: { href: string; label: string };
 }
 
 export default function ServiceDetailSection({
   detail,
   reversed = false,
   tinted = false,
+  link,
 }: ServiceDetailSectionProps) {
   return (
     <section
@@ -82,6 +87,16 @@ export default function ServiceDetailSection({
                 </li>
               ))}
             </ul>
+
+            {link ? (
+              <Link
+                href={link.href}
+                className="mt-8 inline-flex items-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-5 py-3 text-sm font-semibold transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+              >
+                {link.label}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            ) : null}
           </motion.div>
 
           <motion.div

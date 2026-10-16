@@ -18,6 +18,8 @@ export interface BastasCaseTranslations {
     discuss: string;
     back: string;
     opensInNewTab: string;
+    /** Link to the website development service page. */
+    service: string;
   };
 }
 
@@ -58,6 +60,7 @@ export const bastasCaseTranslations: Record<Locale, BastasCaseTranslations> = {
       discuss: "Обсудить похожий проект",
       back: "Вернуться в портфолио",
       opensInNewTab: "(откроется в новой вкладке)",
+      service: "Услуга: создание сайтов",
     },
   },
 
@@ -97,6 +100,7 @@ export const bastasCaseTranslations: Record<Locale, BastasCaseTranslations> = {
       discuss: "Ұқсас жобаны талқылау",
       back: "Портфолиоға оралу",
       opensInNewTab: "(жаңа қойындыда ашылады)",
+      service: "Қызмет: сайт жасау",
     },
   },
 
@@ -136,6 +140,7 @@ export const bastasCaseTranslations: Record<Locale, BastasCaseTranslations> = {
       discuss: "Discuss a similar project",
       back: "Back to portfolio",
       opensInNewTab: "(opens in a new tab)",
+      service: "Service: website development",
     },
   },
 };
