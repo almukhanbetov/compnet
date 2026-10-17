@@ -2,8 +2,10 @@
 
 VPS: `89.207.254.215` · production directory: `/var/www/compnet` (from `VPS_PATH` secret)
 Flow: GitHub Actions → Docker Hub → SSH → `docker compose -p compnet`
-Public site: `https://compnet.kz` (and `https://www.compnet.kz`) via system Nginx,
-`/etc/nginx/sites-available/compnet.kz`: `/api/` → `127.0.0.1:8080`, `/` → `127.0.0.1:3000`.
+Public site: `https://compnet.kz` — the main domain; `www.compnet.kz` and plain
+HTTP redirect to it (301). System Nginx, `/etc/nginx/sites-available/compnet.kz`:
+`/api/` → `127.0.0.1:8080`, `/` → `127.0.0.1:3000`. Reference copy and how to
+change it: [Nginx](#nginx).
 
 This stack is fully isolated from any other project on the VPS: every
 container, network and volume is prefixed `compnet`/`compnet-network`, the
@@ -220,6 +222,89 @@ docker compose -p compnet --env-file .env -f docker-compose.prod.yml logs --tail
 docker compose -p compnet --env-file .env -f docker-compose.prod.yml logs --tail=150 frontend
 ```
 
+## Nginx
+
+The site file is `/etc/nginx/sites-available/compnet.kz` on the VPS. Its
+reference copy is [deploy/nginx/compnet.kz.conf](deploy/nginx/compnet.kz.conf):
+a comment header, then the server file byte for byte. **The deploy workflow
+never touches Nginx** — a deploy neither applies the copy nor overwrites the
+server file, so changes are made by hand (below) and the copy is kept in sync
+in the same PR. If the server file changes (by hand or by Certbot), copy it
+back into the repository.
+
+What the file does:
+
+| Request | Answer |
+|---|---|
+| `https://www.compnet.kz/*` | 301 → `https://compnet.kz/*` (path and query kept) |
+| `/index.html` | 301 → `https://compnet.kz/` |
+| `/img/favicon.ico` | 301 → `https://compnet.kz/favicon.ico` |
+| `http://compnet.kz/*`, `http://www.compnet.kz/*` | 301 → `https://` on the same host (Certbot block) |
+| `/api/v1/chat/ws`, `/api/v1/manager/ws` | WebSocket → `127.0.0.1:8080` |
+| `/api/` | → `127.0.0.1:8080` (backend) |
+| `/` | → `127.0.0.1:3000` (frontend) |
+
+URLs of the domain's previous site (`/lead`, `/trial-lessons`) answer **404
+on purpose**: there is no matching page, so they are neither redirected nor
+answered with 410.
+
+### Check (from any computer)
+
+```bash
+chk() { printf '%-42s %s\n' "$1" "$(curl -s -o /dev/null -m 10 -w '%{http_code} %{redirect_url}' "$1")"; }
+chk 'https://www.compnet.kz/pricing?x=1'   # 301 https://compnet.kz/pricing?x=1
+chk 'https://compnet.kz/index.html'        # 301 https://compnet.kz/
+chk 'https://compnet.kz/img/favicon.ico'   # 301 https://compnet.kz/favicon.ico
+chk 'http://compnet.kz/'                   # 301 https://compnet.kz/
+chk 'https://compnet.kz/'                  # 200
+chk 'https://compnet.kz/favicon.ico'       # 200
+chk 'https://compnet.kz/api/v1/services'   # 200
+chk 'https://compnet.kz/lead'              # 404
+```
+
+Does the server still match the repository? Compare both without the leading
+comment header (the server file has none until the repository copy is first
+applied with the steps below):
+
+```bash
+body() { awk 'NR==1{h=/^#/} h{if(/^$/)h=0; next} 1'; }   # drop a leading "#" header
+ssh compnet-vps 'cat /etc/nginx/sites-available/compnet.kz' | body > /tmp/compnet.kz.server
+body < deploy/nginx/compnet.kz.conf | diff -u /tmp/compnet.kz.server - && echo "in sync"
+```
+
+### Apply a change
+
+Needs root or a sudo-capable account (the `compnet` user has no sudo).
+Change `deploy/nginx/compnet.kz.conf` in a PR first, then:
+
+```bash
+# copy the file to the server (as compnet, no sudo needed for this)
+scp deploy/nginx/compnet.kz.conf compnet-vps:/home/compnet/
+
+# then, as root or a sudo user on the VPS:
+F=/etc/nginx/sites-available/compnet.kz
+N=/home/compnet/compnet.kz.conf
+diff -u "$F" "$N"     # review: only your change plus the comment header
+B=/root/compnet.kz.bak-$(date +%Y%m%d-%H%M%S)
+sudo cp -a "$F" "$B"  # backup outside /etc/nginx, so it is never included
+sudo cp "$N" "$F"
+sudo nginx -t         # must print "syntax is ok" and "test is successful"
+sudo systemctl reload nginx   # graceful: open connections finish on the old workers
+```
+
+If `nginx -t` fails, do **not** reload — restore the backup; the running
+Nginx is untouched until a reload. Then run the check above.
+
+**Rollback:**
+
+```bash
+sudo cp -a "$B" /etc/nginx/sites-available/compnet.kz
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+The lines marked `# managed by Certbot` (certificate paths and the HTTP
+block) belong to Certbot; edit them only together with the certificate setup.
+
 ## Chat: settings and launch
 
 The chat ships **off**: with `NEXT_PUBLIC_CHAT_WIDGET_ENABLED` unset the site
@@ -283,8 +368,10 @@ Details, event format and limits: [docs/CHAT_REALTIME.md](docs/CHAT_REALTIME.md)
 applies `20261013100000_chat_realtime_indexes` (indexes only) and restarts
 the containers. `NEXT_PUBLIC_CHAT_WIDGET_ENABLED` stays as it is.
 
-**2. Nginx** — needs root or a sudo-capable account (the `compnet` user has
-no sudo). The change is
+**2. Nginx** — already applied on the VPS (October 2026); the WebSocket
+blocks are part of [deploy/nginx/compnet.kz.conf](deploy/nginx/compnet.kz.conf),
+and new changes follow [Nginx](#nginx). Kept for history — needs root or a
+sudo-capable account (the `compnet` user has no sudo). The change is
 [deploy/nginx/compnet-chat-websocket.patch](deploy/nginx/compnet-chat-websocket.patch):
 two `location = /api/v1/{chat,manager}/ws` blocks added before
 `location /api/`, upstream `127.0.0.1:8080` (where `compnet-backend` is
@@ -494,10 +581,9 @@ removes dangling, untagged images and is safe.
 
 ## Notes
 
-- `www.compnet.kz` is served by the same Nginx server (no redirect). With
-  `NEXT_PUBLIC_API_URL=https://compnet.kz` a page opened on `www` calls the API
-  on the apex domain — this works because both origins are in
-  `CORS_ALLOWED_ORIGINS` and both hosts are the same site for cookies. A
-  `www → compnet.kz` redirect in Nginx would simplify it (optional, not done).
+- `www.compnet.kz` redirects to `https://compnet.kz` (301, see [Nginx](#nginx)),
+  so pages and the API are always served from the main domain.
+  `https://www.compnet.kz` stays in `CORS_ALLOWED_ORIGINS`; it is harmless and
+  can be removed later.
 - Rate limits live in backend memory: they reset on restart and assume one
   backend container.
