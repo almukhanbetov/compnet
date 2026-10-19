@@ -7,10 +7,11 @@ import AiAutomationSection from "@/components/home/AiAutomationSection";
 import CtaSection from "@/components/home/CtaSection";
 import { fetchServiceDetailsBySlug } from "@/lib/api/content";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
+import { withCanonical } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return (await getServerTranslations()).common.seo.services;
+  return withCanonical("/services", (await getServerTranslations()).common.seo.services);
 }
 
 export const dynamic = "force-dynamic";

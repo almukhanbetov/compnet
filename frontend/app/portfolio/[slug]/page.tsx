@@ -7,6 +7,7 @@ import { caseStudyPages } from "@/data/caseStudyPages";
 import { fetchPortfolioCase } from "@/lib/api/content";
 import { byId, fill } from "@/lib/i18n";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
+import { withCanonical } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +29,10 @@ export async function generateMetadata({
   }
 
   const { common } = await getServerTranslations();
-  return {
+  return withCanonical(`/portfolio/${project.slug}`, {
     title: fill(common.seo.portfolioCase, { title: project.title }),
     description: project.summary,
-  };
+  });
 }
 
 export default async function CaseStudyPage({ params }: CaseStudyPageProps) {

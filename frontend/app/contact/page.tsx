@@ -6,9 +6,10 @@ import ProjectEstimateForm from "@/components/contact/ProjectEstimateForm";
 import ContactMethods from "@/components/contact/ContactMethods";
 import ContactFaq from "@/components/contact/ContactFaq";
 import { getServerTranslations } from "@/lib/i18n.server";
+import { withCanonical } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return (await getServerTranslations()).common.seo.contact;
+  return withCanonical("/contact", (await getServerTranslations()).common.seo.contact);
 }
 
 export default function ContactPage() {

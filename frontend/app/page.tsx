@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Hero from "@/components/home/Hero";
@@ -18,7 +19,12 @@ import {
   fetchPricingCards,
   fetchTestimonials,
 } from "@/lib/api/content";
-import { getRequestLocale } from "@/lib/i18n.server";
+import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
+import { withCanonical } from "@/lib/seo";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return withCanonical("/", (await getServerTranslations()).common.seo.home);
+}
 
 export const dynamic = "force-dynamic";
 

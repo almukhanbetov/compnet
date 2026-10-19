@@ -61,6 +61,7 @@ export interface CommonTranslations {
   legal: { privacy: LegalText; terms: LegalText; cookies: LegalText };
   seo: {
     root: PageMeta;
+    home: PageMeta;
     about: PageMeta;
     calculator: PageMeta;
     contact: PageMeta;
@@ -223,6 +224,11 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
     },
     seo: {
       root: { title: "COMPNET AI Platform", description: "Современная маркетинговая, торговая и клиентская платформа" },
+      home: {
+        title: "Разработка сайтов и мобильных приложений в Алматы | COMPNET",
+        description:
+          "Разработка сайтов, веб- и мобильных приложений, CRM и автоматизация бизнеса в Алматы и Казахстане. COMPNET: от проектирования до запуска и поддержки.",
+      },
       about: {
         title: "О компании | COMPNET",
         description: "COMPNET — IT-студия полного цикла: от идеи и дизайна до разработки, DevOps и технической поддержки.",
@@ -420,6 +426,11 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
     },
     seo: {
       root: { title: "COMPNET AI Platform", description: "Заманауи маркетингтік, сауда және клиенттік платформа" },
+      home: {
+        title: "Алматыда сайттар мен мобильді қосымшалар әзірлеу | COMPNET",
+        description:
+          "Алматы мен Қазақстанда сайттар, веб және мобильді қосымшалар, CRM әзірлеу және бизнесті автоматтандыру. COMPNET: жобалаудан бастап іске қосу мен қолдауға дейін.",
+      },
       about: {
         title: "Компания туралы | COMPNET",
         description: "COMPNET — толық циклді IT-студия: идея мен дизайннан бастап әзірлеуге, DevOps пен техникалық қолдауға дейін.",
@@ -616,6 +627,11 @@ export const commonTranslations: Record<Locale, CommonTranslations> = {
     },
     seo: {
       root: { title: "COMPNET AI Platform", description: "A modern marketing, commerce and customer platform" },
+      home: {
+        title: "Website and mobile app development in Almaty | COMPNET",
+        description:
+          "Development of websites, web and mobile apps, CRM and business automation in Almaty and Kazakhstan. COMPNET: from design to launch and support.",
+      },
       about: {
         title: "About | COMPNET",
         description: "COMPNET is a full-cycle IT studio: from idea and design to development, DevOps and technical support.",
