@@ -11,3 +11,9 @@ export function whatsappLink(message?: string): string {
   const base = `https://wa.me/${WHATSAPP_NUMBER}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
+
+/** Public company email (the same address the footer and /contact show). */
+export const companyEmail = {
+  display: "hello@compnet.kz",
+  href: "mailto:hello@compnet.kz",
+} as const;

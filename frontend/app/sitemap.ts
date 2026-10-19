@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /** Public pages with real content. Left out on purpose: sign-in, the
  * profile and manager sections, and the "coming soon" placeholders
- * (/about, /solutions, /reviews) — add those once they have content. */
+ * (/solutions, /reviews) — add those once they have content. */
 const staticPaths = [
   "/",
   "/services",
@@ -19,6 +19,7 @@ const staticPaths = [
   "/calculator",
   "/portfolio",
   ...Object.values(caseStudyPages),
+  "/about",
   "/contact",
   "/privacy",
   "/terms",
