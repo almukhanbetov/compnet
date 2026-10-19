@@ -29,6 +29,8 @@ export interface PortfolioTranslations {
     ctaDescription: string;
     ctaPrimary: string;
     allProjects: string;
+    /** Link to /services/website-development on website cases. */
+    websiteService: string;
   };
 }
 
@@ -63,6 +65,7 @@ export const portfolioTranslations: Record<Locale, PortfolioTranslations> = {
       ctaDescription: "Обсудим задачу и предложим решение с оценкой сроков и бюджета.",
       ctaPrimary: "Обсудить похожий проект",
       allProjects: "Ко всем проектам",
+      websiteService: "Услуга: создание сайтов",
     },
   },
 
@@ -96,6 +99,7 @@ export const portfolioTranslations: Record<Locale, PortfolioTranslations> = {
       ctaDescription: "Міндетті талқылап, мерзім мен бюджет бағаланған шешім ұсынамыз.",
       ctaPrimary: "Ұқсас жобаны талқылау",
       allProjects: "Барлық жобаларға",
+      websiteService: "Қызмет: сайт жасау",
     },
   },
 
@@ -129,6 +133,7 @@ export const portfolioTranslations: Record<Locale, PortfolioTranslations> = {
       ctaDescription: "We will discuss your task and suggest a solution with a timeline and budget estimate.",
       ctaPrimary: "Discuss a similar project",
       allProjects: "All projects",
+      websiteService: "Service: website development",
     },
   },
 };

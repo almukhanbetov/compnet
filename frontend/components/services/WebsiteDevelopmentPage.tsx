@@ -18,17 +18,29 @@ import { BASTAS_SCREENSHOT } from "@/components/portfolio/BastasCaseStudy";
 import { byId, fill } from "@/lib/i18n";
 import {
   websitePriceFactorIds,
+  websiteTechnologies,
   websiteTypeIds,
   type WebsiteDevelopmentTranslations,
 } from "@/data/i18n/websiteDevelopment";
 import type { PricingTranslations } from "@/data/i18n/pricing";
 import type { PricingCardItem } from "@/types/pricingPage";
 
+/** One card in "Examples of our work". */
+export interface WebsiteExample {
+  title: string;
+  summary: string;
+  imageSrc: string;
+  imageAlt: string;
+  href: string;
+}
+
 interface WebsiteDevelopmentPageProps {
   t: WebsiteDevelopmentTranslations;
   factors: PricingTranslations["factors"]["items"];
   /** Pricing cards from the API; looked up by `price-<type>`. */
   pricing: PricingCardItem[];
+  /** Confirmed website cases from the portfolio API; empty when it is unavailable. */
+  examples: WebsiteExample[];
 }
 
 const includedIcons: LucideIcon[] = [Palette, Smartphone, Code2, Search, Rocket];
@@ -45,10 +57,23 @@ const textLinkClass =
   "inline-flex min-h-11 items-center gap-2 py-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 light:text-cyan-700 light:hover:text-cyan-800";
 const crumbClass = "inline-block -my-1.5 py-1.5 transition hover:text-cyan-300 light:hover:text-cyan-700";
 
-export default function WebsiteDevelopmentPage({ t, factors, pricing }: WebsiteDevelopmentPageProps) {
+export default function WebsiteDevelopmentPage({ t, factors, pricing, examples }: WebsiteDevelopmentPageProps) {
   const prices = websiteTypeIds
     .map((id) => ({ id, card: pricing.find((item) => item.id === `price-${id}`) }))
     .filter((item): item is { id: (typeof websiteTypeIds)[number]; card: PricingCardItem } => Boolean(item.card));
+  // Without the portfolio API, still show BASTAS from local data.
+  const workCards: WebsiteExample[] =
+    examples.length > 0
+      ? examples
+      : [
+          {
+            title: t.works.bastasTitle,
+            summary: t.works.bastasText,
+            imageSrc: BASTAS_SCREENSHOT.src,
+            imageAlt: t.works.bastasImageAlt,
+            href: "/portfolio/bastas",
+          },
+        ];
 
   return (
     <main className="relative overflow-hidden">
@@ -107,7 +132,7 @@ export default function WebsiteDevelopmentPage({ t, factors, pricing }: WebsiteD
       <section className="relative px-6 py-16 md:py-20">
         <div className="mx-auto max-w-[1280px]">
           <SectionHeading align="left" eyebrow={t.types.eyebrow} title={t.types.title} description={t.types.description} />
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {websiteTypeIds.map((id) => (
               <div key={id} className={cardClass}>
                 <h3 className="text-lg font-semibold text-slate-100 light:text-slate-900">{t.types.items[id].title}</h3>
@@ -155,7 +180,7 @@ export default function WebsiteDevelopmentPage({ t, factors, pricing }: WebsiteD
           />
 
           {prices.length > 0 ? (
-            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {prices.map(({ id, card }) => (
                 <div key={id} className={cardClass}>
                   <h3 className="font-semibold text-slate-100 light:text-slate-900">{card.title}</h3>
@@ -206,29 +231,60 @@ export default function WebsiteDevelopmentPage({ t, factors, pricing }: WebsiteD
       <section className="relative border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-16 md:py-20">
         <div className="mx-auto max-w-[1280px]">
           <SectionHeading align="left" eyebrow={t.works.eyebrow} title={t.works.title} description={t.works.description} />
-          <div className="mt-10 grid items-center gap-8 overflow-hidden rounded-[28px] border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-6 backdrop-blur-xl md:grid-cols-2 md:p-8">
-            <Image
-              src={BASTAS_SCREENSHOT.src}
-              width={BASTAS_SCREENSHOT.width}
-              height={BASTAS_SCREENSHOT.height}
-              alt={t.works.bastasImageAlt}
-              sizes="(min-width: 1280px) 600px, (min-width: 768px) 45vw, 100vw"
-              className="h-auto w-full rounded-2xl border border-[var(--text-primary)]/10"
-            />
-            <div>
-              <h3 className="text-xl font-semibold text-slate-100 light:text-slate-900">{t.works.bastasTitle}</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600">{t.works.bastasText}</p>
-              <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-                <Link href="/portfolio/bastas" className={primaryButtonClass}>
-                  {t.works.bastasLink}
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {workCards.map((work) => (
+              <li key={work.href}>
+                <Link
+                  href={work.href}
+                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] backdrop-blur-xl transition hover:-translate-y-1 hover:border-violet-400/30 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+                >
+                  <Image
+                    src={work.imageSrc}
+                    width={BASTAS_SCREENSHOT.width}
+                    height={BASTAS_SCREENSHOT.height}
+                    alt={work.imageAlt}
+                    sizes="(min-width: 1280px) 400px, (min-width: 1024px) 31vw, (min-width: 640px) 48vw, 100vw"
+                    className="h-auto w-full border-b border-[var(--text-primary)]/10"
+                  />
+                  <div className="flex flex-1 flex-col p-6">
+                    <h3 className="font-semibold leading-snug text-slate-100 light:text-slate-900">{work.title}</h3>
+                    <p className="mt-2 flex-1 text-sm leading-6 text-slate-400 light:text-slate-600">{work.summary}</p>
+                    <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 light:text-cyan-700">
+                      {t.works.caseLink}
+                      <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden="true" />
+                    </span>
+                  </div>
                 </Link>
-                <Link href="/portfolio" className={secondaryButtonClass}>
-                  {t.works.allWorks}
-                </Link>
-              </div>
-            </div>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-8">
+            <Link href="/portfolio" className={secondaryButtonClass}>
+              {t.works.allWorks}
+            </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Technologies */}
+      <section className="relative px-6 py-16 md:py-20">
+        <div className="mx-auto max-w-[1280px]">
+          <SectionHeading
+            align="left"
+            eyebrow={t.technologies.eyebrow}
+            title={t.technologies.title}
+            description={t.technologies.description}
+          />
+          <ul className="mt-8 flex flex-wrap gap-3">
+            {[...websiteTechnologies, t.technologies.responsive].map((tech) => (
+              <li
+                key={tech}
+                className="rounded-full border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/5 px-4 py-2 text-sm font-medium text-slate-200 light:text-slate-800"
+              >
+                {tech}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 

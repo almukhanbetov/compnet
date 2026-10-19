@@ -77,7 +77,7 @@ export default function ServicesOverviewSection({ items }: ServicesOverviewSecti
                 </ul>
 
                 <Link
-                  href="/services"
+                  href={service.id === "web-development" ? "/services/website-development" : "/services"}
                   className="mt-5 -mb-1 inline-flex items-center gap-2 py-1 text-sm font-semibold text-cyan-300 light:text-cyan-700 transition hover:text-cyan-200"
                 >
                   {t.common.serviceDetails}

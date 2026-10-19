@@ -2,8 +2,23 @@ import type { Locale } from "@/types/i18n";
 
 /** Project types shown on the page, in order; prices and durations for them
  * come from the pricing API (the same catalog as /pricing and the calculator). */
-export const websiteTypeIds = ["landing", "corporate", "catalog", "online-store"] as const;
+export const websiteTypeIds = ["landing", "business-card", "corporate", "catalog", "online-store"] as const;
 export type WebsiteTypeId = (typeof websiteTypeIds)[number];
+
+/** Portfolio cases (backend slugs) confirmed by the owner as COMPNET websites,
+ * in display order. Titles, summaries and screenshots come from the portfolio API. */
+export const websiteExampleSlugs = [
+  "bastas-stone-catalog",
+  "mereytoi-event-agency",
+  "ddldecor-interior-design",
+  "edu-zhso-education-platform",
+  "parasat-center-education",
+] as const;
+
+/** Technologies named in the confirmed website cases of the portfolio API
+ * (Next.js and TypeScript in BASTAS; responsive layout, Docker, Nginx and
+ * HTTPS in several cases). Names are not translated. */
+export const websiteTechnologies = ["Next.js", "TypeScript", "Docker", "Nginx", "HTTPS"] as const;
 
 /** Ids from data/pricingPage.ts whose labels (t.pricing.factors.items) explain the final price. */
 export const websitePriceFactorIds = [
@@ -51,12 +66,14 @@ export interface WebsiteDevelopmentTranslations {
     eyebrow: string;
     title: string;
     description: string;
+    /** Shown only when the portfolio API is unavailable. */
     bastasTitle: string;
     bastasText: string;
     bastasImageAlt: string;
-    bastasLink: string;
+    caseLink: string;
     allWorks: string;
   };
+  technologies: { eyebrow: string; title: string; description: string; responsive: string };
   steps: { eyebrow: string; title: string; items: { title: string; description: string }[] };
   faq: { eyebrow: string; title: string; items: { question: string; answer: string }[] };
   cta: { title: string; description: string; discuss: string; portfolio: string };
@@ -65,9 +82,9 @@ export interface WebsiteDevelopmentTranslations {
 export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTranslations> = {
   ru: {
     seo: {
-      title: "Создание сайтов в Алматы для бизнеса | COMPNET",
+      title: "Разработка сайтов в Алматы — цены и сроки | COMPNET",
       description:
-        "Разработка лендингов, корпоративных сайтов, каталогов и интернет-магазинов в Алматы: дизайн, адаптация для телефонов, согласованные функции и запуск. Стартовые цены и сроки — по типу сайта.",
+        "Разработка лендингов, сайтов-визиток, корпоративных сайтов, каталогов и интернет-магазинов в Алматы: дизайн, адаптация для телефонов, согласованные функции и запуск. Стартовые цены и сроки — по типу сайта.",
     },
     breadcrumb: { label: "Хлебные крошки", home: "Главная", services: "Услуги", current: "Создание сайтов" },
     serviceLink: "Подробнее о создании сайтов",
@@ -87,6 +104,10 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
         landing: {
           title: "Лендинг",
           audience: "Одна страница под конкретный продукт, услугу или рекламную кампанию, когда нужно быстро собрать обращения.",
+        },
+        "business-card": {
+          title: "Сайт-визитка",
+          audience: "Компании или специалисту, которым нужно компактно рассказать о себе, услугах и дать контакты.",
         },
         corporate: {
           title: "Корпоративный сайт",
@@ -133,13 +154,19 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
     },
     works: {
       eyebrow: "Работы",
-      title: "Пример реализованного сайта",
-      description: "Реальный проект из нашего портфолио.",
+      title: "Примеры наших работ",
+      description: "Сайты, которые мы сделали для наших клиентов.",
       bastasTitle: "BASTAS — каталог натурального камня",
       bastasText: "Сайт компании по обработке и продаже натурального камня: каталог материалов и калькулятор стоимости.",
       bastasImageAlt: "Главная страница сайта BASTAS",
-      bastasLink: "Смотреть кейс",
+      caseLink: "Смотреть кейс",
       allWorks: "Все работы",
+    },
+    technologies: {
+      eyebrow: "Технологии",
+      title: "На чём мы делаем сайты",
+      description: "Технологии из проектов нашего портфолио. Конкретный набор для вашего сайта согласуем вместе с составом работ.",
+      responsive: "Адаптивная вёрстка",
     },
     steps: {
       eyebrow: "Этапы",
@@ -191,9 +218,9 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
 
   kk: {
     seo: {
-      title: "Алматыда бизнеске арналған сайт жасау | COMPNET",
+      title: "Алматыда сайт әзірлеу — бағалар мен мерзімдер | COMPNET",
       description:
-        "Алматыда лендинг, корпоративтік сайт, каталог және интернет-дүкен әзірлеу: дизайн, телефонға бейімдеу, келісілген функциялар және іске қосу. Сайт түрі бойынша бастапқы бағалар.",
+        "Алматыда лендинг, сайт-визитка, корпоративтік сайт, каталог және интернет-дүкен әзірлеу: дизайн, телефонға бейімдеу, келісілген функциялар және іске қосу. Сайт түрі бойынша бастапқы бағалар.",
     },
     breadcrumb: { label: "Навигация жолы", home: "Басты бет", services: "Қызметтер", current: "Сайт жасау" },
     serviceLink: "Сайт жасау туралы толығырақ",
@@ -213,6 +240,10 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
         landing: {
           title: "Лендинг",
           audience: "Нақты өнімге, қызметке немесе жарнамалық науқанға арналған бір бет — өтініштерді тез жинау керек болғанда.",
+        },
+        "business-card": {
+          title: "Сайт-визитка",
+          audience: "Өзі, қызметтері туралы ықшам айтып, байланыс деректерін беру керек компанияға немесе маманға.",
         },
         corporate: {
           title: "Корпоративтік сайт",
@@ -259,13 +290,19 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
     },
     works: {
       eyebrow: "Жұмыстар",
-      title: "Іске асырылған сайт мысалы",
-      description: "Портфолиомыздағы нақты жоба.",
+      title: "Жұмыстарымыздың мысалдары",
+      description: "Клиенттеріміз үшін жасаған сайттарымыз.",
       bastasTitle: "BASTAS — табиғи тас каталогы",
       bastasText: "Табиғи тасты өңдеу және сату компаниясының сайты: материалдар каталогы және құн калькуляторы.",
       bastasImageAlt: "BASTAS сайтының басты беті",
-      bastasLink: "Кейсті көру",
+      caseLink: "Кейсті көру",
       allWorks: "Барлық жұмыстар",
+    },
+    technologies: {
+      eyebrow: "Технологиялар",
+      title: "Сайттарды неге жасаймыз",
+      description: "Портфолиомыздағы жобалардағы технологиялар. Сайтыңызға нақты жиынтықты жұмыс құрамымен бірге келісеміз.",
+      responsive: "Адаптивті беттеу",
     },
     steps: {
       eyebrow: "Кезеңдер",
@@ -317,9 +354,9 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
 
   en: {
     seo: {
-      title: "Website development in Almaty for business | COMPNET",
+      title: "Website development in Almaty — prices and timelines | COMPNET",
       description:
-        "Landing pages, corporate websites, catalogs and online stores in Almaty: design, mobile adaptation, agreed features and launch. Starting prices by website type.",
+        "Landing pages, business card websites, corporate websites, catalogs and online stores in Almaty: design, mobile adaptation, agreed features and launch. Starting prices by website type.",
     },
     breadcrumb: { label: "Breadcrumb", home: "Home", services: "Services", current: "Website development" },
     serviceLink: "More about website development",
@@ -339,6 +376,10 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
         landing: {
           title: "Landing page",
           audience: "A single page for a specific product, service or ad campaign, when you need to collect inquiries quickly.",
+        },
+        "business-card": {
+          title: "Business card website",
+          audience: "For a company or specialist who needs a compact site about themselves, their services and contacts.",
         },
         corporate: {
           title: "Corporate website",
@@ -385,13 +426,19 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
     },
     works: {
       eyebrow: "Our work",
-      title: "An example of a website we built",
-      description: "A real project from our portfolio.",
+      title: "Examples of our work",
+      description: "Websites we have built for our clients.",
       bastasTitle: "BASTAS — natural stone catalog",
       bastasText: "The website of a natural stone processing and sales company: a materials catalog and a cost calculator.",
       bastasImageAlt: "BASTAS website home page",
-      bastasLink: "View case study",
+      caseLink: "View case study",
       allWorks: "All projects",
+    },
+    technologies: {
+      eyebrow: "Technologies",
+      title: "What we build websites with",
+      description: "Technologies from the projects in our portfolio. The exact set for your site is agreed together with the scope of work.",
+      responsive: "Responsive layout",
     },
     steps: {
       eyebrow: "Steps",
