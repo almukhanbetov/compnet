@@ -119,9 +119,11 @@ export default function AboutPage({ t, city, examples }: AboutPageProps) {
               <h2 className="text-lg font-semibold text-slate-100 light:text-slate-900">{t.facts.title}</h2>
               <dl className="mt-5 divide-y divide-[var(--text-primary)]/10">
                 {facts.map((fact) => (
-                  <div key={fact.label} className="flex items-baseline justify-between gap-4 py-3">
-                    <dt className="text-sm text-slate-400 light:text-slate-600">{fact.label}</dt>
-                    <dd className="text-right font-semibold text-slate-100 light:text-slate-900">{fact.value}</dd>
+                  // 640–1023px: label | value columns, so values stay clear of the
+                  // chat launcher in the bottom-right corner of tablet screens.
+                  <div key={fact.label} className="flex items-baseline justify-between gap-4 py-3 sm:justify-start lg:justify-between">
+                    <dt className="text-sm text-slate-400 sm:w-40 sm:shrink-0 lg:w-auto light:text-slate-600">{fact.label}</dt>
+                    <dd className="text-right font-semibold text-slate-100 sm:text-left lg:text-right light:text-slate-900">{fact.value}</dd>
                   </div>
                 ))}
               </dl>

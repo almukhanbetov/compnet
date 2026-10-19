@@ -20,7 +20,8 @@ const FOCUSABLE =
 /**
  * Floating visitor chat: a launcher in the bottom-right corner and a panel
  * that opens in place (a floating card from 640px, a full-screen dialog on
- * phones). Layering: launcher and desktop panel sit at z-30, under the
+ * phones). Below 1024px the launcher is a 56px icon button; its name stays
+ * in aria-label. Layering: launcher and desktop panel sit at z-30, under the
  * sticky header (z-50) and the mobile menu (z-40); the phone dialog covers
  * everything at z-[60].
  */
@@ -120,7 +121,7 @@ export default function ChatWidget() {
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ duration: 0.2 }}
             style={mobileStyle}
-            className="fixed inset-x-0 top-0 z-[60] flex h-[100dvh] flex-col overflow-hidden bg-[var(--surface)] sm:inset-x-auto sm:top-auto sm:right-6 sm:bottom-24 sm:z-30 sm:h-[min(600px,calc(100dvh-11.5rem))] sm:w-[380px] sm:rounded-[28px] sm:border sm:border-[var(--text-primary)]/10 sm:bg-[var(--surface)]/95 sm:shadow-[0_20px_60px_rgba(7,11,23,0.45)] sm:backdrop-blur-xl light:sm:shadow-[0_20px_60px_rgba(15,23,42,0.18)]"
+            className="fixed inset-x-0 top-0 z-[60] flex h-[100dvh] flex-col overflow-hidden bg-[var(--surface)] pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] sm:p-0 sm:inset-x-auto sm:top-auto sm:right-6 sm:bottom-24 sm:z-30 sm:h-[min(600px,calc(100dvh-11.5rem))] sm:w-[380px] sm:rounded-[28px] sm:border sm:border-[var(--text-primary)]/10 sm:bg-[var(--surface)]/95 sm:shadow-[0_20px_60px_rgba(7,11,23,0.45)] sm:backdrop-blur-xl light:sm:shadow-[0_20px_60px_rgba(15,23,42,0.18)]"
           >
             <ChatWindow ref={composerRef} chat={chat} titleId={titleId} onClose={close} />
           </motion.div>
@@ -131,7 +132,9 @@ export default function ChatWidget() {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4, delay: 0.6 }}
-        className={`fixed right-4 bottom-4 z-30 sm:right-6 sm:bottom-6 ${isOpen && isMobile ? "hidden" : ""}`}
+        className={`fixed right-[calc(1rem+env(safe-area-inset-right))] bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 sm:right-[calc(1.5rem+env(safe-area-inset-right))] sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] ${
+          isOpen && isMobile ? "hidden" : ""
+        }`}
       >
         <button
           ref={launcherRef}
@@ -147,8 +150,8 @@ export default function ChatWidget() {
           aria-label={launcherLabel}
           aria-expanded={isOpen}
           aria-controls={isOpen ? panelId : undefined}
-          className={`relative flex h-14 items-center justify-center gap-2.5 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white shadow-[0_0_25px_rgba(124,58,237,0.45)] transition hover:scale-105 hover:shadow-[0_0_35px_rgba(124,58,237,0.6)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-400/50 ${
-            isOpen ? "w-14" : "pl-4 pr-5"
+          className={`relative flex h-14 w-14 items-center justify-center gap-2.5 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white shadow-[0_0_25px_rgba(124,58,237,0.45)] transition hover:scale-105 hover:shadow-[0_0_35px_rgba(124,58,237,0.6)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-400/50 ${
+            isOpen ? "" : "lg:w-auto lg:pl-4 lg:pr-5"
           }`}
         >
           {isOpen ? (
@@ -156,7 +159,7 @@ export default function ChatWidget() {
           ) : (
             <>
               <MessageCircle className="h-6 w-6 shrink-0" aria-hidden="true" />
-              <span className="whitespace-nowrap text-sm font-semibold">{t.chat.launcher.label}</span>
+              <span className="hidden whitespace-nowrap text-sm font-semibold lg:inline">{t.chat.launcher.label}</span>
             </>
           )}
           {!isOpen && unread > 0 ? (
