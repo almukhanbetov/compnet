@@ -19,8 +19,8 @@ export default function ChatWidgetLoader() {
   return (
     <>
       {/* Room below the footer (same background), so the end of every page can scroll clear of
-          the fixed launcher (56px tall, 16–24px from the bottom). */}
-      <div aria-hidden="true" className="h-24 bg-[#05070f] light:bg-slate-50" />
+          the fixed launcher (56px tall, 16–24px plus the safe area from the bottom). */}
+      <div aria-hidden="true" className="h-[calc(6rem+env(safe-area-inset-bottom))] bg-[#05070f] light:bg-slate-50" />
       <ChatWidget />
     </>
   );
