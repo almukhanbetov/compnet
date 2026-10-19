@@ -48,6 +48,10 @@ async function getJSONOrDefault<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
+/** Website types whose pricing cards link to /services/website-development
+ * instead of the backend's generic service_href. */
+const websiteProjectTypes = new Set(["landing", "business-card", "corporate", "catalog", "online-store"]);
+
 /** Pricing cards identify their project type by a stable key; the label
  * is translated through the same map as the contact form options. */
 const projectTypeLabels: Record<string, ProjectPricingLabel> = {
@@ -140,7 +144,7 @@ export async function fetchPricingCards(locale: Locale): Promise<PricingCardItem
       duration: translateDuration(t.catalog, item.duration),
       description: text?.description ?? item.description,
       features: text?.features ?? item.features,
-      serviceHref: item.service_href,
+      serviceHref: websiteProjectTypes.has(item.project_type) ? "/services/website-development" : item.service_href,
     };
   });
 }

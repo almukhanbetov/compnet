@@ -148,6 +148,15 @@ export default async function CaseStudyTemplate({ project }: CaseStudyTemplatePr
             <p className="mt-2 text-sm text-slate-300 light:text-slate-700">
               {c.ctaDescription}
             </p>
+            {project.category === "Сайты" ? (
+              <Link
+                href="/services/website-development"
+                className="mt-2 inline-flex min-h-11 items-center gap-2 py-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 light:text-cyan-700 light:hover:text-cyan-800"
+              >
+                {c.websiteService}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-4">

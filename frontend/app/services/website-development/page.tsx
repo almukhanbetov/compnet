@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import WebsiteDevelopmentPage from "@/components/services/WebsiteDevelopmentPage";
-import { websiteDevelopmentTranslations } from "@/data/i18n/websiteDevelopment";
-import { fetchPricingCards } from "@/lib/api/content";
+import WebsiteDevelopmentPage, { type WebsiteExample } from "@/components/services/WebsiteDevelopmentPage";
+import { caseStudyPages } from "@/data/caseStudyPages";
+import { websiteDevelopmentTranslations, websiteExampleSlugs } from "@/data/i18n/websiteDevelopment";
+import { fetchPortfolioCases, fetchPricingCards } from "@/lib/api/content";
+import { byId, fill } from "@/lib/i18n";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 
 const PATH = "/services/website-development";
@@ -33,10 +35,27 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function WebsiteDevelopmentServicePage() {
   const locale = await getRequestLocale();
-  const [pricing, { pricing: pricingTexts }] = await Promise.all([
+  // Both API calls fall back to [] on failure, so the page always renders.
+  const [pricing, cases, { pricing: pricingTexts, portfolio }] = await Promise.all([
     fetchPricingCards(locale),
+    fetchPortfolioCases(locale),
     getServerTranslations(),
   ]);
+
+  // Only the confirmed cases, in their fixed order; no durations or results.
+  const examples: WebsiteExample[] = websiteExampleSlugs.flatMap((slug) => {
+    const item = cases.find((c) => c.slug === slug);
+    if (!item?.screenshotUrl) return [];
+    return [
+      {
+        title: item.title,
+        summary: item.summary,
+        imageSrc: item.screenshotUrl,
+        imageAlt: fill(portfolio.card.screenshotAlt, { title: item.title }),
+        href: byId(caseStudyPages, slug) ?? `/portfolio/${slug}`,
+      },
+    ];
+  });
 
   return (
     <>
@@ -45,6 +64,7 @@ export default async function WebsiteDevelopmentServicePage() {
         t={websiteDevelopmentTranslations[locale]}
         factors={pricingTexts.factors.items}
         pricing={pricing}
+        examples={examples}
       />
       <Footer />
     </>
