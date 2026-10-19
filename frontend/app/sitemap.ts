@@ -35,6 +35,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .map((item) => `/portfolio/${encodeURIComponent(item.slug)}`);
 
   return [...new Set([...staticPaths, ...casePaths])].map((path) => ({
-    url: path === "/" ? SITE_URL : `${SITE_URL}${path}`,
+    url: `${SITE_URL}${path}`,
   }));
 }

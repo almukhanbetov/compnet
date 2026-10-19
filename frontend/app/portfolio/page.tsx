@@ -6,9 +6,10 @@ import PortfolioHero from "@/components/portfolio/PortfolioHero";
 import PortfolioGrid from "@/components/portfolio/PortfolioGrid";
 import { fetchPortfolioCases } from "@/lib/api/content";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
+import { withCanonical } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return (await getServerTranslations()).common.seo.portfolio;
+  return withCanonical("/portfolio", (await getServerTranslations()).common.seo.portfolio);
 }
 
 export const dynamic = "force-dynamic";

@@ -4,9 +4,10 @@ import Footer from "@/components/layout/Footer";
 import CalculatorHero from "@/components/calculator/CalculatorHero";
 import CalculatorForm from "@/components/calculator/CalculatorForm";
 import { getServerTranslations } from "@/lib/i18n.server";
+import { withCanonical } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return (await getServerTranslations()).common.seo.calculator;
+  return withCanonical("/calculator", (await getServerTranslations()).common.seo.calculator);
 }
 
 export default function CalculatorPage() {

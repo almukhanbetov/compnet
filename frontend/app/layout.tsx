@@ -7,9 +7,12 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import ChatWidgetLoader from "@/components/chat/ChatWidgetLoader";
 import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
+import { SITE_URL } from "@/lib/site";
 
+// No canonical here: it would be inherited by every page. Each indexable
+// page sets its own with withCanonical().
 export async function generateMetadata(): Promise<Metadata> {
-  return (await getServerTranslations()).common.seo.root;
+  return { metadataBase: new URL(SITE_URL), ...(await getServerTranslations()).common.seo.root };
 }
 
 type RootLayoutProps = Readonly<{

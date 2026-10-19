@@ -10,9 +10,10 @@ import PricingProcess from "@/components/pricing/PricingProcess";
 import PricingFaq from "@/components/pricing/PricingFaq";
 import { fetchPricingCards } from "@/lib/api/content";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
+import { withCanonical } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return (await getServerTranslations()).common.seo.pricing;
+  return withCanonical("/pricing", (await getServerTranslations()).common.seo.pricing);
 }
 
 export const dynamic = "force-dynamic";

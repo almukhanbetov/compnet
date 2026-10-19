@@ -5,7 +5,6 @@ import WebsiteDevelopmentPage from "@/components/services/WebsiteDevelopmentPage
 import { websiteDevelopmentTranslations } from "@/data/i18n/websiteDevelopment";
 import { fetchPricingCards } from "@/lib/api/content";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
-import { SITE_URL } from "@/lib/site";
 
 const PATH = "/services/website-development";
 const ogLocales = { ru: "ru_RU", kk: "kk_KZ", en: "en_US" } as const;
@@ -16,7 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
   const t = websiteDevelopmentTranslations[locale];
   return {
-    metadataBase: new URL(SITE_URL),
     title: t.seo.title,
     description: t.seo.description,
     // Routes are not localized (the language comes from a cookie), so every
