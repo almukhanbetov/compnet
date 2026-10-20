@@ -15,6 +15,7 @@ const staticPaths = [
   "/",
   "/services",
   "/services/website-development",
+  "/services/mobile-app-development",
   "/pricing",
   "/calculator",
   "/portfolio",
