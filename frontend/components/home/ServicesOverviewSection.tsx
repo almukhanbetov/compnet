@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
+import { MOBILE_APP_DEVELOPMENT_PATH } from "@/data/i18n/mobileAppDevelopment";
 import type { ServiceOverview, ServiceOverviewIcon } from "@/types/serviceOverview";
 
 const serviceIcons: Record<ServiceOverviewIcon, LucideIcon> = {
@@ -20,6 +21,12 @@ const serviceIcons: Record<ServiceOverviewIcon, LucideIcon> = {
   AppWindow,
   Smartphone,
   Bot,
+};
+
+/** Services with their own page; the other cards link to /services. */
+const serviceHrefs: Partial<Record<string, string>> = {
+  "web-development": "/services/website-development",
+  "mobile-apps": MOBILE_APP_DEVELOPMENT_PATH,
 };
 
 interface ServicesOverviewSectionProps {
@@ -77,7 +84,7 @@ export default function ServicesOverviewSection({ items }: ServicesOverviewSecti
                 </ul>
 
                 <Link
-                  href={service.id === "web-development" ? "/services/website-development" : "/services"}
+                  href={serviceHrefs[service.id] ?? "/services"}
                   className="mt-5 -mb-1 inline-flex items-center gap-2 py-1 text-sm font-semibold text-cyan-300 light:text-cyan-700 transition hover:text-cyan-200"
                 >
                   {t.common.serviceDetails}
