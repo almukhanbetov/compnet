@@ -76,6 +76,8 @@ export interface WebsiteDevelopmentTranslations {
   technologies: { eyebrow: string; title: string; description: string; responsive: string };
   steps: { eyebrow: string; title: string; items: { title: string; description: string }[] };
   faq: { eyebrow: string; title: string; items: { question: string; answer: string }[] };
+  /** Heading of the request form section. */
+  requestForm: { eyebrow: string; title: string; description: string };
   cta: { title: string; description: string; discuss: string; portfolio: string };
 }
 
@@ -207,6 +209,12 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
             "Базовый гарантийный период входит в разработку. Дальнейшее сопровождение — мониторинг, исправление ошибок, обновления безопасности и доработки по запросу — оформляется отдельно, на условиях, которые обсуждаем индивидуально.",
         },
       ],
+    },
+    requestForm: {
+      eyebrow: "Заявка",
+      title: "Расскажите о вашем сайте",
+      description:
+        "Выберите тип сайта и кратко опишите задачу — ориентировочную стоимость увидите сразу, а менеджер свяжется с вами, чтобы уточнить детали.",
     },
     cta: {
       title: "Обсудим ваш сайт?",
@@ -344,6 +352,12 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
         },
       ],
     },
+    requestForm: {
+      eyebrow: "Өтінім",
+      title: "Сайтыңыз туралы айтыңыз",
+      description:
+        "Сайт түрін таңдап, міндетті қысқаша сипаттаңыз — болжамды құнын бірден көресіз, ал менеджер мәліметтерді нақтылау үшін сізбен хабарласады.",
+    },
     cta: {
       title: "Сайтыңызды талқылайық па?",
       description: "Міндет туралы айтыңыз — формат, жұмыс құрамы, мерзім мен бюджет бағасын ұсынамыз.",
@@ -479,6 +493,12 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
             "A basic warranty period is included in development. Further maintenance — monitoring, bug fixes, security updates and changes on request — is arranged separately on terms we discuss individually.",
         },
       ],
+    },
+    requestForm: {
+      eyebrow: "Request",
+      title: "Tell us about your website",
+      description:
+        "Choose the type of website and briefly describe the task — you will see an indicative price right away, and a manager will contact you to clarify the details.",
     },
     cta: {
       title: "Shall we discuss your website?",

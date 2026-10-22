@@ -14,6 +14,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
+import ProjectEstimateForm from "@/components/contact/ProjectEstimateForm";
+import { ESTIMATE_FORM_ID } from "@/data/contactPage";
+import { projectPricingList } from "@/data/projectPricing";
 import { BASTAS_SCREENSHOT } from "@/components/portfolio/BastasCaseStudy";
 import { byId, fill } from "@/lib/i18n";
 import {
@@ -44,6 +47,12 @@ interface WebsiteDevelopmentPageProps {
 }
 
 const includedIcons: LucideIcon[] = [Palette, Smartphone, Code2, Search, Rocket];
+
+/** Request form choices: the website types of this page, in catalog order,
+ * plus "Другое" for anything else. Nothing is pre-selected. */
+const formProjectTypes = projectPricingList
+  .filter((item) => (websiteTypeIds as readonly string[]).includes(item.projectType) || item.projectType === "other")
+  .map((item) => item.label);
 
 const cardClass =
   "rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl";
@@ -116,10 +125,10 @@ export default function WebsiteDevelopmentPage({ t, factors, pricing, examples }
             <h1 className="mt-6 text-4xl font-bold leading-tight md:text-6xl">{t.hero.title}</h1>
             <p className="mt-6 text-lg leading-8 text-slate-400 light:text-slate-600">{t.hero.description}</p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-              <Link href="/contact" className={primaryButtonClass}>
+              <a href={`#${ESTIMATE_FORM_ID}`} className={primaryButtonClass}>
                 {t.hero.discuss}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              </a>
               <Link href="/portfolio" className={secondaryButtonClass}>
                 {t.hero.portfolio}
               </Link>
@@ -331,6 +340,9 @@ export default function WebsiteDevelopmentPage({ t, factors, pricing, examples }
         </div>
       </section>
 
+      {/* Request form */}
+      <ProjectEstimateForm heading={t.requestForm} projectTypes={formProjectTypes} />
+
       {/* Final call to action */}
       <section className="relative px-6 pb-20 md:pb-28">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-6 rounded-[28px] border border-[var(--text-primary)]/10 bg-gradient-to-br from-violet-700/30 via-blue-700/25 to-cyan-500/20 p-8 backdrop-blur-xl md:p-10">
@@ -339,10 +351,10 @@ export default function WebsiteDevelopmentPage({ t, factors, pricing, examples }
             <p className="mt-2 text-sm text-slate-300 light:text-slate-700">{t.cta.description}</p>
           </div>
           <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:flex-wrap">
-            <Link href="/contact" className={primaryButtonClass}>
+            <a href={`#${ESTIMATE_FORM_ID}`} className={primaryButtonClass}>
               {t.cta.discuss}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            </a>
             <Link href="/portfolio" className={secondaryButtonClass}>
               {t.cta.portfolio}
             </Link>

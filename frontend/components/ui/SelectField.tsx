@@ -17,6 +17,9 @@ interface SelectFieldProps<T extends string> {
   hasError?: boolean;
   /** Display text for an option; the value itself is what gets submitted. */
   getLabel?: (value: T) => string;
+  /** Id(s) of the text describing the field, e.g. its error message. */
+  describedBy?: string;
+  required?: boolean;
 }
 
 export default function SelectField<T extends string>({
@@ -27,6 +30,8 @@ export default function SelectField<T extends string>({
   placeholder,
   hasError = false,
   getLabel,
+  describedBy,
+  required,
 }: SelectFieldProps<T>) {
   return (
     <div className="relative">
@@ -34,6 +39,9 @@ export default function SelectField<T extends string>({
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value as T)}
+        aria-invalid={hasError || undefined}
+        aria-describedby={describedBy}
+        aria-required={required || undefined}
         className={`${fieldClass} appearance-none pr-10 ${
           hasError ? errorFieldClass : ""
         }`}

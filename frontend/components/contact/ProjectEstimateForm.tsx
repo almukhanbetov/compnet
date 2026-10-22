@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { AlertCircle, CheckCircle2, Loader2, Send } from "lucide-react";
 import EstimatePreview from "@/components/contact/EstimatePreview";
-import FieldWrapper from "@/components/ui/FieldWrapper";
+import FieldWrapper, { fieldErrorId } from "@/components/ui/FieldWrapper";
+import SectionHeading from "@/components/ui/SectionHeading";
 import SelectField, {
   fieldClass,
   errorFieldClass,
@@ -15,6 +16,7 @@ import {
   timelineOptions,
   contactMethodOptions,
   formLimits,
+  ESTIMATE_FORM_ID,
 } from "@/data/contactPage";
 import type {
   EstimateFormState,
@@ -66,18 +68,34 @@ function formatTenge(amount: number): string {
   return `${amount.toLocaleString("ru-RU")} ₸`;
 }
 
-const initialFormState: EstimateFormState = {
-  name: "",
-  phone: "",
-  email: "",
-  company: "",
-  projectType: "",
-  description: "",
-  budget: "пока не определён",
-  timeline: "пока не определён",
-  contactMethod: "Телефон",
-  consent: false,
-};
+function initialFormState(projectType: ProjectType | ""): EstimateFormState {
+  return {
+    name: "",
+    phone: "",
+    email: "",
+    company: "",
+    projectType,
+    description: "",
+    budget: "пока не определён",
+    timeline: "пока не определён",
+    contactMethod: "Телефон",
+    consent: false,
+  };
+}
+
+/** Field ids in the order they appear, for focusing the first error. */
+const FIELD_ORDER: (keyof EstimateFormErrors)[] = [
+  "name",
+  "phone",
+  "email",
+  "projectType",
+  "contactMethod",
+  "description",
+  "consent",
+];
+
+const CONTACT_HINT_ID = "contact-hint";
+const FORM_TITLE_ID = `${ESTIMATE_FORM_ID}-title`;
 
 type FormErrorTexts = ContactPageTranslations["form"]["errors"];
 
@@ -122,10 +140,31 @@ function validate(form: EstimateFormState, text: FormErrorTexts): EstimateFormEr
   return errors;
 }
 
-export default function ProjectEstimateForm() {
+interface ProjectEstimateFormProps {
+  /** Section heading for pages without their own hero (not /contact). */
+  heading?: { eyebrow: string; title: string; description?: string };
+  /** Project type selected from the start, e.g. on a service page. */
+  initialProjectType?: ProjectType;
+  /** Types offered in the select; the whole catalog by default. */
+  projectTypes?: readonly ProjectType[];
+  /** false on pages that publish no prices: no estimate preview and no
+   * price in the success message. */
+  showPrices?: boolean;
+  /** Side column; the estimate preview by default. */
+  aside?: ReactNode;
+}
+
+export default function ProjectEstimateForm({
+  heading,
+  initialProjectType,
+  projectTypes = projectTypeOptions,
+  showPrices = true,
+  aside,
+}: ProjectEstimateFormProps = {}) {
   const { t } = useLocale();
   const f = t.contactPage.form;
-  const [form, setForm] = useState<EstimateFormState>(initialFormState);
+  const initialType = initialProjectType ?? "";
+  const [form, setForm] = useState<EstimateFormState>(() => initialFormState(initialType));
   const [errors, setErrors] = useState<EstimateFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -135,6 +174,35 @@ export default function ProjectEstimateForm() {
   // Uncontrolled on purpose: bots that set the DOM value without input
   // events are caught too.
   const honeypotRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const successTitleRef = useRef<HTMLParagraphElement>(null);
+  // What to focus once the state change it belongs to has rendered: an
+  // invalid field, the success message, or the first field after "send
+  // another".
+  const pendingFocus = useRef<string | null>(null);
+
+  useEffect(() => {
+    const id = pendingFocus.current;
+    if (!id) return;
+    pendingFocus.current = null;
+    const target =
+      id === "success" ? successTitleRef.current : formRef.current?.querySelector<HTMLElement>(`#${id}`);
+    target?.focus();
+  });
+
+  const focusFirstError = (fieldErrors: EstimateFormErrors) => {
+    const first = FIELD_ORDER.find((field) => fieldErrors[field]);
+    if (first) pendingFocus.current = first;
+  };
+
+  /** ARIA attributes tying a field to its error (and extra hint ids). */
+  const describe = (field: keyof EstimateFormErrors, ...hintIds: string[]) => {
+    const ids = [...hintIds, ...(errors[field] ? [fieldErrorId(field)] : [])];
+    return {
+      "aria-invalid": errors[field] ? true : undefined,
+      "aria-describedby": ids.length > 0 ? ids.join(" ") : undefined,
+    };
+  };
 
   const updateField = <K extends keyof EstimateFormState>(
     key: K,
@@ -161,6 +229,7 @@ export default function ProjectEstimateForm() {
     setApiError(null);
 
     if (Object.keys(validationErrors).length > 0) {
+      focusFirstError(validationErrors);
       return;
     }
 
@@ -180,6 +249,7 @@ export default function ProjectEstimateForm() {
 
     if (result.kind === "success") {
       setSubmitResult(result.data);
+      pendingFocus.current = "success";
       // GA4 (if configured and consented) learns only that a request was
       // saved — confirmed by the server, never with contacts or ids.
       ga4Event("lead_confirmed", window.location.pathname);
@@ -200,6 +270,7 @@ export default function ProjectEstimateForm() {
       }
 
       setErrors((prev) => ({ ...prev, ...mappedErrors }));
+      focusFirstError(mappedErrors);
       if (hasUnmappedField || Object.keys(mappedErrors).length === 0) {
         setApiError(f.errors.invalid);
       }
@@ -210,42 +281,62 @@ export default function ProjectEstimateForm() {
   };
 
   const handleReset = () => {
-    setForm(initialFormState);
+    setForm(initialFormState(initialType));
     setErrors({});
     setApiError(null);
     setSubmitResult(null);
+    pendingFocus.current = "name";
   };
+
+  const estimateText = (estimate: ProjectRequestData["estimate"]) =>
+    (estimate.is_individual || estimate.minimum_tenge === null || estimate.maximum_tenge === null
+      ? f.success.individual
+      : fill(f.success.estimate, {
+          min: formatTenge(estimate.minimum_tenge),
+          max: formatTenge(estimate.maximum_tenge),
+        })) +
+    (estimate.duration_label
+      ? fill(f.success.duration, { duration: translateDuration(t.catalog, estimate.duration_label) })
+      : "");
 
   return (
     <section
-      id="estimate-form"
-      className="scroll-mt-24 px-6 py-8 md:py-12"
+      id={ESTIMATE_FORM_ID}
+      aria-labelledby={heading ? FORM_TITLE_ID : undefined}
+      className={`scroll-mt-24 px-6 ${heading ? "relative py-16 md:py-20" : "py-8 md:py-12"}`}
     >
-      <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[1fr_360px]">
+      {heading ? (
+        <div className="mx-auto mb-10 max-w-[1280px]">
+          <SectionHeading
+            align="left"
+            titleId={FORM_TITLE_ID}
+            eyebrow={heading.eyebrow}
+            title={heading.title}
+            description={heading.description}
+          />
+        </div>
+      ) : null}
+      <div
+        className={`mx-auto grid gap-8 lg:grid-cols-[1fr_360px] ${heading ? "max-w-[1280px]" : "max-w-[1200px]"}`}
+      >
         <div className="rounded-[28px] border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl md:p-10">
           {submitResult ? (
-            <div className="flex flex-col items-center py-10 text-center">
+            <div role="status" className="flex flex-col items-center py-10 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600/30 to-cyan-400/20 text-cyan-300 light:text-cyan-700">
                 <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
               </span>
-              <p className="mt-5 text-xl font-semibold text-slate-100 light:text-slate-900">
+              <p
+                ref={successTitleRef}
+                tabIndex={-1}
+                className="mt-5 text-xl font-semibold text-slate-100 outline-none light:text-slate-900"
+              >
                 {fill(f.success.title, { id: submitResult.id.slice(0, 8) })}
               </p>
-              <p className="mt-2 max-w-md text-sm leading-6 text-slate-400 light:text-slate-600">
-                {submitResult.estimate.is_individual ||
-                submitResult.estimate.minimum_tenge === null ||
-                submitResult.estimate.maximum_tenge === null
-                  ? f.success.individual
-                  : fill(f.success.estimate, {
-                      min: formatTenge(submitResult.estimate.minimum_tenge),
-                      max: formatTenge(submitResult.estimate.maximum_tenge),
-                    })}
-                {submitResult.estimate.duration_label
-                  ? fill(f.success.duration, {
-                      duration: translateDuration(t.catalog, submitResult.estimate.duration_label),
-                    })
-                  : ""}
-              </p>
+              {showPrices ? (
+                <p className="mt-2 max-w-md text-sm leading-6 text-slate-400 light:text-slate-600">
+                  {estimateText(submitResult.estimate)}
+                </p>
+              ) : null}
               <p className="mt-2 max-w-md text-xs leading-5 text-slate-500 light:text-slate-600">
                 {f.success.followUp}
               </p>
@@ -259,7 +350,13 @@ export default function ProjectEstimateForm() {
               </button>
             </div>
           ) : (
-            <form noValidate onSubmit={handleSubmit} className="space-y-6">
+            <form
+              ref={formRef}
+              noValidate
+              onSubmit={handleSubmit}
+              aria-labelledby={heading ? FORM_TITLE_ID : undefined}
+              className="space-y-6"
+            >
               {apiError ? (
                 <div
                   role="alert"
@@ -292,6 +389,9 @@ export default function ProjectEstimateForm() {
                   <input
                     id="name"
                     type="text"
+                    autoComplete="name"
+                    aria-required="true"
+                    {...describe("name")}
                     value={form.name}
                     maxLength={formLimits.name}
                     onChange={handleTextChange("name")}
@@ -304,6 +404,7 @@ export default function ProjectEstimateForm() {
                   <input
                     id="company"
                     type="text"
+                    autoComplete="organization"
                     value={form.company}
                     maxLength={formLimits.company}
                     onChange={handleTextChange("company")}
@@ -316,6 +417,8 @@ export default function ProjectEstimateForm() {
                   <input
                     id="phone"
                     type="tel"
+                    autoComplete="tel"
+                    {...describe("phone", CONTACT_HINT_ID)}
                     value={form.phone}
                     onChange={handleTextChange("phone")}
                     placeholder="+7 (700) 000-00-00"
@@ -327,6 +430,8 @@ export default function ProjectEstimateForm() {
                   <input
                     id="email"
                     type="email"
+                    autoComplete="email"
+                    {...describe("email", CONTACT_HINT_ID)}
                     value={form.email}
                     onChange={handleTextChange("email")}
                     placeholder="you@company.kz"
@@ -335,7 +440,7 @@ export default function ProjectEstimateForm() {
                 </FieldWrapper>
               </div>
 
-              <p className="text-xs text-slate-500 light:text-slate-600">
+              <p id={CONTACT_HINT_ID} className="text-xs text-slate-500 light:text-slate-600">
                 {f.contactHint}
               </p>
 
@@ -349,20 +454,24 @@ export default function ProjectEstimateForm() {
                     id="projectType"
                     value={form.projectType}
                     onChange={(value) => updateField("projectType", value)}
-                    options={projectTypeOptions}
+                    options={projectTypes}
                     getLabel={(value) => (value ? f.options.projectType[value] : value)}
                     placeholder={f.placeholders.projectType}
                     hasError={Boolean(errors.projectType)}
+                    describedBy={describe("projectType")["aria-describedby"]}
+                    required
                   />
                 </FieldWrapper>
 
-                <FieldWrapper label={f.labels.contactMethod} htmlFor="contactMethod">
+                <FieldWrapper label={f.labels.contactMethod} htmlFor="contactMethod" error={errors.contactMethod}>
                   <SelectField<ContactMethod>
                     id="contactMethod"
                     value={form.contactMethod}
                     onChange={(value) => updateField("contactMethod", value)}
                     options={contactMethodOptions}
                     getLabel={(value) => f.options.contactMethod[value]}
+                    hasError={Boolean(errors.contactMethod)}
+                    describedBy={describe("contactMethod")["aria-describedby"]}
                   />
                 </FieldWrapper>
 
@@ -395,6 +504,8 @@ export default function ProjectEstimateForm() {
                 <textarea
                   id="description"
                   rows={4}
+                  aria-required="true"
+                  {...describe("description")}
                   value={form.description}
                   maxLength={formLimits.description}
                   onChange={handleTextChange("description")}
@@ -408,7 +519,10 @@ export default function ProjectEstimateForm() {
               <div>
                 <label className="flex items-start gap-3 text-sm text-slate-300 light:text-slate-700">
                   <input
+                    id="consent"
                     type="checkbox"
+                    aria-required="true"
+                    {...describe("consent")}
                     checked={form.consent}
                     onChange={(event) =>
                       updateField("consent", event.target.checked)
@@ -418,7 +532,9 @@ export default function ProjectEstimateForm() {
                   {f.labels.consent}
                 </label>
                 {errors.consent ? (
-                  <p className="mt-1.5 text-xs text-rose-400">{errors.consent}</p>
+                  <p id={fieldErrorId("consent")} className="mt-1.5 text-xs text-rose-400">
+                    {errors.consent}
+                  </p>
                 ) : null}
               </div>
 
@@ -446,7 +562,7 @@ export default function ProjectEstimateForm() {
           )}
         </div>
 
-        <EstimatePreview projectType={form.projectType} />
+        {aside ?? (showPrices ? <EstimatePreview projectType={form.projectType} /> : null)}
       </div>
     </section>
   );

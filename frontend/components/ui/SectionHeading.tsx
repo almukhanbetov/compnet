@@ -3,6 +3,8 @@ interface SectionHeadingProps {
   title: string;
   description?: string;
   align?: "left" | "center";
+  /** Id of the heading, for aria-labelledby on the section. */
+  titleId?: string;
 }
 
 export default function SectionHeading({
@@ -10,6 +12,7 @@ export default function SectionHeading({
   title,
   description,
   align = "center",
+  titleId,
 }: SectionHeadingProps) {
   const isCenter = align === "center";
 
@@ -19,7 +22,7 @@ export default function SectionHeading({
         {eyebrow}
       </span>
 
-      <h2 className="mt-5 text-3xl font-bold leading-tight md:text-4xl">
+      <h2 id={titleId} className="mt-5 text-3xl font-bold leading-tight md:text-4xl">
         {title}
       </h2>
 
