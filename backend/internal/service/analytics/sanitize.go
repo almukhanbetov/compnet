@@ -49,12 +49,17 @@ func CleanPath(raw string) string {
 }
 
 // CleanText is a UTM value: trimmed, without control characters, at most
-// 100 characters, "" if nothing is left.
+// 100 characters, "" if nothing is left. A value that looks like personal
+// data (an email, a phone number, …; see LooksPersonal) is dropped whole.
 func CleanText(raw string) string {
 	if !utf8.ValidString(raw) {
 		return ""
 	}
-	return truncate(strings.TrimSpace(stripControl(raw)), analytics.MaxUTMLength)
+	value := strings.TrimSpace(stripControl(raw))
+	if LooksPersonal(value) {
+		return ""
+	}
+	return truncate(value, analytics.MaxUTMLength)
 }
 
 // CleanHost keeps only a referrer's host name (never its path or query),
@@ -93,10 +98,14 @@ func Attribute(utm UTM, referrerHost, ownHost string) analytics.Attribution {
 		Content:      CleanText(utm.Content),
 		ReferrerHost: ref,
 	}
+	medium := strings.ToLower(CleanText(utm.Medium))
 	switch {
-	case source != "":
-		a.Source = source
-		a.Medium = strings.ToLower(CleanText(utm.Medium))
+	case source != "" || medium != "":
+		// A tagged link; utm_source may be missing or dropped as personal.
+		a.Source, a.Medium = source, medium
+		if a.Source == "" {
+			a.Source = "(not set)"
+		}
 		if a.Medium == "" {
 			a.Medium = "(not set)"
 		}

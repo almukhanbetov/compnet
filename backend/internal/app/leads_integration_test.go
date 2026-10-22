@@ -298,3 +298,49 @@ func TestLeads_NoAttributionWhileAnalyticsOff(t *testing.T) {
 		t.Fatalf("source stored while analytics is off: %v", a)
 	}
 }
+
+// Personal data in a link's UTM tags reaches neither the visit analytics
+// nor a request's source (Stage 8.6A).
+func TestPersonalUTMNeverStored(t *testing.T) {
+	e := newEnv(t)
+	s := e.startAnalytics()
+	visitor := s.actor(t)
+	session := uuid()
+	e.trackSession(session)
+
+	b := newBatch(uuid(), session, [2]string{"page_view", "/contact"})
+	b.Session["utm"] = map[string]string{"source": "crm", "medium": "email", "campaign": "ivan.petrov@example.test", "term": "+7 700 000 00 01", "content": "october"}
+	b.FirstTouch["utm"] = map[string]string{"source": "ivan@example.test", "medium": "email"}
+	if code, body := visitor.send("/api/v1/analytics/events", testOrigin, browserUA, b); code != 204 {
+		t.Fatalf("events: %d %s", code, body)
+	}
+	id := e.submitRequest(visitor, map[string]any{
+		"name": "PII UTM " + randomHex(4), "phone": "7000000001", "analytics_session_id": session,
+		"attribution": map[string]any{
+			"source_page": "/contact", "landing_page": "/", "utm_source": "crm", "utm_medium": "email",
+			"utm_campaign": "ivan.petrov@example.test", "utm_term": "8 (700) 000-00-01", "utm_content": "october",
+		},
+	})
+
+	ctx := context.Background()
+	var campaign, term, content, source, medium, firstSource, firstMedium *string
+	if err := e.pool.QueryRow(ctx, `SELECT campaign, term, content, source, medium, first_source, first_medium FROM analytics_sessions WHERE id = $1`, session).
+		Scan(&campaign, &term, &content, &source, &medium, &firstSource, &firstMedium); err != nil {
+		t.Fatal(err)
+	}
+	if campaign != nil || term != nil || content == nil || *content != "october" || *source != "crm" || *medium != "email" {
+		t.Errorf("session tags: campaign=%v term=%v content=%v %v/%v", campaign, term, content, *source, *medium)
+	}
+	if *firstSource != "(not set)" || *firstMedium != "email" {
+		t.Errorf("first touch: %s / %s", *firstSource, *firstMedium)
+	}
+	var leaks int
+	if err := e.pool.QueryRow(ctx, `
+		SELECT count(*) FROM project_request_attribution
+		WHERE project_request_id = $1 AND (utm_campaign IS NOT NULL OR utm_term IS NOT NULL OR utm_content <> 'october' OR channel <> 'email')`, id).Scan(&leaks); err != nil {
+		t.Fatal(err)
+	}
+	if leaks != 0 {
+		t.Error("personal UTM values stored with the request")
+	}
+}

@@ -2,6 +2,7 @@ import { uuidV4 } from "@/lib/chat/uuid";
 import { apiBase } from "@/lib/analytics/config";
 import { readConsent } from "@/lib/analytics/consent";
 import { ga4Event } from "@/lib/analytics/ga4";
+import { looksPersonal } from "@/lib/analytics/personal";
 
 /**
  * First-party visit analytics in the browser.
@@ -14,6 +15,10 @@ import { ga4Event } from "@/lib/analytics/ga4";
  *   arrives through a link with different UTM tags.
  * - The first source is stored once and never overwritten (a later direct
  *   visit does not erase where the visitor first came from).
+ * - Before the visitor has chosen, the tab only remembers in memory where
+ *   this visit entered the site (rememberLanding) — nothing is stored or
+ *   sent. If they accept within the same visit, the first session starts
+ *   from that entry; if they decline, it is forgotten.
  * - Only event types and page paths (no query strings) are sent — never
  *   form values, chat text, contacts or IPs (the server does not store IPs).
  * - Requests and first chat messages are recorded by the backend after
@@ -88,6 +93,8 @@ let enabled = false;
 let queue: QueuedEvent[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let lastPageView: { path: string; at: number } | null = null;
+/** Entry of this tab's visit, kept in memory only until consent is given. */
+let pendingLanding: { touch: Touch; at: number } | null = null;
 
 function storage(): Storage | null {
   try {
@@ -147,6 +154,7 @@ function isActive(): boolean {
 /** Removes every analytics identifier from this browser (consent withdrawn). */
 export function forgetAnalyticsIds(): void {
   queue = [];
+  pendingLanding = null;
   try {
     storage()?.removeItem(KEYS.visitor);
     storage()?.removeItem(KEYS.session);
@@ -158,7 +166,7 @@ export function forgetAnalyticsIds(): void {
 
 function currentTouch(): Touch {
   const params = new URLSearchParams(window.location.search);
-  const utm = Object.fromEntries(UTM_KEYS.map((key) => [key, (params.get(`utm_${key}`) ?? "").slice(0, 100)])) as UTM;
+  const utm = Object.fromEntries(UTM_KEYS.map((key) => [key, utmValue(params.get(`utm_${key}`))])) as UTM;
   let referrerHost = "";
   try {
     if (document.referrer) {
@@ -170,6 +178,23 @@ function currentTouch(): Touch {
   }
   const clickId = CLICK_IDS.find((key) => params.has(key)) ?? "";
   return { utm, referrer_host: referrerHost, landing_path: window.location.pathname, click_id: clickId };
+}
+
+/** A UTM value as kept: trimmed, at most 100 characters, "" if it looks personal. */
+function utmValue(raw: string | null): string {
+  const value = (raw ?? "").trim();
+  return looksPersonal(value) ? "" : value.slice(0, 100);
+}
+
+/**
+ * Called once when the site opens, before the consent choice is known:
+ * remembers in memory (not in storage, never sent) where this visit
+ * entered, so a visitor who accepts analytics on a later page is not
+ * counted as "unknown". Only while no choice has been made.
+ */
+export function rememberLanding(): void {
+  if (typeof window === "undefined" || readConsent() !== null || pendingLanding) return;
+  pendingLanding = { touch: currentTouch(), at: Date.now() };
 }
 
 function utmKey(utm: UTM): string {
@@ -188,7 +213,11 @@ function visitorId(): string {
 /** Current session, rotated after 30 minutes or on a new campaign link. */
 function session(now: number): StoredSession {
   const stored = read<StoredSession>(KEYS.session);
-  const touch = currentTouch();
+  // The entry remembered before consent counts for the first session of
+  // this visit only (and not after 30 minutes).
+  const landing = !stored && pendingLanding && now - pendingLanding.at < SESSION_TIMEOUT_MS ? pendingLanding.touch : null;
+  pendingLanding = null;
+  const touch = landing ?? currentTouch();
   const newCampaign = utmKey(touch.utm).replace(/\|/g, "") !== "" && utmKey(touch.utm) !== utmKey(stored?.touch.utm ?? touch.utm);
   if (stored && now - stored.lastActivity < SESSION_TIMEOUT_MS && !newCampaign) {
     stored.lastActivity = now;

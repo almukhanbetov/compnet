@@ -30,6 +30,16 @@ Never stored in analytics: IP addresses (used only in memory for rate
 limiting), User-Agent strings, query strings, form values, chat text, names,
 phones, emails. No geolocation, no fingerprinting.
 
+UTM values are free text from a URL, so a shared link can carry personal
+data. A value that looks like an email, a web address, a phone number
+(Kazakhstan/Russia, or any number written with `+`), a Kazakh IIN or a
+payment card number is dropped whole — by the browser before it keeps or
+sends it (`frontend/lib/analytics/personal.ts`) and again by the server
+(`backend/internal/service/analytics/personal.go`, used by `CleanText`).
+Ordinary tags, dates and Google Ads ValueTrack ids are kept. Of an ad click
+id (`gclid`, `gbraid`, `wbraid`) only which one was present is kept, for a
+request's source; its value is never stored or sent.
+
 ## Visitors and sessions
 
 - **Visitor** = a browser with a random UUID in `localStorage`
@@ -62,6 +72,13 @@ stored in this browser (`compnet-consent`) and can be changed with "Cookie
 settings" in the footer. Without consent the site, forms and chat work as
 before and their records are stored as before; nothing is sent to the
 analytics endpoint and no session id is attached to requests or messages.
+
+Until the visitor has chosen, the tab remembers **in memory only** where
+this visit entered the site (landing path, referring host, UTM tags, ad
+click flag) — no storage, no request. If they accept during the same visit
+(within 30 minutes), the first session starts from that entry, so a visitor
+who accepts on a later page is not counted as "unknown"; "Necessary only"
+forgets it. A full page reload starts a new tab state.
 The privacy and cookie pages describe this (still marked as a demo text; no
 legal certification is claimed).
 
@@ -100,6 +117,28 @@ deleted by the cleanup task after 24 hours.
 
 Stored in UTC. Report days start at 00:00 Asia/Almaty (UTC+5);
 `time/tzdata` is embedded in the binary.
+
+## Request sources
+
+Since Stage 8.4 a request sent with analytics consent keeps its source in
+`project_request_attribution` (1:1 with the request, deleted with it): page
+sent from, the page before it, landing page, referring host, UTM tags (with
+the personal-data filter above) and whether an ad click id was present. The
+backend derives the channel (`backend/internal/attribution`) and stores
+sources only while `ANALYTICS_ENABLED` is on. Unlike visit details, a source
+is kept as long as the request. The statistics' "Заявки и источники" block
+(`GET /api/v1/manager/analytics/leads`) counts every request; those without
+a source are "unknown". When a report fails to load, the page hides the
+previous period's figures instead of showing them as current.
+
+## Server logs
+
+The backend does not log requests. Nginx's access log is configured without
+query strings and with referrers cut before `?` (`log_format compnet_privacy`
+in `deploy/nginx/compnet.kz.conf`), so UTM tags, `gclid` and the managers'
+search (`?q=`) are not written there. Nginx's error log cannot be formatted:
+when the backend is unreachable it still records the full request line —
+keep its rotation short.
 
 ## Retention
 

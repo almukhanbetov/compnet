@@ -162,7 +162,9 @@ export default function LeadsReport({
         </div>
       ) : null}
 
-      {data ? (
+      {/* After a failed load the earlier figures belong to another period
+          or filter: they are not shown as if they were current. */}
+      {data && state !== "error" ? (
         <div className={`space-y-4 transition-opacity ${state === "loading" ? "opacity-60" : ""}`}>
           <LeadCards data={data} filtered={filtered} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr]">
