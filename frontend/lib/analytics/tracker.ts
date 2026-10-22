@@ -17,7 +17,10 @@ import { ga4Event } from "@/lib/analytics/ga4";
  * - Only event types and page paths (no query strings) are sent — never
  *   form values, chat text, contacts or IPs (the server does not store IPs).
  * - Requests and first chat messages are recorded by the backend after
- *   saving them; the browser only passes its session id along.
+ *   saving them; the browser only passes its session id along — and, for
+ *   a request, the visit's source (leadAttribution): paths, the referring
+ *   host and UTM values, never full URLs. Of an ad click id (gclid,
+ *   gbraid, wbraid) only which one was present is kept, never its value.
  */
 
 export type ClientEventType =
@@ -39,6 +42,7 @@ const FLUSH_DELAY_MS = 2_000;
 const BATCH_LIMIT = 20;
 const QUEUE_LIMIT = 100;
 const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
+const CLICK_IDS = ["gclid", "gbraid", "wbraid"] as const;
 
 type UTM = Record<(typeof UTM_KEYS)[number], string>;
 
@@ -46,12 +50,31 @@ interface Touch {
   utm: UTM;
   referrer_host: string;
   landing_path: string;
+  /** Which ad click id the landing URL had ("" none); never its value. */
+  click_id?: string;
 }
 
 interface StoredSession {
   id: string;
   lastActivity: number;
   touch: Touch;
+  /** Last viewed page and the one before it (to tell where /contact was opened from). */
+  path?: string;
+  previousPath?: string;
+}
+
+/** A request's source as this browser saw it (see leadAttribution). */
+export interface LeadAttribution {
+  source_page: string;
+  previous_page: string;
+  landing_page: string;
+  referrer_host: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  utm_content: string;
+  utm_term: string;
+  click_id: string;
 }
 
 interface QueuedEvent {
@@ -145,7 +168,8 @@ function currentTouch(): Touch {
   } catch {
     // malformed referrer: treat as direct
   }
-  return { utm, referrer_host: referrerHost, landing_path: window.location.pathname };
+  const clickId = CLICK_IDS.find((key) => params.has(key)) ?? "";
+  return { utm, referrer_host: referrerHost, landing_path: window.location.pathname, click_id: clickId };
 }
 
 function utmKey(utm: UTM): string {
@@ -179,6 +203,40 @@ function session(now: number): StoredSession {
   return fresh;
 }
 
+/** Remembers the page just viewed and the one before it in the session. */
+function notePage(stored: StoredSession, path: string): void {
+  if (stored.path === path) return;
+  stored.previousPath = stored.path;
+  stored.path = path;
+  write(KEYS.session, stored);
+}
+
+/**
+ * Where the request about to be sent came from, or undefined without
+ * analytics consent. Sent together with analyticsSessionId(); the server
+ * sanitizes the values and decides the channel itself.
+ */
+export function leadAttribution(): LeadAttribution | undefined {
+  if (!isActive()) return undefined;
+  const stored = session(Date.now());
+  const here = window.location.pathname;
+  // This page's view may not be recorded yet: then the last one is the previous page.
+  const previous = (stored.path === here ? stored.previousPath : stored.path) ?? "";
+  const { utm, referrer_host, landing_path, click_id } = stored.touch;
+  return {
+    source_page: here,
+    previous_page: previous === here ? "" : previous,
+    landing_page: landing_path,
+    referrer_host,
+    utm_source: utm.source,
+    utm_medium: utm.medium,
+    utm_campaign: utm.campaign,
+    utm_content: utm.content,
+    utm_term: utm.term,
+    click_id: click_id ?? "",
+  };
+}
+
 /** The analytics session id to attach to a request or chat message, if any. */
 export function analyticsSessionId(): string | undefined {
   if (!isActive()) return undefined;
@@ -196,7 +254,9 @@ export function track(type: ClientEventType): void {
     if (lastPageView && lastPageView.path === path && now - lastPageView.at < 1_500) return;
     lastPageView = { path, at: now };
   }
-  const { id: sessionId } = session(now);
+  const current = session(now);
+  if (type === "page_view") notePage(current, path);
+  const sessionId = current.id;
   queue.push({ id: uuidV4(), type, path, sessionId });
   if (queue.length > QUEUE_LIMIT) queue = queue.slice(-QUEUE_LIMIT);
   if (queue.length >= BATCH_LIMIT) {
@@ -204,6 +264,10 @@ export function track(type: ClientEventType): void {
   } else if (!timer) {
     timer = setTimeout(() => void flush(), FLUSH_DELAY_MS);
   }
+}
+
+function withoutClickId({ utm, referrer_host, landing_path }: Touch) {
+  return { utm, referrer_host, landing_path };
 }
 
 /** Sends queued events; failed ones stay queued and are resent with the
@@ -231,8 +295,9 @@ export async function flush(): Promise<void> {
         visitor_id: visitor,
         session_id: sessionId,
         language: document.documentElement.lang,
-        session: touch,
-        first_touch: first ?? touch,
+        // The ad click flag is only for a request's source: visit events do without it.
+        session: withoutClickId(touch),
+        first_touch: withoutClickId(first ?? touch),
         events: chunk.map(({ id, type, path }) => ({ id, type, path })),
       });
       try {

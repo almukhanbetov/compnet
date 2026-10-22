@@ -20,6 +20,7 @@ import {
 import ManagerHeader from "@/components/manager/ManagerHeader";
 import { useManagerEvents } from "@/components/manager/ManagerRealtime";
 import VisitCounter from "@/components/manager/analytics/VisitCounter";
+import LeadsReport from "@/components/manager/analytics/LeadsReport";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { AuthErrorHandler } from "@/components/manager/useInbox";
 import {
@@ -216,6 +217,10 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
           </p>
         ) : null}
 
+        {/* Requests come from the requests themselves: shown even when the
+            visit report is still loading or failed. */}
+        <LeadsReport range={range} onAuthError={onAuthError} />
+
         {state === "loading" && !report ? (
           <p className="flex items-center gap-2 py-16 text-sm text-slate-400 light:text-slate-600">
             <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -240,11 +245,11 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
           <div className={`space-y-5 transition-opacity ${state === "loading" ? "opacity-60" : ""}`}>
             <Cards report={report} />
             <DailyChart report={report} />
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <SourceTable title={a.sources.title} rows={report.sources} labelOf={sourceLabel} />
               <SourceTable title={a.sources.first} rows={report.first_sources} labelOf={sourceLabel} />
             </div>
-            <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
               <SourceTable title={a.sources.campaigns} rows={report.campaigns} labelOf={sourceLabel} withCampaign />
               <Breakdowns report={report} />
             </div>

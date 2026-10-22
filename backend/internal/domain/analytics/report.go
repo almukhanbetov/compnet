@@ -120,3 +120,69 @@ type Visits struct {
 	AllPageViews   int64
 	Since          *time.Time
 }
+
+// LeadFilter narrows the requests report; empty fields mean "any".
+// Channel "unknown" also matches requests without a stored source.
+type LeadFilter struct {
+	Channel     string
+	Page        string // the page the form was sent from
+	ProjectType string
+}
+
+// IsEmpty reports a report over all requests of the period.
+func (f LeadFilter) IsEmpty() bool {
+	return f.Channel == "" && f.Page == "" && f.ProjectType == ""
+}
+
+// LeadStatusCounts groups request statuses for the cards. Earlier status
+// values count with their working successor (contacted, qualified and
+// proposal_sent are in progress, accepted is completed).
+type LeadStatusCounts struct {
+	New        int
+	InProgress int
+	Completed  int
+	Rejected   int
+	Archived   int
+}
+
+// LeadCount is one row of a breakdown (channel, page, project type, day).
+type LeadCount struct {
+	Key   string
+	Count int
+}
+
+// LeadSourceRow is a channel with its source (google, instagram, a host…).
+type LeadSourceRow struct {
+	Channel string
+	Source  string
+	Count   int
+}
+
+// LeadConversion compares like with like: sessions of consenting browsers
+// started in the period, and how many of them sent a request. Only
+// computed for the unfiltered report (a page or project type filter has
+// no matching number of sessions); Available is false then.
+type LeadConversion struct {
+	Available           bool
+	Sessions            int
+	SessionsWithRequest int
+}
+
+// LeadsReport is the requests part of the statistics: counted from the
+// requests themselves (every request, with or without consent), broken
+// down by their stored source. Counts only — no contacts or texts.
+type LeadsReport struct {
+	Total         int
+	Tracked       int // requests with a stored source
+	Status        LeadStatusCounts
+	GoogleOrganic int // organic search from Google
+	Paid          int // paid search + paid social
+	Social        int // social + paid social
+	Channels      []LeadCount
+	Sources       []LeadSourceRow
+	Pages         []LeadCount // "" = unknown page
+	ServicePages  []LeadCount // pages under /services/
+	ProjectTypes  []LeadCount
+	Days          []LeadCount // YYYY-MM-DD, Asia/Almaty, every day of the period
+	Conversion    LeadConversion
+}

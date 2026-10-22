@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/almukha/compnet-backend/internal/apperr"
+	"github.com/almukha/compnet-backend/internal/attribution"
 	"github.com/almukha/compnet-backend/internal/domain/analytics"
 	"github.com/almukha/compnet-backend/internal/http/dto"
+	"github.com/almukha/compnet-backend/internal/pricing"
 )
 
 // Repository persists analytics.
@@ -23,6 +25,7 @@ type Repository interface {
 	RecordFirstChatMessage(ctx context.Context, sessionID, conversationID string) (bool, error)
 	Purge(ctx context.Context, before time.Time) (events, sessions int64, err error)
 	Report(ctx context.Context, from, to time.Time, fromDate, toDate string) (analytics.Report, error)
+	LeadsReport(ctx context.Context, from, to time.Time, fromDate, toDate string, f analytics.LeadFilter) (analytics.LeadsReport, error)
 	SessionDetail(ctx context.Context, id string) (analytics.SessionDetail, error)
 	Visits(ctx context.Context, todayFrom, todayTo time.Time) (analytics.Visits, error)
 }
@@ -221,6 +224,45 @@ func (s *Service) Report(ctx context.Context, fromDate, toDate string) (ReportRe
 		return ReportResult{}, apperr.Internal(err)
 	}
 	return ReportResult{Period: period, Settings: s.Settings(), Report: rep}, nil
+}
+
+// LeadsResult is the requests report payload.
+type LeadsResult struct {
+	Period Period
+	Filter analytics.LeadFilter
+	Report analytics.LeadsReport
+}
+
+// Leads returns the requests report for whole Asia/Almaty days [from, to].
+// Filters must name a known channel, a page path and a catalog project
+// type; anything else is a validation error, never part of a query.
+func (s *Service) Leads(ctx context.Context, fromDate, toDate string, f analytics.LeadFilter) (LeadsResult, error) {
+	period, ok := ParsePeriod(fromDate, toDate)
+	if !ok {
+		return LeadsResult{}, apperr.Validation("проверьте период", map[string]string{
+			"period": "даты YYYY-MM-DD, from ≤ to, не больше 366 дней",
+		})
+	}
+	fields := map[string]string{}
+	if f.Channel != "" && !attribution.ValidChannel(f.Channel) {
+		fields["channel"] = "неизвестный канал"
+	}
+	if f.Page != "" && CleanPath(f.Page) != f.Page {
+		fields["page"] = "укажите путь страницы, например /contact"
+	}
+	if f.ProjectType != "" {
+		if _, ok := pricing.FindProjectType(f.ProjectType); !ok {
+			fields["project_type"] = "неизвестный тип проекта"
+		}
+	}
+	if len(fields) > 0 {
+		return LeadsResult{}, apperr.Validation("проверьте фильтры", fields)
+	}
+	rep, err := s.repo.LeadsReport(ctx, period.From, period.To, period.FromDate, period.ToDate, f)
+	if err != nil {
+		return LeadsResult{}, apperr.Internal(err)
+	}
+	return LeadsResult{Period: period, Filter: f, Report: rep}, nil
 }
 
 // SessionDetail returns one session's history.

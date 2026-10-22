@@ -32,6 +32,7 @@ func (r *memoryRepository) Create(
 	request projectrequest.ProjectRequest,
 	_ []projectrequest.Feature,
 	estimate projectrequest.Estimate,
+	_ *projectrequest.Attribution,
 ) (projectrequest.ProjectRequest, projectrequest.Estimate, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -62,9 +62,29 @@ type CreateProjectRequestRequest struct {
 	// AnalyticsSessionID links the saved request to the visit (only sent
 	// after analytics consent; optional, ignored when unknown).
 	AnalyticsSessionID string `json:"analytics_session_id,omitempty"`
+	// Attribution is what a browser with analytics consent knows about
+	// its visit. Optional and never a reason to reject a request: invalid
+	// values are dropped, not reported (see service/projectrequest).
+	Attribution *AttributionInput `json:"attribution,omitempty"`
 	// Website is a honeypot: the site form renders it hidden from people, so
 	// only bots fill it in. Optional; see IsBot.
 	Website string `json:"website,omitempty"`
+}
+
+// AttributionInput is the visit's source as the browser reports it. Paths
+// only (the server drops query strings and absolute URLs), a host name,
+// UTM values and which ad click id was present — never its value.
+type AttributionInput struct {
+	SourcePage   string `json:"source_page"`
+	PreviousPage string `json:"previous_page"`
+	LandingPage  string `json:"landing_page"`
+	ReferrerHost string `json:"referrer_host"`
+	UTMSource    string `json:"utm_source"`
+	UTMMedium    string `json:"utm_medium"`
+	UTMCampaign  string `json:"utm_campaign"`
+	UTMContent   string `json:"utm_content"`
+	UTMTerm      string `json:"utm_term"`
+	ClickID      string `json:"click_id"`
 }
 
 // IsBot reports whether the honeypot field was filled in.

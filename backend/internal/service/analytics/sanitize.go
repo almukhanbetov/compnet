@@ -9,6 +9,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/almukha/compnet-backend/internal/attribution"
 	"github.com/almukha/compnet-backend/internal/domain/analytics"
 )
 
@@ -77,20 +78,6 @@ type UTM struct {
 	Source, Medium, Campaign, Term, Content string
 }
 
-var searchEngines = map[string]string{
-	"google": "google", "yandex": "yandex", "ya.ru": "yandex", "bing.com": "bing",
-	"duckduckgo.com": "duckduckgo", "go.mail.ru": "mail.ru", "search.yahoo.com": "yahoo",
-}
-
-var socialSites = map[string]string{
-	"instagram.com": "instagram", "l.instagram.com": "instagram", "facebook.com": "facebook",
-	"m.facebook.com": "facebook", "l.facebook.com": "facebook", "lm.facebook.com": "facebook",
-	"t.me": "telegram", "web.telegram.org": "telegram", "vk.com": "vk", "m.vk.com": "vk",
-	"youtube.com": "youtube", "m.youtube.com": "youtube", "tiktok.com": "tiktok",
-	"linkedin.com": "linkedin", "lnkd.in": "linkedin", "x.com": "x", "t.co": "x", "twitter.com": "x",
-	"wa.me": "whatsapp", "web.whatsapp.com": "whatsapp", "threads.net": "threads",
-}
-
 // Attribute decides a session's source: explicit UTM tags first, then the
 // referring site (search, social or referral), otherwise direct. A
 // referrer equal to the site itself (ownHost) counts as direct.
@@ -121,16 +108,19 @@ func Attribute(utm UTM, referrerHost, ownHost string) analytics.Attribution {
 	return a
 }
 
+// classifyReferrer uses the host tables shared with the request
+// attribution (internal/attribution), so both agree on what is search.
 func classifyReferrer(host string) (source, medium string) {
-	if name, ok := socialSites[host]; ok {
+	name, kind := attribution.ReferrerKind(host)
+	switch kind {
+	case attribution.KindSocial:
 		return name, "social"
+	case attribution.KindSearch:
+		return name, "organic"
+	case attribution.KindEmail:
+		return name, "email"
 	}
-	for key, name := range searchEngines {
-		if host == key || strings.HasPrefix(host, key+".") || strings.Contains(host, "."+key+".") || strings.HasSuffix(host, "."+key) {
-			return name, "organic"
-		}
-	}
-	return host, "referral"
+	return name, "referral"
 }
 
 // IsDirect reports a session without any source.

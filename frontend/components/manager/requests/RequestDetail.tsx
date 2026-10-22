@@ -491,20 +491,41 @@ function SourceSection({ detail }: { detail: ApiRequestDetail }) {
   const a = t.manager.analytics;
   const d = t.manager.requests.detail;
   const s = detail.analytics;
+  const at = detail.attribution;
   const label = (source: string, medium: string) =>
     source === "(direct)" ? a.direct : `${source} / ${medium === "(not set)" ? a.notSet : medium}`;
+  // "Google / Органический поиск"; sources the backend could not name stay out.
+  const channelLine = at
+    ? [at.source.startsWith("(") ? "" : at.source, a.channels[at.channel] ?? at.channel].filter(Boolean).join(" / ")
+    : "";
   return (
     <section className={section} aria-labelledby="rq-source">
       <h3 id="rq-source" className={heading}>{d.source}</h3>
+      {at ? (
+        <>
+          <dl className="mt-3 space-y-2">
+            <Fact label={d.sourceName}>{channelLine + (at.ad_click ? ` · ${d.adClick}` : "")}</Fact>
+            {at.referrer_host ? <Fact label={d.referrer}>{at.referrer_host}</Fact> : null}
+            <Fact label={d.sourcePage}>{at.source_page || <NotGiven />}</Fact>
+            {at.previous_page ? <Fact label={d.previousPage}>{at.previous_page}</Fact> : null}
+            {at.landing_page ? <Fact label={d.landing}>{at.landing_page}</Fact> : null}
+            <Fact label={d.campaign}>{at.utm_campaign || d.campaignUnknown}</Fact>
+            {at.utm_term ? <Fact label={d.term}>{at.utm_term}</Fact> : null}
+            {at.utm_content ? <Fact label={d.content}>{at.utm_content}</Fact> : null}
+            <Fact label={d.submittedAt}>{formatAlmatyFull(detail.created_at)}</Fact>
+          </dl>
+          <p className="mt-2 text-[11px] leading-4 text-slate-500">{d.sourceReported}</p>
+        </>
+      ) : null}
       {s ? (
         <>
           <dl className="mt-3 space-y-2">
-            <Fact label={d.sourceChannel}>{label(s.source, s.medium)}</Fact>
-            {s.campaign ? <Fact label={d.campaign}>{s.campaign}</Fact> : null}
-            {s.term ? <Fact label={d.term}>{s.term}</Fact> : null}
-            {s.content ? <Fact label={d.content}>{s.content}</Fact> : null}
-            {s.referrer_host ? <Fact label={d.referrer}>{s.referrer_host}</Fact> : null}
-            <Fact label={d.landing}>{s.landing_path}</Fact>
+            {at ? null : <Fact label={d.sourceChannel}>{label(s.source, s.medium)}</Fact>}
+            {!at && s.campaign ? <Fact label={d.campaign}>{s.campaign}</Fact> : null}
+            {!at && s.term ? <Fact label={d.term}>{s.term}</Fact> : null}
+            {!at && s.content ? <Fact label={d.content}>{s.content}</Fact> : null}
+            {!at && s.referrer_host ? <Fact label={d.referrer}>{s.referrer_host}</Fact> : null}
+            {at ? null : <Fact label={d.landing}>{s.landing_path}</Fact>}
             <Fact label={d.firstSource}>{label(s.first_source, s.first_medium) + (s.first_campaign ? ` · ${s.first_campaign}` : "")}</Fact>
             <Fact label={d.device}>{a.devices[s.device] ?? s.device}</Fact>
           </dl>
@@ -515,12 +536,13 @@ function SourceSection({ detail }: { detail: ApiRequestDetail }) {
             {d.openSession}
           </Link>
         </>
-      ) : (
+      ) : null}
+      {!at && !s ? (
         <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-slate-400 light:text-slate-600">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {d.sourceNone}
         </p>
-      )}
+      ) : null}
     </section>
   );
 }

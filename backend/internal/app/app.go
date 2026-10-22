@@ -116,6 +116,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 	projectRequestService := projectrequestsvc.NewService(projectRequestRepo)
 	projectRequestService.SetConversionRecorder(analyticsService)
 	projectRequestService.SetNotifier(requestEvents)
+	projectRequestService.SetAttributionEnabled(cfg.Analytics.Enabled)
 	projectRequestHandler := handler.NewProjectRequestHandler(projectRequestService)
 	contentHandler := handler.NewContentHandler(contentsvc.NewService(postgres.NewContentRepository(pool)))
 

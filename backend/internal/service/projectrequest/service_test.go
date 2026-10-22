@@ -15,6 +15,7 @@ type fakeRepository struct {
 	lastRequest  projectrequest.ProjectRequest
 	lastFeatures []projectrequest.Feature
 	lastEstimate projectrequest.Estimate
+	lastAttrib   *projectrequest.Attribution
 	createCalled bool
 	returnErr    error
 }
@@ -24,8 +25,10 @@ func (f *fakeRepository) Create(
 	request projectrequest.ProjectRequest,
 	features []projectrequest.Feature,
 	estimate projectrequest.Estimate,
+	attribution *projectrequest.Attribution,
 ) (projectrequest.ProjectRequest, projectrequest.Estimate, error) {
 	f.createCalled = true
+	f.lastAttrib = attribution
 	f.lastRequest = request
 	f.lastFeatures = features
 	f.lastEstimate = estimate
@@ -247,5 +250,156 @@ func assertValidationField(t *testing.T, err error, field string) {
 	}
 	if _, ok := appErr.Fields[field]; !ok {
 		t.Errorf("expected validation error on field %q, got fields %v", field, appErr.Fields)
+	}
+}
+
+const testSessionID = "7064d5d9-02ec-4777-a097-428b73db5759"
+
+// attributionService stores sources, as with ANALYTICS_ENABLED=true.
+func attributionService(repo Repository) *Service {
+	svc := NewService(repo)
+	svc.SetAttributionEnabled(true)
+	return svc
+}
+
+func TestCreateProjectRequest_AttributionStoredWithConsent(t *testing.T) {
+	repo := &fakeRepository{}
+	svc := attributionService(repo)
+
+	req := validRequest()
+	req.ProjectType = "mobile-app"
+	req.Calculator.ScaleTierID = "app-s"
+	req.Calculator.SelectedModuleIDs = nil
+	req.Calculator.ExternalApiCount = 0
+	req.AnalyticsSessionID = testSessionID
+	req.Attribution = &dto.AttributionInput{
+		SourcePage:   "/contact",
+		PreviousPage: "/services/mobile-app-development",
+		LandingPage:  "/services/mobile-app-development",
+		ReferrerHost: "www.Google.kz",
+	}
+	if _, _, err := svc.CreateProjectRequest(context.Background(), req); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	a := repo.lastAttrib
+	if a == nil {
+		t.Fatal("attribution not passed to the repository")
+	}
+	if a.Channel != "organic_search" || a.Source != "google" || a.ReferrerHost != "google.kz" {
+		t.Errorf("classification: %+v", a)
+	}
+	if a.SourcePage != "/contact" || a.PreviousPage != "/services/mobile-app-development" || a.LandingPage != "/services/mobile-app-development" {
+		t.Errorf("pages: %+v", a)
+	}
+	// The source never changes what the client chose.
+	if repo.lastRequest.ProjectType != "mobile-app" {
+		t.Errorf("project type = %q", repo.lastRequest.ProjectType)
+	}
+}
+
+// The form sends a source only with analytics consent, i.e. together with
+// a session id; without one nothing is stored.
+func TestCreateProjectRequest_AttributionDroppedWithoutSession(t *testing.T) {
+	for name, sessionID := range map[string]string{"missing": "", "not a uuid": "abc"} {
+		t.Run(name, func(t *testing.T) {
+			repo := &fakeRepository{}
+			req := validRequest()
+			req.AnalyticsSessionID = sessionID
+			req.Attribution = &dto.AttributionInput{SourcePage: "/contact", UTMSource: "google", UTMMedium: "cpc"}
+			if _, _, err := attributionService(repo).CreateProjectRequest(context.Background(), req); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if repo.lastAttrib != nil {
+				t.Fatalf("attribution stored without a session: %+v", repo.lastAttrib)
+			}
+		})
+	}
+}
+
+func TestCreateProjectRequest_AttributionSanitized(t *testing.T) {
+	repo := &fakeRepository{}
+	req := validRequest()
+	req.AnalyticsSessionID = testSessionID
+	req.Attribution = &dto.AttributionInput{
+		SourcePage:   "/services/website-development?email=client@mail.kz&token=secret#x",
+		PreviousPage: "https://evil.example/phish",
+		LandingPage:  "/manager/requests",
+		ReferrerHost: "https://partner.kz/path?ref=client@mail.kz",
+		UTMSource:    "  Instagram\u0000 ",
+		UTMMedium:    "cpc",
+		UTMCampaign:  `<script>alert("x")</script>`,
+		UTMTerm:      strings.Repeat("т", 500),
+		ClickID:      "fbclid",
+	}
+	if _, _, err := attributionService(repo).CreateProjectRequest(context.Background(), req); err != nil {
+		t.Fatalf("a bad source must never reject the request: %v", err)
+	}
+	a := repo.lastAttrib
+	if a == nil {
+		t.Fatal("attribution missing")
+	}
+	if a.SourcePage != "/services/website-development" {
+		t.Errorf("query string kept: %q", a.SourcePage)
+	}
+	if a.PreviousPage != "" || a.LandingPage != "" {
+		t.Errorf("absolute URL or manager path kept: %+v", a)
+	}
+	if a.ReferrerHost != "partner.kz" {
+		t.Errorf("referrer = %q, want the host only", a.ReferrerHost)
+	}
+	if a.UTMSource != "Instagram" || a.Channel != "paid_social" || a.Source != "instagram" {
+		t.Errorf("utm/channel: %+v", a)
+	}
+	// Stored as plain text; the manager UI renders it escaped (React).
+	if a.UTMCampaign != `<script>alert("x")</script>` {
+		t.Errorf("campaign = %q", a.UTMCampaign)
+	}
+	if len([]rune(a.UTMTerm)) != 100 {
+		t.Errorf("term not truncated to 100 characters: %d", len([]rune(a.UTMTerm)))
+	}
+	if a.ClickIDType != "" {
+		t.Errorf("unknown click id kept: %q", a.ClickIDType)
+	}
+}
+
+func TestCreateProjectRequest_ClickIDKeepsOnlyItsType(t *testing.T) {
+	repo := &fakeRepository{}
+	req := validRequest()
+	req.AnalyticsSessionID = testSessionID
+	req.Attribution = &dto.AttributionInput{SourcePage: "/services/website-development", LandingPage: "/services/website-development", ClickID: "GCLID"}
+	if _, _, err := attributionService(repo).CreateProjectRequest(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if a := repo.lastAttrib; a == nil || a.ClickIDType != "gclid" || a.Channel != "paid_search" {
+		t.Fatalf("attribution: %+v", a)
+	}
+}
+
+func TestCreateProjectRequest_HoneypotStoresNoAttribution(t *testing.T) {
+	repo := &fakeRepository{}
+	req := validRequest()
+	req.Website = "spam"
+	req.AnalyticsSessionID = testSessionID
+	req.Attribution = &dto.AttributionInput{SourcePage: "/contact"}
+	if _, _, err := attributionService(repo).CreateProjectRequest(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if repo.createCalled {
+		t.Fatal("bot request reached the repository")
+	}
+}
+
+// With the visit analytics off there is no consented tracking: a source
+// sent anyway is not stored.
+func TestCreateProjectRequest_AttributionOffWithoutAnalytics(t *testing.T) {
+	repo := &fakeRepository{}
+	req := validRequest()
+	req.AnalyticsSessionID = testSessionID
+	req.Attribution = &dto.AttributionInput{SourcePage: "/contact", ClickID: "gclid"}
+	if _, _, err := NewService(repo).CreateProjectRequest(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if !repo.createCalled || repo.lastAttrib != nil {
+		t.Fatalf("saved=%v attribution=%+v", repo.createCalled, repo.lastAttrib)
 	}
 }

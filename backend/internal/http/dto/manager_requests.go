@@ -163,6 +163,23 @@ type ManagerRequestAnalyticsResponse struct {
 	Language      string    `json:"language"`
 }
 
+// ManagerRequestAttributionResponse is the request's stored source. The
+// ad click id itself is never kept; AdClick only says one was present.
+type ManagerRequestAttributionResponse struct {
+	Channel      string `json:"channel"`
+	Source       string `json:"source"`
+	SourcePage   string `json:"source_page"`
+	PreviousPage string `json:"previous_page"`
+	LandingPage  string `json:"landing_page"`
+	ReferrerHost string `json:"referrer_host"`
+	UTMSource    string `json:"utm_source"`
+	UTMMedium    string `json:"utm_medium"`
+	UTMCampaign  string `json:"utm_campaign"`
+	UTMContent   string `json:"utm_content"`
+	UTMTerm      string `json:"utm_term"`
+	AdClick      bool   `json:"ad_click"`
+}
+
 // ManagerRequestDetailResponse is one request as the manager sees it.
 type ManagerRequestDetailResponse struct {
 	ManagerRequestItemResponse
@@ -176,6 +193,9 @@ type ManagerRequestDetailResponse struct {
 	// Analytics is null when the request has no analytics session (no
 	// consent, or the session was removed after the retention period).
 	Analytics *ManagerRequestAnalyticsResponse `json:"analytics"`
+	// Attribution is null for requests sent without analytics consent and
+	// for those received before the source was recorded.
+	Attribution *ManagerRequestAttributionResponse `json:"attribution"`
 }
 
 // NewManagerRequestDetailResponse builds the detail DTO.
@@ -218,6 +238,14 @@ func NewManagerRequestDetailResponse(d projectrequest.Detail) ManagerRequestDeta
 			Source: a.Source, Medium: a.Medium, Campaign: a.Campaign, Term: a.Term, Content: a.Content,
 			ReferrerHost: a.ReferrerHost, FirstSource: a.FirstSource, FirstMedium: a.FirstMedium,
 			FirstCampaign: a.FirstCampaign, Device: a.Device, Language: a.Language,
+		}
+	}
+	if a := d.Attribution; a != nil {
+		out.Attribution = &ManagerRequestAttributionResponse{
+			Channel: a.Channel, Source: a.Source, SourcePage: a.SourcePage, PreviousPage: a.PreviousPage,
+			LandingPage: a.LandingPage, ReferrerHost: a.ReferrerHost, UTMSource: a.UTMSource,
+			UTMMedium: a.UTMMedium, UTMCampaign: a.UTMCampaign, UTMContent: a.UTMContent, UTMTerm: a.UTMTerm,
+			AdClick: a.ClickIDType != "",
 		}
 	}
 	return out
