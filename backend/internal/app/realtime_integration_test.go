@@ -133,6 +133,7 @@ func (e *env) start() *server {
 	lim.ManagerIP = ratelimit.New(10000, time.Minute, 10000)
 	lim.LoginIP = ratelimit.New(1000, time.Minute, 1000)
 	lim.LoginEmail = ratelimit.New(1000, time.Minute, 1000)
+	lim.ProjectRequestIP = ratelimit.New(1000, time.Minute, 1000)
 	rt := realtime.DefaultLimits()
 	rt.PresenceGrace = 150 * time.Millisecond
 	rt.RevalidateEvery = 300 * time.Millisecond

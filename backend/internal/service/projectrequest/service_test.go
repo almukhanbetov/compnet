@@ -3,6 +3,7 @@ package projectrequest
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/almukha/compnet-backend/internal/apperr"
@@ -160,6 +161,77 @@ func TestCreateProjectRequest_RepositoryErrorBecomesInternal(t *testing.T) {
 	}
 	if appErr.Message == "connection reset" {
 		t.Errorf("internal error message leaked underlying DB error to the client-facing message")
+	}
+}
+
+type countingNotifier struct{ calls int }
+
+func (n *countingNotifier) RequestCreated(context.Context, string) { n.calls++ }
+
+type countingRecorder struct{ calls int }
+
+func (r *countingRecorder) LeadCreated(context.Context, string, string) { r.calls++ }
+
+func TestCreateProjectRequest_HoneypotDiscardedSilently(t *testing.T) {
+	invalid := validRequest()
+	invalid.Name, invalid.Consent = "", false
+
+	for name, req := range map[string]dto.CreateProjectRequestRequest{"valid": validRequest(), "invalid": invalid} {
+		t.Run(name, func(t *testing.T) {
+			repo := &fakeRepository{}
+			notifier, recorder := &countingNotifier{}, &countingRecorder{}
+			svc := NewService(repo)
+			svc.SetNotifier(notifier)
+			svc.SetConversionRecorder(recorder)
+
+			req.Website = "https://spam.example"
+			req.AnalyticsSessionID = "session"
+			request, estimate, err := svc.CreateProjectRequest(context.Background(), req)
+			if err != nil {
+				t.Fatalf("bot must get a success, got %v", err)
+			}
+			if repo.createCalled || notifier.calls != 0 || recorder.calls != 0 {
+				t.Fatalf("bot request stored or announced: create=%v notify=%d lead=%d",
+					repo.createCalled, notifier.calls, recorder.calls)
+			}
+			if len(request.ID) != 36 || request.Status != projectrequest.StatusNew || request.CreatedAt.IsZero() {
+				t.Errorf("fake request does not look saved: %+v", request)
+			}
+			if !estimate.IsIndividual || estimate.MinimumTenge != nil {
+				t.Errorf("fake estimate: %+v", estimate)
+			}
+		})
+	}
+}
+
+func TestCreateProjectRequest_EmptyHoneypotIsSaved(t *testing.T) {
+	repo := &fakeRepository{}
+	notifier := &countingNotifier{}
+	svc := NewService(repo)
+	svc.SetNotifier(notifier)
+
+	req := validRequest()
+	req.Website = "  "
+	if _, _, err := svc.CreateProjectRequest(context.Background(), req); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !repo.createCalled || notifier.calls != 1 {
+		t.Fatalf("create=%v notify=%d, want saved and announced once", repo.createCalled, notifier.calls)
+	}
+}
+
+// 1500 Cyrillic letters are 3000 bytes: rejected while lengths were bytes.
+func TestCreateProjectRequest_LongCyrillicDescriptionSaved(t *testing.T) {
+	repo := &fakeRepository{}
+	svc := NewService(repo)
+
+	req := validRequest()
+	req.Description = strings.Repeat("ж", 1500)
+	if _, _, err := svc.CreateProjectRequest(context.Background(), req); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if repo.lastRequest.Description != req.Description {
+		t.Errorf("description not stored intact")
 	}
 }
 

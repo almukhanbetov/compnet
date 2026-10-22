@@ -16,12 +16,19 @@ const chatMaxBodyBytes = 16 << 10
 // analyticsMaxBodyBytes caps an event batch (20 small events + context).
 const analyticsMaxBodyBytes = 16 << 10
 
+// projectRequestMaxBodyBytes caps a project request: the longest text
+// fields (2000 + 3×200 + 2×100 characters, up to 4 bytes each) are ~11 KiB
+// of UTF-8, plus JSON escaping and the calculator selection.
+const projectRequestMaxBodyBytes = 32 << 10
+
 // Deps holds everything the router needs to register routes.
 type Deps struct {
 	Health         *handler.HealthHandler
 	ProjectRequest *handler.ProjectRequestHandler
-	Content        *handler.ContentHandler
-	Chat           *handler.ChatHandler
+	// ProjectRequestIPLimiter bounds public request submissions per IP.
+	ProjectRequestIPLimiter middleware.Limiter
+	Content                 *handler.ContentHandler
+	Chat                    *handler.ChatHandler
 	// ChatIPLimiter bounds all chat requests (including polling) per IP.
 	ChatIPLimiter middleware.Limiter
 	ManagerAuth   *handler.ManagerAuthHandler
@@ -64,7 +71,14 @@ func New(deps Deps) (*gin.Engine, error) {
 	engine.GET("/ready", deps.Health.Ready)
 
 	v1 := engine.Group("/api/v1")
-	v1.POST("/project-requests", deps.ProjectRequest.Create)
+	// The public form: per-IP rate limit (429 with Retry-After) and a body
+	// cap. No Origin check — the form posts cross-origin from the site and
+	// CORS already keeps other sites from reading the answer.
+	v1.POST("/project-requests",
+		middleware.RateLimitByIP(deps.ProjectRequestIPLimiter),
+		middleware.MaxBodyBytes(projectRequestMaxBodyBytes),
+		deps.ProjectRequest.Create,
+	)
 
 	v1.GET("/services", deps.Content.ListServices)
 	v1.GET("/services/:slug", deps.Content.GetService)

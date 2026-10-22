@@ -5,8 +5,12 @@ package projectrequest
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/almukha/compnet-backend/internal/apperr"
 	"github.com/almukha/compnet-backend/internal/domain/projectrequest"
@@ -78,6 +82,12 @@ func (s *Service) CreateProjectRequest(
 	ctx context.Context,
 	req dto.CreateProjectRequestRequest,
 ) (projectrequest.ProjectRequest, projectrequest.Estimate, error) {
+	// Checked before validation: a bot gets the same 201 whatever else it
+	// sent, so error messages never tell it the honeypot was noticed.
+	if req.IsBot() {
+		return discardBotRequest()
+	}
+
 	fields := req.Validate()
 
 	calcInput := pricing.CalculateInput{
@@ -199,4 +209,26 @@ func mergeCalcError(fields map[string]string, err error) {
 	if _, exists := fields[key]; !exists {
 		fields[key] = message
 	}
+}
+
+// discardBotRequest answers a honeypot submission like a saved request
+// with an individual estimate, but stores nothing and notifies no one.
+func discardBotRequest() (projectrequest.ProjectRequest, projectrequest.Estimate, error) {
+	log.Println("projectrequest: honeypot filled, request discarded") // no content in logs
+	return projectrequest.ProjectRequest{
+			ID:        randomUUID(),
+			Status:    projectrequest.StatusNew,
+			CreatedAt: time.Now().UTC(),
+		},
+		projectrequest.Estimate{IsIndividual: true, PricingVersion: pricing.RulesVersion},
+		nil
+}
+
+// randomUUID returns a version 4 UUID, shaped like the ids PostgreSQL issues.
+func randomUUID() string {
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

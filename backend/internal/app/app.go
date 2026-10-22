@@ -38,6 +38,7 @@ type Limiters struct {
 	LoginEmail        staffauth.Limiter  // login attempts per target email
 	ManagerIP         middleware.Limiter // all manager API requests per IP
 	AnalyticsIP       middleware.Limiter // analytics event batches per IP
+	ProjectRequestIP  middleware.Limiter // public project-request submissions per IP
 }
 
 // DefaultLimiters are the production limits.
@@ -51,6 +52,9 @@ func DefaultLimiters() Limiters {
 		ManagerIP:         ratelimit.New(300, time.Minute, 100),
 		// A browser flushes every few seconds and on page hide.
 		AnalyticsIP: ratelimit.New(60, time.Minute, 30),
+		// A person sends one request, rarely a few (the form offers "send
+		// another"); an office behind one NAT still fits in the burst.
+		ProjectRequestIP: ratelimit.New(10, time.Hour, 5),
 	}
 }
 
@@ -150,21 +154,22 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 	realtimeHandler := handler.NewRealtimeHandler(hub, chatService, managerChatService, staffAuthService, cfg.CORSAllowedOrigins)
 
 	engine, err := router.New(router.Deps{
-		Health:             handler.NewHealthHandler(pool),
-		ProjectRequest:     projectRequestHandler,
-		Content:            contentHandler,
-		Chat:               chatHandler,
-		ChatIPLimiter:      limiters.ChatIP,
-		ManagerAuth:        managerAuthHandler,
-		ManagerChat:        managerChatHandler,
-		ManagerRequests:    handler.NewManagerRequestsHandler(managerRequestsService),
-		Realtime:           realtimeHandler,
-		Analytics:          handler.NewAnalyticsHandler(analyticsService),
-		AnalyticsIPLimiter: limiters.AnalyticsIP,
-		StaffAuth:          staffAuthService,
-		ManagerIPLimiter:   limiters.ManagerIP,
-		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
-		TrustedProxies:     cfg.TrustedProxies,
+		Health:                  handler.NewHealthHandler(pool),
+		ProjectRequest:          projectRequestHandler,
+		ProjectRequestIPLimiter: limiters.ProjectRequestIP,
+		Content:                 contentHandler,
+		Chat:                    chatHandler,
+		ChatIPLimiter:           limiters.ChatIP,
+		ManagerAuth:             managerAuthHandler,
+		ManagerChat:             managerChatHandler,
+		ManagerRequests:         handler.NewManagerRequestsHandler(managerRequestsService),
+		Realtime:                realtimeHandler,
+		Analytics:               handler.NewAnalyticsHandler(analyticsService),
+		AnalyticsIPLimiter:      limiters.AnalyticsIP,
+		StaffAuth:               staffAuthService,
+		ManagerIPLimiter:        limiters.ManagerIP,
+		CORSAllowedOrigins:      cfg.CORSAllowedOrigins,
+		TrustedProxies:          cfg.TrustedProxies,
 	})
 	if err != nil {
 		return nil, err

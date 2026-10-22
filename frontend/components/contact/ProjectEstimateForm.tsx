@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { AlertCircle, CheckCircle2, Loader2, Send } from "lucide-react";
 import EstimatePreview from "@/components/contact/EstimatePreview";
@@ -14,6 +14,7 @@ import {
   budgetOptions,
   timelineOptions,
   contactMethodOptions,
+  formLimits,
 } from "@/data/contactPage";
 import type {
   EstimateFormState,
@@ -85,6 +86,8 @@ function validate(form: EstimateFormState, text: FormErrorTexts): EstimateFormEr
 
   if (!form.name.trim()) {
     errors.name = text.name;
+  } else if (form.name.trim().length > formLimits.name) {
+    errors.name = text.nameTooLong;
   }
 
   const hasPhone = form.phone.trim().length > 0;
@@ -108,6 +111,8 @@ function validate(form: EstimateFormState, text: FormErrorTexts): EstimateFormEr
 
   if (!form.description.trim()) {
     errors.description = text.description;
+  } else if (form.description.trim().length > formLimits.description) {
+    errors.description = text.descriptionTooLong;
   }
 
   if (!form.consent) {
@@ -127,6 +132,9 @@ export default function ProjectEstimateForm() {
   const [submitResult, setSubmitResult] = useState<ProjectRequestData | null>(
     null,
   );
+  // Uncontrolled on purpose: bots that set the DOM value without input
+  // events are caught too.
+  const honeypotRef = useRef<HTMLInputElement>(null);
 
   const updateField = <K extends keyof EstimateFormState>(
     key: K,
@@ -163,7 +171,11 @@ export default function ProjectEstimateForm() {
     }
 
     setIsSubmitting(true);
-    const result = await submitProjectRequest({ ...payload, analytics_session_id: analyticsSessionId() });
+    const result = await submitProjectRequest({
+      ...payload,
+      analytics_session_id: analyticsSessionId(),
+      website: honeypotRef.current?.value ?? "",
+    });
     setIsSubmitting(false);
 
     if (result.kind === "success") {
@@ -261,12 +273,27 @@ export default function ProjectEstimateForm() {
                 </div>
               ) : null}
 
+              {/* Honeypot: off-screen and out of the tab order, so only bots fill it. */}
+              <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+                <label htmlFor="website">{f.labels.honeypot}</label>
+                <input
+                  ref={honeypotRef}
+                  id="website"
+                  name="website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  defaultValue=""
+                />
+              </div>
+
               <div className="grid gap-6 sm:grid-cols-2">
                 <FieldWrapper label={f.labels.name} htmlFor="name" error={errors.name}>
                   <input
                     id="name"
                     type="text"
                     value={form.name}
+                    maxLength={formLimits.name}
                     onChange={handleTextChange("name")}
                     placeholder={f.placeholders.name}
                     className={`${fieldClass} ${errors.name ? errorFieldClass : ""}`}
@@ -278,6 +305,7 @@ export default function ProjectEstimateForm() {
                     id="company"
                     type="text"
                     value={form.company}
+                    maxLength={formLimits.company}
                     onChange={handleTextChange("company")}
                     placeholder={f.placeholders.company}
                     className={fieldClass}
@@ -368,6 +396,7 @@ export default function ProjectEstimateForm() {
                   id="description"
                   rows={4}
                   value={form.description}
+                  maxLength={formLimits.description}
                   onChange={handleTextChange("description")}
                   placeholder={f.placeholders.description}
                   className={`${fieldClass} resize-none ${

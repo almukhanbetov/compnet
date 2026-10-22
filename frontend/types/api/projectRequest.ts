@@ -1,6 +1,8 @@
 export interface CreateProjectRequestPayload {
   /** With analytics consent only: lets the server link the saved request to the visit. */
   analytics_session_id?: string;
+  /** Honeypot: empty from people; the server silently drops filled ones. */
+  website?: string;
   name: string;
   phone: string;
   email: string;
@@ -53,4 +55,5 @@ export interface ApiErrorEnvelope {
 export type SubmitProjectRequestResult =
   | { kind: "success"; data: ProjectRequestData }
   | { kind: "validation_error"; fields: Record<string, string>; message: string }
-  | { kind: "error"; reason: "config" | "network" | "unexpected"; message: string };
+  | { kind: "error"; reason: "config" | "network" | "unexpected"; message: string }
+  | { kind: "error"; reason: "rateLimited"; message: string; retryAfterSeconds: number | null };

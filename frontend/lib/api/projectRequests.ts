@@ -49,6 +49,16 @@ export async function submitProjectRequest(
     };
   }
 
+  if (response.status === 429) {
+    const retryAfter = Number.parseInt(response.headers.get("Retry-After") ?? "", 10);
+    return {
+      kind: "error",
+      reason: "rateLimited",
+      message: "Слишком много заявок подряд. Попробуйте позже.",
+      retryAfterSeconds: Number.isFinite(retryAfter) ? retryAfter : null,
+    };
+  }
+
   return {
     kind: "error",
     reason: "unexpected",

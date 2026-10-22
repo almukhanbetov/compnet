@@ -30,6 +30,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         timeline: "Желаемый срок",
         description: "Краткое описание задачи",
         consent: "Согласен(а) на обработку персональных данных",
+        honeypot: "Не заполняйте это поле",
       },
       placeholders: {
         name: "Как к вам обращаться",
@@ -54,6 +55,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         config: "Не удалось отправить заявку. Попробуйте позже или свяжитесь с нами по телефону.",
         nameTooLong: "Слишком длинное имя",
         descriptionTooLong: "Слишком длинное описание",
+        rateLimited: "Слишком много заявок подряд. Попробуйте через несколько минут или позвоните нам.",
         invalid: "Проверьте заполнение формы и попробуйте ещё раз.",
       },
       success: {
@@ -181,6 +183,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         timeline: "Қалаған мерзім",
         description: "Тапсырманың қысқаша сипаттамасы",
         consent: "Дербес деректерімді өңдеуге келісемін",
+        honeypot: "Бұл өрісті толтырмаңыз",
       },
       placeholders: {
         name: "Сізге қалай жүгінейік",
@@ -205,6 +208,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         config: "Өтінімді жіберу мүмкін болмады. Кейінірек қайталаңыз немесе бізге телефон арқылы хабарласыңыз.",
         nameTooLong: "Аты тым ұзын",
         descriptionTooLong: "Сипаттама тым ұзын",
+        rateLimited: "Өтінімдер тым көп. Бірнеше минуттан кейін қайталаңыз немесе бізге қоңырау шалыңыз.",
         invalid: "Форманың толтырылуын тексеріп, қайталап көріңіз.",
       },
       success: {
@@ -332,6 +336,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         timeline: "Desired timeline",
         description: "Brief description of the task",
         consent: "I agree to the processing of my personal data",
+        honeypot: "Leave this field empty",
       },
       placeholders: {
         name: "How should we address you",
@@ -356,6 +361,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         config: "Couldn't send the request. Please try again later or call us.",
         nameTooLong: "The name is too long",
         descriptionTooLong: "The description is too long",
+        rateLimited: "Too many requests in a row. Please try again in a few minutes or call us.",
         invalid: "Please check the form and try again.",
       },
       success: {

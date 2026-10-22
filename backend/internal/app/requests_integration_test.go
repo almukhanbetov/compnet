@@ -10,11 +10,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/almukha/compnet-backend/internal/app"
+	"github.com/almukha/compnet-backend/internal/ratelimit"
 )
 
 type requestItem struct {
@@ -464,4 +468,88 @@ func TestRequests_FastSubmitKeepsAnalyticsLink(t *testing.T) {
 	if got := mgr.requestDetail(orphan); got.Analytics != nil || got.Name != "Отозвал "+tag {
 		t.Errorf("request after purge: %+v", got)
 	}
+}
+
+// countRequestsByName counts saved requests whose name is exactly name.
+func (e *env) countRequestsByName(name string) int {
+	e.t.Helper()
+	var n int
+	if err := e.pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM project_requests WHERE name = $1`, name).Scan(&n); err != nil {
+		e.t.Fatal(err)
+	}
+	return n
+}
+
+func TestRequests_PublicFormProtection(t *testing.T) {
+	e := newEnv(t)
+	s := e.start()
+	mgr := s.actor(t)
+	mgr.login(e)
+	sock := mgr.ws("/api/v1/manager/ws")
+	tag := randomHex(4)
+
+	t.Run("long unicode description is saved intact", func(t *testing.T) {
+		text := strings.Repeat("Ж", 1500) + " 🚀"
+		id := e.submitRequest(s.actor(t), map[string]any{"name": "Юникод " + tag, "phone": "7011234567", "description": text})
+		sock.wait("project_request_created", fast, func(ev event) bool { return strings.Contains(string(ev.Data), id) })
+		var stored string
+		if err := e.pool.QueryRow(context.Background(),
+			`SELECT description FROM project_requests WHERE id = $1`, id).Scan(&stored); err != nil {
+			t.Fatal(err)
+		}
+		if stored != text {
+			t.Errorf("stored description differs: %d runes", len([]rune(stored)))
+		}
+	})
+
+	t.Run("honeypot is answered 201 but neither saved nor announced", func(t *testing.T) {
+		name := "Бот " + tag
+		code, raw := s.actor(t).do("POST", "/api/v1/project-requests", map[string]any{
+			"name": name, "phone": "7011234567", "project_type": "corporate", "description": "spam",
+			"contact_method": "phone", "consent": true, "website": "https://spam.example",
+			"calculator": map[string]any{"scale_tier_id": "site-s", "design_level_id": "basic", "complexity_id": "standard", "urgency_id": "normal"},
+		})
+		if code != 201 || !strings.Contains(string(raw), `"status":"new"`) {
+			t.Fatalf("bot: %d %s", code, raw)
+		}
+		sock.never("project_request_created", 300*time.Millisecond)
+		if n := e.countRequestsByName(name); n != 0 {
+			t.Fatalf("bot request saved %d times", n)
+		}
+	})
+
+	t.Run("repeated submits from one IP get 429", func(t *testing.T) {
+		lim := app.DefaultLimiters()
+		lim.ProjectRequestIP = ratelimit.New(1, time.Hour, 2)
+		a, err := app.Build(e.pool, e.cfg, app.Options{Limiters: &lim})
+		if err != nil {
+			t.Fatal(err)
+		}
+		limited := &server{app: a, srv: httptest.NewServer(a.Engine)}
+		e.servers = append(e.servers, limited)
+
+		name := "Лимит " + tag
+		t.Cleanup(func() {
+			_, _ = e.pool.Exec(context.Background(), `DELETE FROM project_requests WHERE name = $1`, name)
+		})
+		visitor := limited.actor(t)
+		body := map[string]any{
+			"name": name, "phone": "7011234567", "project_type": "corporate", "description": "Описание",
+			"contact_method": "phone", "consent": true,
+			"calculator": map[string]any{"scale_tier_id": "site-s", "design_level_id": "basic", "complexity_id": "standard", "urgency_id": "normal"},
+		}
+		for i := range 2 {
+			if code, raw := visitor.do("POST", "/api/v1/project-requests", body); code != 201 {
+				t.Fatalf("submit %d: %d %s", i+1, code, raw)
+			}
+		}
+		code, raw := visitor.do("POST", "/api/v1/project-requests", body)
+		if code != 429 || !strings.Contains(string(raw), `"code":"rate_limited"`) {
+			t.Fatalf("third submit: %d %s", code, raw)
+		}
+		if n := e.countRequestsByName(name); n != 2 {
+			t.Fatalf("saved %d requests, want 2", n)
+		}
+	})
 }
