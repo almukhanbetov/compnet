@@ -119,6 +119,8 @@ export interface ContactPageTranslations {
       timeline: string;
       description: string;
       consent: string;
+      /** Label of the hidden anti-spam field: only bots see and fill it. */
+      honeypot: string;
     };
     placeholders: {
       name: string;
@@ -143,6 +145,8 @@ export interface ContactPageTranslations {
       config: string;
       nameTooLong: string;
       descriptionTooLong: string;
+      /** The server answered 429: too many requests from this IP. */
+      rateLimited: string;
       /** Shown for a backend validation error without a specific translation. */
       invalid: string;
     };

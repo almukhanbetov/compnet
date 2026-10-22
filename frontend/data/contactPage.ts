@@ -26,6 +26,16 @@ export const timelineOptions: Timeline[] = [
   "пока не определён",
 ];
 
+/** Text limits in characters, as the backend checks them
+ * (backend/internal/http/dto/projectrequest.go). The browser's maxLength
+ * counts UTF-16 units — an emoji is two — so it never lets through more
+ * characters than the server accepts. */
+export const formLimits = {
+  name: 200,
+  company: 200,
+  description: 2000,
+} as const;
+
 export const contactMethodOptions: ContactMethod[] = [
   "Телефон",
   "WhatsApp",

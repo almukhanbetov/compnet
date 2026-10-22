@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/almukha/compnet-backend/internal/domain/projectrequest"
 )
@@ -15,6 +16,9 @@ var (
 	phoneStripPattern = regexp.MustCompile(`[^\d+]`)
 )
 
+// Length limits are counted in characters (runes), not bytes: a Cyrillic or
+// Kazakh letter is two bytes of UTF-8. The site form's maxLength mirrors
+// them (frontend/data/contactPage.ts).
 const (
 	maxNameLength        = 200
 	maxCompanyLength     = 200
@@ -58,6 +62,14 @@ type CreateProjectRequestRequest struct {
 	// AnalyticsSessionID links the saved request to the visit (only sent
 	// after analytics consent; optional, ignored when unknown).
 	AnalyticsSessionID string `json:"analytics_session_id,omitempty"`
+	// Website is a honeypot: the site form renders it hidden from people, so
+	// only bots fill it in. Optional; see IsBot.
+	Website string `json:"website,omitempty"`
+}
+
+// IsBot reports whether the honeypot field was filled in.
+func (r CreateProjectRequestRequest) IsBot() bool {
+	return strings.TrimSpace(r.Website) != ""
 }
 
 // NormalizedPhone strips everything except digits and a leading '+', the
@@ -82,7 +94,7 @@ func (r CreateProjectRequestRequest) Validate() map[string]string {
 	switch {
 	case name == "":
 		fields["name"] = "укажите имя"
-	case len(name) > maxNameLength:
+	case utf8.RuneCountInString(name) > maxNameLength:
 		fields["name"] = "слишком длинное имя"
 	}
 
@@ -101,7 +113,7 @@ func (r CreateProjectRequestRequest) Validate() map[string]string {
 		}
 	}
 
-	if len(strings.TrimSpace(r.Company)) > maxCompanyLength {
+	if utf8.RuneCountInString(strings.TrimSpace(r.Company)) > maxCompanyLength {
 		fields["company"] = "слишком длинное название компании"
 	}
 
@@ -113,14 +125,14 @@ func (r CreateProjectRequestRequest) Validate() map[string]string {
 	switch {
 	case description == "":
 		fields["description"] = "кратко опишите задачу"
-	case len(description) > maxDescriptionLength:
+	case utf8.RuneCountInString(description) > maxDescriptionLength:
 		fields["description"] = "слишком длинное описание"
 	}
 
-	if len(strings.TrimSpace(r.BudgetRange)) > maxFreeTextLength {
+	if utf8.RuneCountInString(strings.TrimSpace(r.BudgetRange)) > maxFreeTextLength {
 		fields["budget_range"] = "слишком длинное значение"
 	}
-	if len(strings.TrimSpace(r.DesiredTimeline)) > maxFreeTextLength {
+	if utf8.RuneCountInString(strings.TrimSpace(r.DesiredTimeline)) > maxFreeTextLength {
 		fields["desired_timeline"] = "слишком длинное значение"
 	}
 
