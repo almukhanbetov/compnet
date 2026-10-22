@@ -241,7 +241,8 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
           </div>
         ) : null}
 
-        {report ? (
+        {/* A failed load hides the earlier period's figures (see the error above). */}
+        {report && state !== "error" ? (
           <div className={`space-y-5 transition-opacity ${state === "loading" ? "opacity-60" : ""}`}>
             <Cards report={report} />
             <DailyChart report={report} />

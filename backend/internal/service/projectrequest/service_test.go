@@ -403,3 +403,23 @@ func TestCreateProjectRequest_AttributionOffWithoutAnalytics(t *testing.T) {
 		t.Fatalf("saved=%v attribution=%+v", repo.createCalled, repo.lastAttrib)
 	}
 }
+
+// Personal data shared in a link's UTM tags is not kept; the channel and
+// ordinary tags are.
+func TestCreateProjectRequest_PersonalUTMDropped(t *testing.T) {
+	repo := &fakeRepository{}
+	req := validRequest()
+	req.AnalyticsSessionID = testSessionID
+	req.Attribution = &dto.AttributionInput{
+		SourcePage: "/contact", LandingPage: "/",
+		UTMSource: "crm", UTMMedium: "email",
+		UTMCampaign: "ivan.petrov@example.test", UTMTerm: "+7 700 000 00 01", UTMContent: "october-digest",
+	}
+	if _, _, err := attributionService(repo).CreateProjectRequest(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	a := repo.lastAttrib
+	if a == nil || a.UTMCampaign != "" || a.UTMTerm != "" || a.UTMContent != "october-digest" || a.Channel != "email" || a.Source != "crm" {
+		t.Fatalf("attribution: %+v", a)
+	}
+}

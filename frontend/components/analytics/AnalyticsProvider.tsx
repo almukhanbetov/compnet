@@ -13,7 +13,7 @@ import {
   type ConsentChoice,
 } from "@/lib/analytics/consent";
 import { configureGa4, ga4Revoke } from "@/lib/analytics/ga4";
-import { flush, forgetAnalyticsIds, setAnalyticsEnabled, track } from "@/lib/analytics/tracker";
+import { flush, forgetAnalyticsIds, rememberLanding, setAnalyticsEnabled, track } from "@/lib/analytics/tracker";
 
 /**
  * Mounted once in the root layout. Reads the backend's switches, asks for
@@ -31,6 +31,8 @@ export default function AnalyticsProvider() {
 
   // Backend switches: analytics and/or GA4. Nothing configured → no banner.
   useEffect(() => {
+    // In memory only, before anything is decided (see rememberLanding).
+    rememberLanding();
     let cancelled = false;
     void loadAnalyticsConfig().then((config) => {
       if (cancelled) return;
