@@ -187,6 +187,25 @@ func (r *ProjectRequestRepository) Detail(ctx context.Context, id string) (proje
 	default:
 		d.Analytics = &a
 	}
+
+	// The stored source: no row for requests without analytics consent
+	// and for those received before it was recorded.
+	var at projectrequest.Attribution
+	err = r.pool.QueryRow(ctx, `
+		SELECT channel, source, COALESCE(source_page, ''), COALESCE(previous_page, ''), COALESCE(landing_page, ''),
+		       COALESCE(referrer_host, ''), COALESCE(utm_source, ''), COALESCE(utm_medium, ''),
+		       COALESCE(utm_campaign, ''), COALESCE(utm_content, ''), COALESCE(utm_term, ''), COALESCE(click_id_type, '')
+		FROM project_request_attribution WHERE project_request_id = $1`, id).Scan(
+		&at.Channel, &at.Source, &at.SourcePage, &at.PreviousPage, &at.LandingPage,
+		&at.ReferrerHost, &at.UTMSource, &at.UTMMedium,
+		&at.UTMCampaign, &at.UTMContent, &at.UTMTerm, &at.ClickIDType)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+	case err != nil:
+		return d, err
+	default:
+		d.Attribution = &at
+	}
 	return d, nil
 }
 

@@ -476,3 +476,102 @@ func collect[T any](rows pgx.Rows, scan func(pgx.Rows) (T, error)) ([]T, error) 
 	}
 	return items, nil
 }
+
+// leadsInPeriod: the period's requests with their stored source ("unknown"
+// without one), narrowed by the filter ($3 channel, $4 page, $5 project
+// type; an empty string matches any). Values are always bound parameters.
+const leadsInPeriod = `r AS (
+	SELECT p.id, p.status, p.project_type, p.created_at,
+	       COALESCE(a.channel, 'unknown') AS channel, a.source, a.source_page,
+	       a.project_request_id IS NOT NULL AS tracked
+	FROM project_requests p
+	LEFT JOIN project_request_attribution a ON a.project_request_id = p.id
+	WHERE p.created_at >= $1 AND p.created_at < $2
+	  AND ($3 = '' OR COALESCE(a.channel, 'unknown') = $3)
+	  AND ($4 = '' OR a.source_page = $4)
+	  AND ($5 = '' OR p.project_type = $5)
+)`
+
+// LeadsReport counts the requests of [from, to) by status, source, page,
+// project type and Asia/Almaty day.
+func (r *AnalyticsRepository) LeadsReport(ctx context.Context, from, to time.Time, fromDate, toDate string, f analytics.LeadFilter) (analytics.LeadsReport, error) {
+	var rep analytics.LeadsReport
+	args := []any{from, to, f.Channel, f.Page, f.ProjectType}
+	s := &rep.Status
+	err := r.pool.QueryRow(ctx, `WITH `+leadsInPeriod+`
+		SELECT count(*),
+		       count(*) FILTER (WHERE tracked),
+		       count(*) FILTER (WHERE status = 'new'),
+		       count(*) FILTER (WHERE status IN ('in_progress', 'contacted', 'qualified', 'proposal_sent')),
+		       count(*) FILTER (WHERE status IN ('completed', 'accepted')),
+		       count(*) FILTER (WHERE status = 'rejected'),
+		       count(*) FILTER (WHERE status = 'archived'),
+		       count(*) FILTER (WHERE channel = 'organic_search' AND source = 'google'),
+		       count(*) FILTER (WHERE channel IN ('paid_search', 'paid_social')),
+		       count(*) FILTER (WHERE channel IN ('social', 'paid_social'))
+		FROM r`, args...).Scan(&rep.Total, &rep.Tracked, &s.New, &s.InProgress, &s.Completed, &s.Rejected, &s.Archived,
+		&rep.GoogleOrganic, &rep.Paid, &rep.Social)
+	if err != nil {
+		return rep, err
+	}
+
+	counts := func(query string, extra ...any) ([]analytics.LeadCount, error) {
+		rows, err := r.pool.Query(ctx, `WITH `+leadsInPeriod+` `+query, append(args, extra...)...)
+		if err != nil {
+			return nil, err
+		}
+		return collect(rows, func(row pgx.Rows) (analytics.LeadCount, error) {
+			var c analytics.LeadCount
+			return c, row.Scan(&c.Key, &c.Count)
+		})
+	}
+	if rep.Channels, err = counts(`SELECT channel, count(*) FROM r GROUP BY 1 ORDER BY 2 DESC, 1`); err != nil {
+		return rep, err
+	}
+	if rep.Pages, err = counts(`SELECT COALESCE(source_page, ''), count(*) FROM r GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 20`); err != nil {
+		return rep, err
+	}
+	if rep.ServicePages, err = counts(`SELECT source_page, count(*) FROM r WHERE source_page LIKE '/services/%' GROUP BY 1 ORDER BY 2 DESC, 1`); err != nil {
+		return rep, err
+	}
+	if rep.ProjectTypes, err = counts(`SELECT project_type, count(*) FROM r GROUP BY 1 ORDER BY 2 DESC, 1`); err != nil {
+		return rep, err
+	}
+	if rep.Days, err = counts(`,
+		days AS (SELECT d::date AS day FROM generate_series($6::date, $7::date, interval '1 day') d),
+		rd AS (SELECT (created_at AT TIME ZONE 'Asia/Almaty')::date AS day, count(*) AS n FROM r GROUP BY 1)
+		SELECT to_char(days.day, 'YYYY-MM-DD'), COALESCE(rd.n, 0)::int FROM days LEFT JOIN rd ON rd.day = days.day ORDER BY days.day`,
+		fromDate, toDate); err != nil {
+		return rep, err
+	}
+
+	rows, err := r.pool.Query(ctx, `WITH `+leadsInPeriod+`
+		SELECT channel, COALESCE(source, '(unknown)'), count(*) FROM r
+		GROUP BY 1, 2 ORDER BY 3 DESC, 1, 2 LIMIT 20`, args...)
+	if err != nil {
+		return rep, err
+	}
+	if rep.Sources, err = collect(rows, func(row pgx.Rows) (analytics.LeadSourceRow, error) {
+		var s analytics.LeadSourceRow
+		return s, row.Scan(&s.Channel, &s.Source, &s.Count)
+	}); err != nil {
+		return rep, err
+	}
+
+	// Conversion only without filters: sessions have no page or project
+	// type to match a filtered number of requests.
+	if f.IsEmpty() {
+		c := &rep.Conversion
+		if err := r.pool.QueryRow(ctx, `
+			SELECT count(*),
+			       count(*) FILTER (WHERE EXISTS (
+			           SELECT 1 FROM analytics_events e
+			           WHERE e.session_id = s.id AND e.type = 'lead_submit'))
+			FROM analytics_sessions s
+			WHERE s.started_at >= $1 AND s.started_at < $2`, from, to).Scan(&c.Sessions, &c.SessionsWithRequest); err != nil {
+			return rep, err
+		}
+		c.Available = c.Sessions > 0
+	}
+	return rep, nil
+}

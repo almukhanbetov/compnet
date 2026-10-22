@@ -171,6 +171,25 @@ type AnalyticsLink struct {
 	Language      string
 }
 
+// Attribution is where a request came from, stored with the request (see
+// migrations/…_create_project_request_attribution.sql). Values were
+// reported by a consenting browser and sanitized; Channel and Source are
+// derived by the backend. Empty strings mean "not reported".
+type Attribution struct {
+	Channel      string
+	Source       string
+	SourcePage   string
+	PreviousPage string
+	LandingPage  string
+	ReferrerHost string
+	UTMSource    string
+	UTMMedium    string
+	UTMCampaign  string
+	UTMContent   string
+	UTMTerm      string
+	ClickIDType  string
+}
+
 // Detail is everything the manager sees on one request.
 type Detail struct {
 	Request   ProjectRequest
@@ -178,6 +197,9 @@ type Detail struct {
 	Estimate  *Estimate
 	History   []StatusChange
 	Analytics *AnalyticsLink
+	// Attribution is nil for requests sent without analytics consent and
+	// for those received before the source was recorded.
+	Attribution *Attribution
 }
 
 // Update is a manager's change to a request; nil fields stay as they are.

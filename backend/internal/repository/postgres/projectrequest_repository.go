@@ -26,6 +26,7 @@ func (r *ProjectRequestRepository) Create(
 	request projectrequest.ProjectRequest,
 	features []projectrequest.Feature,
 	estimate projectrequest.Estimate,
+	attribution *projectrequest.Attribution,
 ) (projectrequest.ProjectRequest, projectrequest.Estimate, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -92,6 +93,25 @@ func (r *ProjectRequestRepository) Create(
 	).Scan(&estimate.ID, &estimate.CreatedAt)
 	if err != nil {
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
+	}
+
+	// Same transaction: a request is never saved with half its source.
+	if attribution != nil {
+		const insertAttribution = `
+			INSERT INTO project_request_attribution
+				(project_request_id, channel, source, source_page, previous_page, landing_page,
+				 referrer_host, utm_source, utm_medium, utm_campaign, utm_content, utm_term, click_id_type)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+		a := attribution
+		if _, err := tx.Exec(ctx, insertAttribution,
+			request.ID, a.Channel, a.Source,
+			nullableString(a.SourcePage), nullableString(a.PreviousPage), nullableString(a.LandingPage),
+			nullableString(a.ReferrerHost), nullableString(a.UTMSource), nullableString(a.UTMMedium),
+			nullableString(a.UTMCampaign), nullableString(a.UTMContent), nullableString(a.UTMTerm),
+			nullableString(a.ClickIDType),
+		); err != nil {
+			return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

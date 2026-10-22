@@ -95,3 +95,42 @@ export interface ApiAnalyticsVisits {
   today_counts: { visits: number; visitors: number; page_views: number };
   all_time: { visits: number; page_views: number };
 }
+
+export interface ApiLeadCount {
+  key: string;
+  count: number;
+}
+
+/** Requests report (GET /manager/analytics/leads): counts only. */
+export interface ApiLeadsReport {
+  period: { from: string; to: string; time_zone: string };
+  filter: { channel: string; page: string; project_type: string };
+  totals: {
+    requests: number;
+    tracked: number;
+    new: number;
+    in_progress: number;
+    completed: number;
+    rejected: number;
+    archived: number;
+    google_organic: number;
+    paid: number;
+    social: number;
+  };
+  /** null when it cannot be computed correctly (filters, or no consented visits). */
+  conversion: { sessions: number; sessions_with_request: number } | null;
+  channels: ApiLeadCount[];
+  sources: Array<{ channel: string; source: string; count: number }>;
+  /** key "" = page unknown. */
+  pages: ApiLeadCount[];
+  service_pages: ApiLeadCount[];
+  project_types: ApiLeadCount[];
+  /** Every Asia/Almaty day of the period. */
+  days: ApiLeadCount[];
+}
+
+export interface LeadsFilter {
+  channel?: string;
+  page?: string;
+  project_type?: string;
+}

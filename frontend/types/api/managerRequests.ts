@@ -99,6 +99,38 @@ export interface ApiRequestDetail extends ApiRequestItem {
   history: ApiRequestStatusChange[];
   /** null: no analytics session (no consent, or removed after retention). */
   analytics: ApiRequestAnalytics | null;
+  /** null: sent without analytics consent, or before sources were recorded. */
+  attribution: ApiRequestAttribution | null;
+}
+
+/** Marketing channels decided by the backend (internal/attribution). */
+export const LEAD_CHANNELS = [
+  "organic_search",
+  "paid_search",
+  "social",
+  "paid_social",
+  "referral",
+  "direct",
+  "email",
+  "other",
+  "unknown",
+] as const;
+export type LeadChannel = (typeof LEAD_CHANNELS)[number];
+
+/** A request's stored source; "" = not reported. No click id values. */
+export interface ApiRequestAttribution {
+  channel: LeadChannel;
+  source: string;
+  source_page: string;
+  previous_page: string;
+  landing_page: string;
+  referrer_host: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  utm_content: string;
+  utm_term: string;
+  ad_click: boolean;
 }
 
 export interface RequestListQuery {

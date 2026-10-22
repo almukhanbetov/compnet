@@ -28,7 +28,7 @@ import type {
 } from "@/types/contactPage";
 import { buildProjectRequestPayload } from "@/lib/api/projectRequestMapping";
 import { submitProjectRequest } from "@/lib/api/projectRequests";
-import { analyticsSessionId } from "@/lib/analytics/tracker";
+import { analyticsSessionId, leadAttribution } from "@/lib/analytics/tracker";
 import { ga4Event } from "@/lib/analytics/ga4";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { byId, fill } from "@/lib/i18n";
@@ -174,6 +174,9 @@ export default function ProjectEstimateForm({
   // Uncontrolled on purpose: bots that set the DOM value without input
   // events are caught too.
   const honeypotRef = useRef<HTMLInputElement>(null);
+  // Set synchronously: a double click cannot send the request twice before
+  // isSubmitting has re-rendered.
+  const submittingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const successTitleRef = useRef<HTMLParagraphElement>(null);
   // What to focus once the state change it belongs to has rendered: an
@@ -220,7 +223,7 @@ export default function ProjectEstimateForm({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (submittingRef.current) {
       return;
     }
 
@@ -239,12 +242,18 @@ export default function ProjectEstimateForm({
       return;
     }
 
+    submittingRef.current = true;
     setIsSubmitting(true);
+    // With analytics consent only: the session id and where this visit came
+    // from (both undefined otherwise). The server derives the channel.
+    const sessionId = analyticsSessionId();
     const result = await submitProjectRequest({
       ...payload,
-      analytics_session_id: analyticsSessionId(),
+      analytics_session_id: sessionId,
+      attribution: sessionId ? leadAttribution() : undefined,
       website: honeypotRef.current?.value ?? "",
     });
+    submittingRef.current = false;
     setIsSubmitting(false);
 
     if (result.kind === "success") {

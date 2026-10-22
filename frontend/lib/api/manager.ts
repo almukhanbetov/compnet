@@ -1,4 +1,10 @@
-import type { ApiAnalyticsReport, ApiAnalyticsSessionDetail, ApiAnalyticsVisits } from "@/types/api/analytics";
+import type {
+  ApiAnalyticsReport,
+  ApiAnalyticsSessionDetail,
+  ApiAnalyticsVisits,
+  ApiLeadsReport,
+  LeadsFilter,
+} from "@/types/api/analytics";
 import type {
   ApiRequestDetail,
   ApiRequestItem,
@@ -174,6 +180,11 @@ export function fetchUnreadCount(signal?: AbortSignal) {
 /** Statistics for whole Asia/Almaty days [from, to] (YYYY-MM-DD). */
 export function fetchAnalyticsReport(from: string, to: string, signal?: AbortSignal) {
   return request<ApiEnvelope<ApiAnalyticsReport>>(`/analytics/report${query({ from, to })}`, { signal });
+}
+
+/** Requests by status, source, page, project type and day (Asia/Almaty dates). */
+export function fetchLeadsReport(from: string, to: string, filter: LeadsFilter, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiLeadsReport>>(`/analytics/leads${query({ from, to, ...filter })}`, { signal });
 }
 
 /** Visit counter: today (Asia/Almaty) and all time. */

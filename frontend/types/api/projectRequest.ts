@@ -1,6 +1,10 @@
+import type { LeadAttribution } from "@/lib/analytics/tracker";
+
 export interface CreateProjectRequestPayload {
   /** With analytics consent only: lets the server link the saved request to the visit. */
   analytics_session_id?: string;
+  /** With analytics consent only: the visit's source (see lib/analytics/tracker). */
+  attribution?: LeadAttribution;
   /** Honeypot: empty from people; the server silently drops filled ones. */
   website?: string;
   name: string;

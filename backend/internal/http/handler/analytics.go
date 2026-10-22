@@ -23,6 +23,7 @@ type AnalyticsService interface {
 	ClientConfig() analyticssvc.ClientConfig
 	Ingest(ctx context.Context, in analyticssvc.IngestInput) error
 	Report(ctx context.Context, fromDate, toDate string) (analyticssvc.ReportResult, error)
+	Leads(ctx context.Context, fromDate, toDate string, f analytics.LeadFilter) (analyticssvc.LeadsResult, error)
 	SessionDetail(ctx context.Context, id string) (analytics.SessionDetail, error)
 	Visits(ctx context.Context) (analyticssvc.VisitsResult, error)
 }
@@ -94,6 +95,24 @@ func (h *AnalyticsHandler) Report(c *gin.Context) {
 		return
 	}
 	response.OK(c, newReportResponse(result))
+}
+
+// Leads handles GET /api/v1/manager/analytics/leads?from=&to=&channel=&page=&project_type=
+// (Asia/Almaty dates, inclusive): request counts only, no contacts.
+func (h *AnalyticsHandler) Leads(c *gin.Context) {
+	if !requireAnalyticsRole(c) {
+		return
+	}
+	result, err := h.service.Leads(c.Request.Context(), c.Query("from"), c.Query("to"), analytics.LeadFilter{
+		Channel:     c.Query("channel"),
+		Page:        c.Query("page"),
+		ProjectType: c.Query("project_type"),
+	})
+	if err != nil {
+		apierr.Write(c, err)
+		return
+	}
+	response.OK(c, newLeadsResponse(result))
 }
 
 // Session handles GET /api/v1/manager/analytics/sessions/:id.
@@ -370,4 +389,88 @@ func nonNil(s []string) []string {
 		return []string{}
 	}
 	return s
+}
+
+type leadCountResponse struct {
+	Key   string `json:"key"`
+	Count int    `json:"count"`
+}
+
+type leadSourceResponse struct {
+	Channel string `json:"channel"`
+	Source  string `json:"source"`
+	Count   int    `json:"count"`
+}
+
+type leadsResponse struct {
+	Period struct {
+		From     string `json:"from"`
+		To       string `json:"to"`
+		TimeZone string `json:"time_zone"`
+	} `json:"period"`
+	Filter struct {
+		Channel     string `json:"channel"`
+		Page        string `json:"page"`
+		ProjectType string `json:"project_type"`
+	} `json:"filter"`
+	Totals struct {
+		Requests      int `json:"requests"`
+		Tracked       int `json:"tracked"`
+		New           int `json:"new"`
+		InProgress    int `json:"in_progress"`
+		Completed     int `json:"completed"`
+		Rejected      int `json:"rejected"`
+		Archived      int `json:"archived"`
+		GoogleOrganic int `json:"google_organic"`
+		Paid          int `json:"paid"`
+		Social        int `json:"social"`
+	} `json:"totals"`
+	// Conversion is null when it cannot be computed correctly: filters
+	// applied, or no sessions of consenting browsers in the period.
+	Conversion *struct {
+		Sessions            int `json:"sessions"`
+		SessionsWithRequest int `json:"sessions_with_request"`
+	} `json:"conversion"`
+	Channels     []leadCountResponse  `json:"channels"`
+	Sources      []leadSourceResponse `json:"sources"`
+	Pages        []leadCountResponse  `json:"pages"`
+	ServicePages []leadCountResponse  `json:"service_pages"`
+	ProjectTypes []leadCountResponse  `json:"project_types"`
+	Days         []leadCountResponse  `json:"days"`
+}
+
+func leadCounts(rows []analytics.LeadCount) []leadCountResponse {
+	out := make([]leadCountResponse, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, leadCountResponse(r))
+	}
+	return out
+}
+
+func newLeadsResponse(r analyticssvc.LeadsResult) leadsResponse {
+	var out leadsResponse
+	out.Period.From, out.Period.To, out.Period.TimeZone = r.Period.FromDate, r.Period.ToDate, analyticssvc.ReportZone
+	out.Filter.Channel, out.Filter.Page, out.Filter.ProjectType = r.Filter.Channel, r.Filter.Page, r.Filter.ProjectType
+	rep := r.Report
+	t := &out.Totals
+	t.Requests, t.Tracked = rep.Total, rep.Tracked
+	t.New, t.InProgress, t.Completed, t.Rejected, t.Archived =
+		rep.Status.New, rep.Status.InProgress, rep.Status.Completed, rep.Status.Rejected, rep.Status.Archived
+	t.GoogleOrganic, t.Paid, t.Social = rep.GoogleOrganic, rep.Paid, rep.Social
+	if rep.Conversion.Available {
+		out.Conversion = &struct {
+			Sessions            int `json:"sessions"`
+			SessionsWithRequest int `json:"sessions_with_request"`
+		}{rep.Conversion.Sessions, rep.Conversion.SessionsWithRequest}
+	}
+	out.Channels = leadCounts(rep.Channels)
+	out.Pages = leadCounts(rep.Pages)
+	out.ServicePages = leadCounts(rep.ServicePages)
+	out.ProjectTypes = leadCounts(rep.ProjectTypes)
+	out.Days = leadCounts(rep.Days)
+	out.Sources = make([]leadSourceResponse, 0, len(rep.Sources))
+	for _, s := range rep.Sources {
+		out.Sources = append(out.Sources, leadSourceResponse(s))
+	}
+	return out
 }

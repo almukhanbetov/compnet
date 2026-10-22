@@ -13,9 +13,11 @@ import (
 	"time"
 
 	"github.com/almukha/compnet-backend/internal/apperr"
+	"github.com/almukha/compnet-backend/internal/attribution"
 	"github.com/almukha/compnet-backend/internal/domain/projectrequest"
 	"github.com/almukha/compnet-backend/internal/http/dto"
 	"github.com/almukha/compnet-backend/internal/pricing"
+	analyticssvc "github.com/almukha/compnet-backend/internal/service/analytics"
 )
 
 // Repository persists a project request, its selected features and its
@@ -26,6 +28,7 @@ type Repository interface {
 		request projectrequest.ProjectRequest,
 		features []projectrequest.Feature,
 		estimate projectrequest.Estimate,
+		attribution *projectrequest.Attribution,
 	) (projectrequest.ProjectRequest, projectrequest.Estimate, error)
 }
 
@@ -54,6 +57,9 @@ type Service struct {
 	repo        Repository
 	conversions ConversionRecorder
 	notifier    Notifier
+	// attribution: request sources are stored only while the first-party
+	// visit analytics is on (it is what visitors consent to).
+	attribution bool
 }
 
 // NewService builds a Service backed by the given Repository.
@@ -66,6 +72,11 @@ func (s *Service) SetNotifier(n Notifier) {
 	if n != nil {
 		s.notifier = n
 	}
+}
+
+// SetAttributionEnabled lets requests keep their source (ANALYTICS_ENABLED).
+func (s *Service) SetAttributionEnabled(enabled bool) {
+	s.attribution = enabled
 }
 
 // SetConversionRecorder enables linking requests to analytics sessions.
@@ -170,7 +181,11 @@ func (s *Service) CreateProjectRequest(
 		},
 	}
 
-	savedRequest, savedEstimate, err := s.repo.Create(ctx, request, features, estimate)
+	var source *projectrequest.Attribution
+	if s.attribution {
+		source = attributionFrom(req)
+	}
+	savedRequest, savedEstimate, err := s.repo.Create(ctx, request, features, estimate, source)
 	if err != nil {
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Internal(err)
 	}
@@ -231,4 +246,46 @@ func randomUUID() string {
 	b[6] = b[6]&0x0f | 0x40
 	b[8] = b[8]&0x3f | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+// attributionFrom turns what the browser reported about its visit into the
+// stored attribution, or nil when there is nothing to keep. The form sends
+// it only with analytics consent, always together with its analytics
+// session id; without a valid id the data is dropped. Values are
+// sanitized like the visit analytics (paths without query strings, host
+// names only, short UTM texts); an invalid value is dropped, it never
+// rejects the request. Channel and source are derived here.
+func attributionFrom(req dto.CreateProjectRequestRequest) *projectrequest.Attribution {
+	in := req.Attribution
+	if in == nil || !analyticssvc.ValidUUID(req.AnalyticsSessionID) {
+		return nil
+	}
+	clickID := strings.ToLower(strings.TrimSpace(in.ClickID))
+	if !attribution.ClickIDs[clickID] {
+		clickID = ""
+	}
+	a := projectrequest.Attribution{
+		SourcePage:   analyticssvc.CleanPath(in.SourcePage),
+		PreviousPage: analyticssvc.CleanPath(in.PreviousPage),
+		LandingPage:  analyticssvc.CleanPath(in.LandingPage),
+		ReferrerHost: analyticssvc.CleanHost(in.ReferrerHost),
+		UTMSource:    analyticssvc.CleanText(in.UTMSource),
+		UTMMedium:    analyticssvc.CleanText(in.UTMMedium),
+		UTMCampaign:  analyticssvc.CleanText(in.UTMCampaign),
+		UTMContent:   analyticssvc.CleanText(in.UTMContent),
+		UTMTerm:      analyticssvc.CleanText(in.UTMTerm),
+		ClickIDType:  clickID,
+	}
+	if a.PreviousPage == a.SourcePage {
+		a.PreviousPage = ""
+	}
+	result := attribution.Classify(attribution.Input{
+		UTMSource:    a.UTMSource,
+		UTMMedium:    a.UTMMedium,
+		ReferrerHost: a.ReferrerHost,
+		ClickID:      a.ClickIDType,
+		LandingPath:  a.LandingPage,
+	})
+	a.Channel, a.Source = string(result.Channel), result.Source
+	return &a
 }
