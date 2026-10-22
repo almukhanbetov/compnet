@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import MobileAppMockups from "@/components/services/MobileAppMockups";
 import SectionHeading from "@/components/ui/SectionHeading";
+import ProjectEstimateForm from "@/components/contact/ProjectEstimateForm";
 import { companyPhone, whatsappLink } from "@/data/contacts";
+import { ESTIMATE_FORM_ID } from "@/data/contactPage";
 import { byId } from "@/lib/i18n";
 import {
   mobilePlatformIds,
@@ -109,10 +111,10 @@ export default function MobileAppDevelopmentPage({ t, factors }: MobileAppDevelo
                 ))}
               </ul>
               <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-                <Link href="/contact" className={primaryButtonClass}>
+                <a href={`#${ESTIMATE_FORM_ID}`} className={primaryButtonClass}>
                   {t.hero.discuss}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
+                </a>
                 <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className={secondaryButtonClass}>
                   <MessageCircle className="h-4 w-4" aria-hidden="true" />
                   {t.hero.whatsapp}
@@ -306,6 +308,40 @@ export default function MobileAppDevelopmentPage({ t, factors }: MobileAppDevelo
         </div>
       </section>
 
+      {/* Request form: mobile app pre-selected; no prices on this page, so
+          the side column offers the direct channels instead of an estimate. */}
+      <ProjectEstimateForm
+        heading={t.requestForm}
+        initialProjectType="Мобильное приложение"
+        showPrices={false}
+        aside={
+          <aside
+            aria-labelledby="mobile-contact-aside-title"
+            className={`${cardClass} flex flex-col gap-4 self-start lg:sticky lg:top-24`}
+          >
+            <span className={iconClass}>
+              <MessageCircle className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <h3 id="mobile-contact-aside-title" className={`text-lg ${cardTitleClass}`}>
+              {t.requestForm.asideTitle}
+            </h3>
+            <p className="text-sm leading-6 text-slate-400 light:text-slate-600">{t.requestForm.asideText}</p>
+            <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className={secondaryButtonClass}>
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              {t.cta.whatsapp}
+            </a>
+            <a href={companyPhone.href} className={secondaryButtonClass}>
+              <Phone className="h-4 w-4" aria-hidden="true" />
+              {companyPhone.display}
+            </a>
+            <Link href="/contact" className={textLinkClass}>
+              {t.requestForm.contactsLink}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </aside>
+        }
+      />
+
       {/* Final call to action */}
       <section className="relative px-6 pb-20 md:pb-28">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-6 rounded-[28px] border border-[var(--text-primary)]/10 bg-gradient-to-br from-violet-700/30 via-blue-700/25 to-cyan-500/20 p-8 backdrop-blur-xl md:p-10">
@@ -314,10 +350,10 @@ export default function MobileAppDevelopmentPage({ t, factors }: MobileAppDevelo
             <p className="mt-2 text-sm text-slate-300 light:text-slate-700">{t.cta.description}</p>
           </div>
           <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:flex-wrap">
-            <Link href="/contact" className={primaryButtonClass}>
+            <a href={`#${ESTIMATE_FORM_ID}`} className={primaryButtonClass}>
               {t.cta.discuss}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            </a>
             <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className={secondaryButtonClass}>
               <MessageCircle className="h-4 w-4" aria-hidden="true" />
               {t.cta.whatsapp}

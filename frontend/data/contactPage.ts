@@ -26,6 +26,10 @@ export const timelineOptions: Timeline[] = [
   "пока не определён",
 ];
 
+/** Id of the request form section; links to `#${ESTIMATE_FORM_ID}` scroll
+ * to it (kept out of the client component so server pages can import it). */
+export const ESTIMATE_FORM_ID = "estimate-form";
+
 /** Text limits in characters, as the backend checks them
  * (backend/internal/http/dto/projectrequest.go). The browser's maxLength
  * counts UTF-16 units — an emoji is two — so it never lets through more

@@ -7,6 +7,11 @@ interface FieldWrapperProps {
   children: ReactNode;
 }
 
+/** Id of the error text rendered under the field with this id. */
+export function fieldErrorId(fieldId: string): string {
+  return `${fieldId}-error`;
+}
+
 export default function FieldWrapper({
   label,
   htmlFor,
@@ -19,7 +24,12 @@ export default function FieldWrapper({
         {label}
       </label>
       <div className="mt-2">{children}</div>
-      {error ? <p className="mt-1.5 text-xs text-rose-400">{error}</p> : null}
+      {/* The field points at this id with aria-describedby (see fieldErrorId). */}
+      {error ? (
+        <p id={fieldErrorId(htmlFor)} className="mt-1.5 text-xs text-rose-400">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

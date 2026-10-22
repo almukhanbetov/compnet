@@ -87,6 +87,16 @@ export interface MobileAppDevelopmentTranslations {
   };
   works: { eyebrow: string; title: string; description: string; allWorks: string };
   faq: { eyebrow: string; title: string; items: { question: string; answer: string }[] };
+  /** Request form section; no prices on this page, so no estimate. */
+  requestForm: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    /** Side column with the direct contact channels. */
+    asideTitle: string;
+    asideText: string;
+    contactsLink: string;
+  };
   cta: { title: string; description: string; discuss: string; whatsapp: string; phone: string };
 }
 
@@ -255,6 +265,15 @@ export const mobileAppDevelopmentTranslations: Record<Locale, MobileAppDevelopme
           answer: "Да, сопровождаем приложение после публикации.",
         },
       ],
+    },
+    requestForm: {
+      eyebrow: "Заявка",
+      title: "Расскажите о вашем приложении",
+      description:
+        "Тип проекта уже выбран — опишите идею и нужные платформы. Менеджер свяжется с вами, чтобы уточнить детали и предложить следующий шаг.",
+      asideTitle: "Удобнее связаться напрямую?",
+      asideText: "Напишите нам в WhatsApp или позвоните — ответим на вопросы о приложении.",
+      contactsLink: "Все контакты",
     },
     cta: {
       title: "Обсудим ваше приложение?",
@@ -429,6 +448,15 @@ export const mobileAppDevelopmentTranslations: Record<Locale, MobileAppDevelopme
         },
       ],
     },
+    requestForm: {
+      eyebrow: "Өтінім",
+      title: "Қосымшаңыз туралы айтыңыз",
+      description:
+        "Жоба түрі таңдалып қойған — идеяңызды және қажетті платформаларды сипаттаңыз. Менеджер мәліметтерді нақтылап, келесі қадамды ұсыну үшін сізбен хабарласады.",
+      asideTitle: "Тікелей хабарласқан ыңғайлы ма?",
+      asideText: "WhatsApp-қа жазыңыз немесе қоңырау шалыңыз — қосымша туралы сұрақтарыңызға жауап береміз.",
+      contactsLink: "Барлық байланыстар",
+    },
     cta: {
       title: "Қосымшаңызды талқылайық па?",
       description: "Міндетіңіз туралы айтыңыз — тәсілді, жұмыс құрамын және келесі қадамды ұсынамыз.",
@@ -601,6 +629,15 @@ export const mobileAppDevelopmentTranslations: Record<Locale, MobileAppDevelopme
           answer: "Yes, we maintain the app after release.",
         },
       ],
+    },
+    requestForm: {
+      eyebrow: "Request",
+      title: "Tell us about your app",
+      description:
+        "The project type is already selected — describe your idea and the platforms you need. A manager will contact you to clarify the details and suggest the next step.",
+      asideTitle: "Prefer to contact us directly?",
+      asideText: "Message us on WhatsApp or call — we will answer your questions about the app.",
+      contactsLink: "All contacts",
     },
     cta: {
       title: "Shall we discuss your app?",
