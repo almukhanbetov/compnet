@@ -26,6 +26,7 @@ Run (Playwright from the npx cache, not a project dependency):
     python3 -I verify.py journeys.jsonl                                               # DB + manager API per journey
     node manager.cjs <playwright>                                                     # periods, filters, cards, XSS, access
     node manager-403.cjs <playwright>                                                 # 403 message per section, RU/KZ/EN
+    node manager-periods.cjs <playwright>                                             # fast period/filter switches, late realtime re-reads (8.6F)
     node prod-readonly.cjs <playwright>                                               # production: open pages only, click nothing
 
 Staff for the test DB are created with `mkstaff.py` (pty for `api create-staff`; password from
