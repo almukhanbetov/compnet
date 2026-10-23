@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Info, Loader2, RefreshCw } from "lucide-react";
@@ -60,9 +60,14 @@ export default function LeadsReport({
     });
   }, []);
 
+  // The quiet re-read in flight. A new period, filter or re-read cancels it,
+  // so a late answer for other figures never replaces the current ones.
+  const quiet = useRef<AbortController | null>(null);
+
   useEffect(() => {
     const controller = new AbortController();
     void fetchLeadsReport(range.from, range.to, filter, controller.signal).then((result) => {
+      if (controller.signal.aborted) return;
       if (result.kind === "ok") {
         setData(result.data.data);
         remember(result.data.data);
@@ -75,7 +80,10 @@ export default function LeadsReport({
         setSettled({ key: requestKey, ok: false });
       }
     });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      quiet.current?.abort();
+    };
   }, [range, filter, requestKey, onAuthError, remember]);
 
   // A new or changed request: re-read quietly.
@@ -83,8 +91,11 @@ export default function LeadsReport({
     useCallback(
       (event: RealtimeEvent) => {
         if (!isRequestEvent(event) || settled?.key !== requestKey) return;
-        void fetchLeadsReport(range.from, range.to, filter).then((result) => {
-          if (result.kind === "ok") setData(result.data.data);
+        quiet.current?.abort();
+        const controller = new AbortController();
+        quiet.current = controller;
+        void fetchLeadsReport(range.from, range.to, filter, controller.signal).then((result) => {
+          if (result.kind === "ok" && !controller.signal.aborted) setData(result.data.data);
         });
       },
       [range, filter, requestKey, settled],

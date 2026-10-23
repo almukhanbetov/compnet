@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -71,9 +71,14 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
   const requestKey = `${range.from}|${range.to}|${attempt}`;
   const state: "loading" | "ready" | "error" = settled?.key !== requestKey ? "loading" : settled.ok ? "ready" : "error";
 
+  // The quiet re-read in flight. A new period or re-read cancels it, so a
+  // late answer for another period never replaces the current figures.
+  const quiet = useRef<AbortController | null>(null);
+
   useEffect(() => {
     const controller = new AbortController();
     void fetchAnalyticsReport(range.from, range.to, controller.signal).then((result) => {
+      if (controller.signal.aborted) return;
       if (result.kind === "ok") {
         setReport(result.data.data);
         setSettled({ key: requestKey, ok: true });
@@ -85,7 +90,10 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
         setSettled({ key: requestKey, ok: false });
       }
     });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      quiet.current?.abort();
+    };
   }, [range, requestKey, onAuthError]);
 
   // New visits stored: re-read the report quietly (no loading state).
@@ -93,8 +101,11 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
     useCallback(
       (event: RealtimeEvent) => {
         if (event.type !== "analytics_updated" || settled?.key !== requestKey) return;
-        void fetchAnalyticsReport(range.from, range.to).then((result) => {
-          if (result.kind === "ok") setReport(result.data.data);
+        quiet.current?.abort();
+        const controller = new AbortController();
+        quiet.current = controller;
+        void fetchAnalyticsReport(range.from, range.to, controller.signal).then((result) => {
+          if (result.kind === "ok" && !controller.signal.aborted) setReport(result.data.data);
         });
       },
       [range, requestKey, settled],
