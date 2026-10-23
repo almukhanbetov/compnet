@@ -86,7 +86,7 @@ type UTM struct {
 // Attribute decides a session's source: explicit UTM tags first, then the
 // referring site (search, social or referral), otherwise direct. A
 // referrer equal to the site itself (ownHost) counts as direct.
-func Attribute(utm UTM, referrerHost, ownHost string) analytics.Attribution {
+func Attribute(utm UTM, referrerHost, ownHost string, adClick bool) analytics.Attribution {
 	source := strings.ToLower(CleanText(utm.Source))
 	ref := CleanHost(referrerHost)
 	if ref != "" && ref == CleanHost(ownHost) {
@@ -100,6 +100,10 @@ func Attribute(utm UTM, referrerHost, ownHost string) analytics.Attribution {
 	}
 	medium := strings.ToLower(CleanText(utm.Medium))
 	switch {
+	case adClick && source == "" && medium == "":
+		// Google Ads auto-tagging: a click id and no UTM tags. Paid search,
+		// even though the referrer is google.com.
+		a.Source, a.Medium = "google", "cpc"
 	case source != "" || medium != "":
 		// A tagged link; utm_source may be missing or dropped as personal.
 		a.Source, a.Medium = source, medium
@@ -198,9 +202,16 @@ func ParsePeriod(fromDate, toDate string) (Period, bool) {
 	}, true
 }
 
+// stripControl removes characters that are invisible or change how the
+// text around them is displayed: control characters (Cc), format
+// characters (Cf: bidi overrides and isolates such as U+202E, zero-width
+// spaces and joiners, the BOM, tag characters), line and paragraph
+// separators, and U+FFFD left by broken encodings. Letters of every
+// alphabet (Russian, Kazakh, English, …), digits, punctuation and ordinary
+// spaces are kept.
 func stripControl(s string) string {
 	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) || r == '�' {
+		if unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) || r == '\uFFFD' {
 			return -1
 		}
 		return r

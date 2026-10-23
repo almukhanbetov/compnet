@@ -122,8 +122,8 @@ func (s *Service) Ingest(ctx context.Context, in IngestInput) error {
 	if u, err := url.Parse(in.Origin); err == nil {
 		ownHost = u.Hostname()
 	}
-	attribution := Attribute(utm(req.Session.UTM), req.Session.ReferrerHost, ownHost)
-	first := Attribute(utm(req.FirstTouch.UTM), req.FirstTouch.ReferrerHost, ownHost)
+	attribution := Attribute(utm(req.Session.UTM), req.Session.ReferrerHost, ownHost, req.Session.AdClick)
+	first := Attribute(utm(req.FirstTouch.UTM), req.FirstTouch.ReferrerHost, ownHost, req.FirstTouch.AdClick)
 	if req.FirstTouch.LandingPath == "" {
 		// No first touch known (older client): this visit is the first one.
 		first = attribution

@@ -285,6 +285,8 @@ func attributionFrom(req dto.CreateProjectRequestRequest) *projectrequest.Attrib
 		ReferrerHost: a.ReferrerHost,
 		ClickID:      a.ClickIDType,
 		LandingPath:  a.LandingPage,
+		// Only matters without referrer, tags and click id.
+		InternalNavigation: in.InternalNavigation,
 	})
 	a.Channel, a.Source = string(result.Channel), result.Source
 	return &a

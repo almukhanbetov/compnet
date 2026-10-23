@@ -85,6 +85,10 @@ type AttributionInput struct {
 	UTMContent   string `json:"utm_content"`
 	UTMTerm      string `json:"utm_term"`
 	ClickID      string `json:"click_id"`
+	// InternalNavigation: the browser's session began on a page reached by
+	// a link inside the site (e.g. after 30 minutes of inactivity), so it
+	// has no external referrer of its own.
+	InternalNavigation bool `json:"internal_navigation"`
 }
 
 // IsBot reports whether the honeypot field was filled in.

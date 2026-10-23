@@ -3,7 +3,11 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"log"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/almukha/compnet-backend/internal/domain/projectrequest"
@@ -20,7 +24,10 @@ func NewProjectRequestRepository(pool *pgxpool.Pool) *ProjectRequestRepository {
 }
 
 // Create inserts the request, its selected features and its estimate in a
-// single transaction: either all three are stored, or none are.
+// single transaction: either all three are stored, or none are. The
+// request's source (attribution) is optional: it is written in the same
+// transaction behind a savepoint, so a failure there drops only the source
+// and never the request itself.
 func (r *ProjectRequestRepository) Create(
 	ctx context.Context,
 	request projectrequest.ProjectRequest,
@@ -95,23 +102,8 @@ func (r *ProjectRequestRepository) Create(
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
 	}
 
-	// Same transaction: a request is never saved with half its source.
 	if attribution != nil {
-		const insertAttribution = `
-			INSERT INTO project_request_attribution
-				(project_request_id, channel, source, source_page, previous_page, landing_page,
-				 referrer_host, utm_source, utm_medium, utm_campaign, utm_content, utm_term, click_id_type)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
-		a := attribution
-		if _, err := tx.Exec(ctx, insertAttribution,
-			request.ID, a.Channel, a.Source,
-			nullableString(a.SourcePage), nullableString(a.PreviousPage), nullableString(a.LandingPage),
-			nullableString(a.ReferrerHost), nullableString(a.UTMSource), nullableString(a.UTMMedium),
-			nullableString(a.UTMCampaign), nullableString(a.UTMContent), nullableString(a.UTMTerm),
-			nullableString(a.ClickIDType),
-		); err != nil {
-			return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
-		}
+		insertAttribution(ctx, tx, request.ID, attribution)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -119,6 +111,55 @@ func (r *ProjectRequestRepository) Create(
 	}
 
 	return request, estimate, nil
+}
+
+// insertAttribution stores a request's source behind a savepoint (a nested
+// pgx transaction). The source is optional data reported by the browser:
+// if it cannot be stored, the savepoint is rolled back and the request is
+// saved without it ("unknown" in the reports), instead of losing a valid
+// request. Only the PostgreSQL error code is logged, never the values.
+func insertAttribution(ctx context.Context, tx pgx.Tx, requestID string, a *projectrequest.Attribution) {
+	const query = `
+		INSERT INTO project_request_attribution
+			(project_request_id, channel, source, source_page, previous_page, landing_page,
+			 referrer_host, utm_source, utm_medium, utm_campaign, utm_content, utm_term, click_id_type)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+	sp, err := tx.Begin(ctx) // SAVEPOINT
+	if err != nil {
+		log.Printf("projectrequest: request source not stored (savepoint: %s)", errorCode(err))
+		return
+	}
+	if _, err := sp.Exec(ctx, query,
+		requestID, a.Channel, a.Source,
+		nullableString(a.SourcePage), nullableString(a.PreviousPage), nullableString(a.LandingPage),
+		nullableString(a.ReferrerHost), nullableString(a.UTMSource), nullableString(a.UTMMedium),
+		nullableString(a.UTMCampaign), nullableString(a.UTMContent), nullableString(a.UTMTerm),
+		nullableString(a.ClickIDType),
+	); err != nil {
+		_ = sp.Rollback(ctx) // ROLLBACK TO SAVEPOINT: the request itself stays
+		log.Printf("projectrequest: request source not stored (%s)", errorCode(err))
+		return
+	}
+	if err := sp.Commit(ctx); err != nil { // RELEASE SAVEPOINT
+		_ = sp.Rollback(ctx)
+		log.Printf("projectrequest: request source not stored (release: %s)", errorCode(err))
+	}
+}
+
+// errorCode is a loggable summary of a database error: the SQLSTATE and the
+// constraint name, never the message (it may quote the values).
+func errorCode(err error) string {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		if pgErr.ConstraintName != "" {
+			return "SQLSTATE " + pgErr.Code + ", constraint " + pgErr.ConstraintName
+		}
+		return "SQLSTATE " + pgErr.Code
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err.Error()
+	}
+	return "non-database error"
 }
 
 // nullableString turns an empty string into a NULL parameter so optional

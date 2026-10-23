@@ -1,0 +1,11 @@
+# Generated locally, never committed: credentials, test certificate, results, binary
+db.env
+staff.env
+ref.key
+ref.crt
+api
+*.jsonl
+*.json
+*.png
+*.log
+*.txt

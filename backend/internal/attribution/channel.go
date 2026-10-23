@@ -58,6 +58,9 @@ type Input struct {
 	ReferrerHost string // the referring site's host only, never a URL
 	ClickID      string // "gclid", "gbraid", "wbraid" or ""
 	LandingPath  string // first page of the visit
+	// InternalNavigation: the visit started on a page reached by a link
+	// inside the site, not from outside (no external referrer to lose).
+	InternalNavigation bool
 }
 
 // Result is the classification of an Input.
@@ -70,9 +73,10 @@ type Result struct {
 
 // Classify decides the channel. Order: an ad click id, then explicit UTM
 // tags, then the referring site; with none of them a visit that started
-// on the home page counts as direct, any other one as unknown — a deep
-// link without referrer usually comes from an app or messenger that
-// stripped it, not from someone typing the address.
+// on the home page, or on a page reached inside the site, counts as
+// direct, any other one as unknown — a deep link without referrer usually
+// comes from an app or messenger that stripped it, not from someone typing
+// the address.
 func Classify(in Input) Result {
 	source := strings.ToLower(strings.TrimSpace(in.UTMSource))
 	medium := normalizeMedium(in.UTMMedium)
@@ -106,7 +110,7 @@ func Classify(in Input) Result {
 		}
 	}
 
-	if in.LandingPath == "/" {
+	if in.LandingPath == "/" || in.InternalNavigation {
 		return Result{Channel: Direct, Source: SourceDirect}
 	}
 	return Result{Channel: Unknown, Source: SourceUnknown}

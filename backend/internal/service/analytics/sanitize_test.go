@@ -51,20 +51,26 @@ func TestAttribute(t *testing.T) {
 		utm                    UTM
 		ref, own               string
 		source, medium, campgn string
+		adClick                bool
 	}{
-		{"utm wins over referrer", UTM{Source: "Instagram", Medium: "CPC", Campaign: "digital-start"}, "google.com", "compnet.kz", "instagram", "cpc", "digital-start"},
-		{"utm without medium", UTM{Source: "newsletter"}, "", "compnet.kz", "newsletter", "(not set)", ""},
-		{"search engine", UTM{}, "www.google.kz", "compnet.kz", "google", "organic", ""},
-		{"yandex", UTM{}, "yandex.kz", "compnet.kz", "yandex", "organic", ""},
-		{"social", UTM{}, "l.instagram.com", "compnet.kz", "instagram", "social", ""},
-		{"telegram", UTM{}, "t.me", "compnet.kz", "telegram", "social", ""},
-		{"referral", UTM{}, "partner.kz", "compnet.kz", "partner.kz", "referral", ""},
-		{"own site is direct", UTM{}, "www.compnet.kz", "compnet.kz", "(direct)", "(none)", ""},
-		{"no referrer", UTM{}, "", "compnet.kz", "(direct)", "(none)", ""},
-		{"utm too long is cut", UTM{Source: strings.Repeat("x", 150)}, "", "", strings.Repeat("x", 100), "(not set)", ""},
+		{"utm wins over referrer", UTM{Source: "Instagram", Medium: "CPC", Campaign: "digital-start"}, "google.com", "compnet.kz", "instagram", "cpc", "digital-start", false},
+		{"utm without medium", UTM{Source: "newsletter"}, "", "compnet.kz", "newsletter", "(not set)", "", false},
+		{"search engine", UTM{}, "www.google.kz", "compnet.kz", "google", "organic", "", false},
+		{"yandex", UTM{}, "yandex.kz", "compnet.kz", "yandex", "organic", "", false},
+		{"social", UTM{}, "l.instagram.com", "compnet.kz", "instagram", "social", "", false},
+		{"telegram", UTM{}, "t.me", "compnet.kz", "telegram", "social", "", false},
+		{"referral", UTM{}, "partner.kz", "compnet.kz", "partner.kz", "referral", "", false},
+		{"own site is direct", UTM{}, "www.compnet.kz", "compnet.kz", "(direct)", "(none)", "", false},
+		{"no referrer", UTM{}, "", "compnet.kz", "(direct)", "(none)", "", false},
+		{"utm too long is cut", UTM{Source: strings.Repeat("x", 150)}, "", "", strings.Repeat("x", 100), "(not set)", "", false},
+		// Google Ads auto-tagging (click id, no UTM) is paid search, not organic (Stage 8.6D).
+		{"ad click without utm", UTM{}, "www.google.com", "compnet.kz", "google", "cpc", "", true},
+		{"ad click without referrer", UTM{}, "", "compnet.kz", "google", "cpc", "", true},
+		{"ad click with tags keeps the tags", UTM{Source: "google", Medium: "cpc", Campaign: "mobile_apps_almaty"}, "www.google.com", "compnet.kz", "google", "cpc", "mobile_apps_almaty", true},
+		{"no ad click from google is organic", UTM{}, "www.google.com", "compnet.kz", "google", "organic", "", false},
 	}
 	for _, c := range cases {
-		a := Attribute(c.utm, c.ref, c.own)
+		a := Attribute(c.utm, c.ref, c.own, c.adClick)
 		if a.Source != c.source || a.Medium != c.medium || a.Campaign != c.campgn {
 			t.Errorf("%s: got %s/%s/%s", c.name, a.Source, a.Medium, a.Campaign)
 		}
@@ -133,5 +139,45 @@ func TestParsePeriod_AlmatyBoundaries(t *testing.T) {
 		if _, ok := ParsePeriod(bad[0], bad[1]); ok {
 			t.Errorf("accepted %v", bad)
 		}
+	}
+}
+
+// Invisible and bidi characters are removed from UTM values (Stage 8.6D);
+// campaign names in Russian, Kazakh and English stay exactly as written.
+func TestCleanText_InvisibleCharacters(t *testing.T) {
+	removed := map[string]string{
+		"sale\u202etxt.exe\u202c":      "saletxt.exe", // right-to-left override + pop
+		"a\u202ab\u202bc\u202dd":       "abcd",        // embeddings and override
+		"x\u2066y\u2067z\u2068w\u2069": "xyzw",        // isolates
+		"left\u200eright\u200f":        "leftright",   // directional marks
+		"zero\u200bwidth\u200c\u200d":  "zerowidth",   // zero-width space, (non-)joiner
+		"\ufeffcampaign":               "campaign",    // byte order mark
+		"line\u2028para\u2029end":      "Lineparaend"[:0] + "lineparaend",
+		"soft\u00adhyphen":             "softhyphen",
+		"tag\U000E0041\U000E007F":      "tag", // tag characters
+		"a\u0000b\u0007c\u007f":        "abc", // control characters
+		"\u202e\u200b":                 "",    // nothing visible left
+	}
+	for in, want := range removed {
+		if got := CleanText(in); got != want {
+			t.Errorf("CleanText(%q) = %q, want %q", in, got, want)
+		}
+	}
+	kept := []string{
+		"Осенняя_распродажа_2026",
+		"Күзгі жеңілдік — Алматы",
+		"ҚАЗАҚСТАН: әңғөқұүһі ӘҢҒӨҚҰҮҺІ",
+		"Spring Sale (KZ) 50% off",
+		"mobile_apps_almaty",
+		"brand+сайт-визитка",
+		"«Скидки» №1",
+	}
+	for _, in := range kept {
+		if got := CleanText(in); got != in {
+			t.Errorf("CleanText(%q) = %q, want it unchanged", in, got)
+		}
+	}
+	if got := CleanPath("/services/\u202ewebsite-development"); got != "/services/website-development" {
+		t.Errorf("CleanPath keeps a bidi character: %q", got)
 	}
 }

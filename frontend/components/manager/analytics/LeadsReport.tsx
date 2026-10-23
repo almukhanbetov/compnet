@@ -269,6 +269,7 @@ function LeadCards({ data, filtered }: { data: ApiLeadsReport; filtered: boolean
       <p className="text-xs text-slate-500">
         {fill(l.tracked, { tracked: String(x.tracked), total: String(x.requests) })}
       </p>
+      <p className="text-xs leading-5 text-slate-500">{l.cardsNote}</p>
     </div>
   );
 }
