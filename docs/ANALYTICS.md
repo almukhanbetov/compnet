@@ -38,7 +38,17 @@ sends it (`frontend/lib/analytics/personal.ts`) and again by the server
 (`backend/internal/service/analytics/personal.go`, used by `CleanText`).
 Ordinary tags, dates and Google Ads ValueTrack ids are kept. Of an ad click
 id (`gclid`, `gbraid`, `wbraid`) only which one was present is kept, for a
-request's source; its value is never stored or sent.
+request's source; its value is never stored or sent. Visit events get just a
+yes/no flag (`ad_click`), so an auto-tagged Google Ads click (click id, no
+UTM tags) counts as `google / cpc` and not as Google organic; the flag
+itself is not stored. A click id only counts when it looks like one (8–1024
+URL-safe characters): `?gclid=` alone does not.
+
+Invisible characters are removed from UTM values and paths before anything
+is stored: control characters, Unicode format characters (bidi overrides
+and isolates such as U+202E, zero-width spaces and joiners, the BOM) and
+line/paragraph separators — so a link cannot make a campaign name look
+different to the manager. Letters of every alphabet stay as written.
 
 ## Visitors and sessions
 
@@ -52,7 +62,12 @@ request's source; its value is never stored or sent.
 - **Source of a session**: `utm_source` (+ medium, campaign …) → else the
   referring site, classified as `organic` (search engines), `social` or
   `referral` → else `(direct) / (none)`. A referrer from the site itself
-  counts as direct.
+  counts as direct. `document.referrer` describes how the tab was opened,
+  so it is used only until the visitor follows a link inside the site: a
+  session that starts later in the same tab (after 30 minutes idle, or when
+  analytics is allowed after "Necessary only") gets no external referrer —
+  the earlier arrival is not re-counted, and nothing from before a decline
+  comes back.
 - **First source** (`compnet-a-first`): the touch of the visitor's very
   first session, never overwritten — a later direct visit does not erase it.
 - **Conversion** = sessions started in the period with at least one stored
@@ -126,10 +141,20 @@ sent from, the page before it, landing page, referring host, UTM tags (with
 the personal-data filter above) and whether an ad click id was present. The
 backend derives the channel (`backend/internal/attribution`) and stores
 sources only while `ANALYTICS_ENABLED` is on. Unlike visit details, a source
-is kept as long as the request. The statistics' "Заявки и источники" block
+is kept as long as the request. A visit with no referrer, tags or click id
+is `direct` when it started on the home page or on a page reached inside
+the site (`internal_navigation`), otherwise `unknown` (a deep link whose
+referrer an app stripped). The source is optional: it is written in the
+request's transaction behind a savepoint, so if it cannot be stored the
+request is still saved — without a source — and the manager is notified as
+usual; only the database error code is logged. The statistics' "Заявки и источники" block
 (`GET /api/v1/manager/analytics/leads`) counts every request; those without
-a source are "unknown". When a report fails to load, the page hides the
-previous period's figures instead of showing them as current.
+a source are "unknown". The source cards are partial views that overlap by
+definition — "Google, органический поиск" (organic Google only), "Реклама:
+поиск и соцсети" (`paid_search` + `paid_social`), "Соцсети, включая рекламу"
+(`social` + `paid_social`) — and the page says so under them; "По каналам"
+is the full breakdown without overlaps. When a report fails to load, the
+page hides the previous period's figures instead of showing them as current.
 
 ## Server logs
 

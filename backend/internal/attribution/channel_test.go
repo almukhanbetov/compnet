@@ -94,3 +94,26 @@ func TestReferrerKind(t *testing.T) {
 		}
 	}
 }
+
+// A session that began on a page reached inside the site (after 30 minutes
+// of inactivity, or analytics allowed later) has no external referrer: it is
+// direct, not unknown — and an ad click or tags still win (Stage 8.6D).
+func TestClassify_InternalNavigation(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      Input
+		channel Channel
+		source  string
+	}{
+		{"internal page, nothing else", Input{LandingPath: "/contact", InternalNavigation: true}, Direct, SourceDirect},
+		{"deep link from outside stays unknown", Input{LandingPath: "/contact"}, Unknown, SourceUnknown},
+		{"ad click wins", Input{LandingPath: "/contact", InternalNavigation: true, ClickID: "gclid"}, PaidSearch, "google"},
+		{"tags win", Input{LandingPath: "/contact", InternalNavigation: true, UTMSource: "newsletter", UTMMedium: "email"}, Email, "newsletter"},
+		{"referrer wins", Input{LandingPath: "/contact", InternalNavigation: true, ReferrerHost: "www.google.com"}, OrganicSearch, "google"},
+	}
+	for _, c := range cases {
+		if got := Classify(c.in); got.Channel != c.channel || got.Source != c.source {
+			t.Errorf("%s: got %s/%s, want %s/%s", c.name, got.Channel, got.Source, c.channel, c.source)
+		}
+	}
+}

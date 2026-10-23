@@ -25,7 +25,13 @@ import { looksPersonal } from "@/lib/analytics/personal";
  *   saving them; the browser only passes its session id along — and, for
  *   a request, the visit's source (leadAttribution): paths, the referring
  *   host and UTM values, never full URLs. Of an ad click id (gclid,
- *   gbraid, wbraid) only which one was present is kept, never its value.
+ *   gbraid, wbraid) only which one was present is kept, never its value;
+ *   visit events get just a yes/no flag, so auto-tagged Google Ads clicks
+ *   (no UTM tags) count as paid search, not as Google organic.
+ * - document.referrer belongs to the page the tab was opened on. After a
+ *   link inside the site (client-side navigation) it is stale, so a session
+ *   that starts later in the tab (30 minutes idle, analytics allowed later)
+ *   gets no external referrer: it is a continuation, not a new arrival.
  */
 
 export type ClientEventType =
@@ -48,6 +54,8 @@ const BATCH_LIMIT = 20;
 const QUEUE_LIMIT = 100;
 const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
 const CLICK_IDS = ["gclid", "gbraid", "wbraid"] as const;
+/** A real click id is a longish token of URL-safe characters; "?gclid=" or junk does not count. */
+const CLICK_ID_VALUE = /^[\w.~-]{8,1024}$/;
 
 type UTM = Record<(typeof UTM_KEYS)[number], string>;
 
@@ -57,6 +65,8 @@ interface Touch {
   landing_path: string;
   /** Which ad click id the landing URL had ("" none); never its value. */
   click_id?: string;
+  /** The session started on a page reached by a link inside the site. */
+  internal?: boolean;
 }
 
 interface StoredSession {
@@ -80,6 +90,7 @@ export interface LeadAttribution {
   utm_content: string;
   utm_term: string;
   click_id: string;
+  internal_navigation: boolean;
 }
 
 interface QueuedEvent {
@@ -95,6 +106,10 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let lastPageView: { path: string; at: number } | null = null;
 /** Entry of this tab's visit, kept in memory only until consent is given. */
 let pendingLanding: { touch: Touch; at: number } | null = null;
+/** First path of this document and whether a link inside the site has
+ *  been followed since (memory only, reported by the provider). */
+let entryPath: string | null = null;
+let navigatedInside = false;
 
 function storage(): Storage | null {
   try {
@@ -164,20 +179,34 @@ export function forgetAnalyticsIds(): void {
   }
 }
 
+/**
+ * Told about every route the tab shows (client-side navigation included),
+ * whatever the consent: nothing is stored or sent, it only tells the entry
+ * page from pages reached inside the site.
+ */
+export function noteRoute(path: string): void {
+  if (entryPath === null) entryPath = path;
+  else if (path !== entryPath) navigatedInside = true;
+}
+
 function currentTouch(): Touch {
   const params = new URLSearchParams(window.location.search);
   const utm = Object.fromEntries(UTM_KEYS.map((key) => [key, utmValue(params.get(`utm_${key}`))])) as UTM;
   let referrerHost = "";
   try {
-    if (document.referrer) {
+    // The referrer is that of the page the tab was opened on: once a link
+    // inside the site was followed it describes an earlier arrival.
+    if (document.referrer && !navigatedInside) {
       const ref = new URL(document.referrer);
       if (ref.host !== window.location.host) referrerHost = ref.hostname; // host only, never path/query
     }
   } catch {
     // malformed referrer: treat as direct
   }
-  const clickId = CLICK_IDS.find((key) => params.has(key)) ?? "";
-  return { utm, referrer_host: referrerHost, landing_path: window.location.pathname, click_id: clickId };
+  const clickId = CLICK_IDS.find((key) => CLICK_ID_VALUE.test(params.get(key) ?? "")) ?? "";
+  const touch: Touch = { utm, referrer_host: referrerHost, landing_path: window.location.pathname, click_id: clickId };
+  if (navigatedInside) touch.internal = true;
+  return touch;
 }
 
 /** A UTM value as kept: trimmed, at most 100 characters, "" if it looks personal. */
@@ -251,7 +280,7 @@ export function leadAttribution(): LeadAttribution | undefined {
   const here = window.location.pathname;
   // This page's view may not be recorded yet: then the last one is the previous page.
   const previous = (stored.path === here ? stored.previousPath : stored.path) ?? "";
-  const { utm, referrer_host, landing_path, click_id } = stored.touch;
+  const { utm, referrer_host, landing_path, click_id, internal } = stored.touch;
   return {
     source_page: here,
     previous_page: previous === here ? "" : previous,
@@ -263,6 +292,7 @@ export function leadAttribution(): LeadAttribution | undefined {
     utm_content: utm.content,
     utm_term: utm.term,
     click_id: click_id ?? "",
+    internal_navigation: internal === true,
   };
 }
 
@@ -295,8 +325,9 @@ export function track(type: ClientEventType): void {
   }
 }
 
-function withoutClickId({ utm, referrer_host, landing_path }: Touch) {
-  return { utm, referrer_host, landing_path };
+/** A touch as visit events carry it: whether an ad click id was present, never which or its value. */
+function visitTouch({ utm, referrer_host, landing_path, click_id }: Touch) {
+  return { utm, referrer_host, landing_path, ad_click: Boolean(click_id) };
 }
 
 /** Sends queued events; failed ones stay queued and are resent with the
@@ -324,9 +355,8 @@ export async function flush(): Promise<void> {
         visitor_id: visitor,
         session_id: sessionId,
         language: document.documentElement.lang,
-        // The ad click flag is only for a request's source: visit events do without it.
-        session: withoutClickId(touch),
-        first_touch: withoutClickId(first ?? touch),
+        session: visitTouch(touch),
+        first_touch: visitTouch(first ?? touch),
         events: chunk.map(({ id, type, path }) => ({ id, type, path })),
       });
       try {

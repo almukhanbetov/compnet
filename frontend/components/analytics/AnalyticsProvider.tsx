@@ -13,7 +13,7 @@ import {
   type ConsentChoice,
 } from "@/lib/analytics/consent";
 import { configureGa4, ga4Revoke } from "@/lib/analytics/ga4";
-import { flush, forgetAnalyticsIds, rememberLanding, setAnalyticsEnabled, track } from "@/lib/analytics/tracker";
+import { flush, forgetAnalyticsIds, noteRoute, rememberLanding, setAnalyticsEnabled, track } from "@/lib/analytics/tracker";
 
 /**
  * Mounted once in the root layout. Reads the backend's switches, asks for
@@ -63,6 +63,12 @@ export default function AnalyticsProvider() {
       offOpen();
     };
   }, []);
+
+  // Every route the tab shows, consent or not (memory only): tells the
+  // entry page, whose referrer is real, from pages reached inside the site.
+  useEffect(() => {
+    noteRoute(pathname);
+  }, [pathname]);
 
   // One page view per navigation (the tracker ignores repeats of the same
   // path, e.g. effects running twice).

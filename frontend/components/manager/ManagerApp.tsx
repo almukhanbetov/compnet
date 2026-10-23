@@ -127,7 +127,7 @@ export default function ManagerApp({ section = "inbox" }: { section?: ManagerSec
           <ShieldAlert className="h-7 w-7 text-amber-300 light:text-amber-600" aria-hidden="true" />
           <h1 className="text-lg font-semibold text-slate-100 light:text-slate-900">{g.forbiddenTitle}</h1>
           <p className="text-sm text-slate-400 light:text-slate-600">
-            {g.forbiddenText}
+            {g.forbiddenText[section]}
           </p>
           <button
             type="button"

@@ -24,6 +24,10 @@ type AnalyticsTouch struct {
 	UTM          AnalyticsUTM `json:"utm"`
 	ReferrerHost string       `json:"referrer_host"`
 	LandingPath  string       `json:"landing_path"`
+	// AdClick: the landing URL had a Google Ads click id (gclid, gbraid or
+	// wbraid). Only this flag is sent, never the id; it classifies the visit
+	// and is not stored.
+	AdClick bool `json:"ad_click"`
 }
 
 // AnalyticsEventInput is one event from the browser. Only the type and the

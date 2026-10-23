@@ -84,7 +84,7 @@ func TestCleanTextDropsPersonalValues(t *testing.T) {
 
 // A visit tagged with personal data keeps its channel but not the value.
 func TestAttributeDropsPersonalUTM(t *testing.T) {
-	a := Attribute(UTM{Source: "ivan@example.com", Medium: "email", Campaign: "+7 700 000 00 01", Term: "brand"}, "", "compnet.kz")
+	a := Attribute(UTM{Source: "ivan@example.com", Medium: "email", Campaign: "+7 700 000 00 01", Term: "brand"}, "", "compnet.kz", false)
 	if a.Source != "(not set)" || a.Medium != "email" || a.Campaign != "" || a.Term != "brand" {
 		t.Fatalf("attribution: %+v", a)
 	}
