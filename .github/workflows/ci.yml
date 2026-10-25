@@ -1,0 +1,128 @@
+name: CI
+# Checks only: no secrets, no Docker Hub, no VPS, no production database.
+# Integration tests use a throwaway PostgreSQL service on the runner.
+# No path filter, so the checks always report on a pull request (safe to
+# make them required in branch protection later).
+on:
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (vet, build, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        # Throwaway database that exists only for this job.
+        env:
+          POSTGRES_DB: compnet_ci
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d compnet_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      TEST_DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/compnet_ci?sslmode=disable
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        # Latest 1.25.x, like the golang:1.25-alpine image of the Dockerfile
+        # and the deploy (goose v3.27.3 needs at least 1.25.7, so not the
+        # bare 1.25.0 of go.mod).
+        with:
+          go-version: "1.25"
+          cache-dependency-path: backend/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      # Same pinned goose as the deploy, against the throwaway database.
+      - name: Apply migrations
+        run: |
+          go install github.com/pressly/goose/v3/cmd/goose@v3.27.3
+          goose -dir migrations postgres "$TEST_DATABASE_URL" up
+
+      # -p 1: integration tests of different packages share one database
+      # and count rows in the same tables, so packages run one at a time.
+      - name: Test
+        run: go test -p 1 ./...
+
+  frontend:
+    name: Frontend (types, lint, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      # Same build arguments as the production image.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://compnet.kz
+          NEXT_PUBLIC_CHAT_WIDGET_ENABLED: "false"
+
+  compose:
+    name: Production compose file
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Syntax and required variables only, with placeholder values.
+      - name: Validate docker-compose.prod.yml
+        run: docker compose -p compnet -f docker-compose.prod.yml config --quiet
+        env:
+          DOCKERHUB_USERNAME: ci
+          POSTGRES_DB: ci
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          CORS_ALLOWED_ORIGINS: https://example.test
+          TRUSTED_PROXIES: 127.0.0.1
