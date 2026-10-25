@@ -27,6 +27,9 @@ Run (Playwright from the npx cache, not a project dependency):
     node manager.cjs <playwright>                                                     # periods, filters, cards, XSS, access
     node manager-403.cjs <playwright>                                                 # 403 message per section, RU/KZ/EN
     node manager-periods.cjs <playwright>                                             # fast period/filter switches, late realtime re-reads (8.6F)
+    node returning.cjs <playwright>                                                   # new vs returning visitors: first touch, session source (8.6M)
+    ./restart-backend.sh && node conversions.cjs <playwright>                         # request/chat conversions counted once, report deltas (8.6M)
+    python3 -I report-sql.py                                                          # reports = independent SQL for 6 periods (8.6M)
     node prod-readonly.cjs <playwright>                                               # production: open pages only, click nothing
 
 Staff for the test DB are created with `mkstaff.py` (pty for `api create-staff`; password from
