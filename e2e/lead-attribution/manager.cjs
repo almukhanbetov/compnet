@@ -99,10 +99,11 @@ const addDays = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t
   await page.unroute("**/api/v1/manager/analytics/leads**");
 
   // Request cards.
-  await page.goto(SITE + "/manager/requests"); await page.getByText(/^E2E-86C-/).first().waitFor();
+  await page.goto(SITE + "/manager/requests"); await page.getByText(/^E2E-/).first().waitFor();
   for (const [label, needles] of [["E2E-86C-ads_gclid_contact-", ["Платный поиск", "mobile_apps_almaty", "/services/mobile-app-development", "/contact", "Google Ads"]],
                                    ["E2E-86C-organic_multi-", ["google", "/services/website-development", "/services"]],
                                    ["E2E-86C-consent_declined-", []]]) {
+    await page.goto(SITE + "/manager/requests?q=" + encodeURIComponent(label)); await sleep(1500);
     await page.getByText(new RegExp("^" + label)).first().click(); await sleep(1200);
     const src = page.locator('section[aria-labelledby="rq-source"]');
     const txt = (await src.count()) ? (await src.innerText()).replace(/\s+/g, " ") : "";
@@ -110,6 +111,7 @@ const addDays = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t
     else ok(!/Платный поиск|google/i.test(txt), `card ${label} (no consent): source block "${txt.slice(0, 120)}"`);
     await page.keyboard.press("Escape"); await sleep(400);
   }
+  await page.goto(SITE + "/manager/requests?q=E2E-86C-xss"); await sleep(1500);
   await page.getByText(/^E2E-86C-xss/).first().click(); await sleep(1500);
   const xssTxt = await page.locator('section[aria-labelledby="rq-source"]').innerText();
   ok(await page.evaluate(() => window.__xss === undefined) && (await page.locator('section[aria-labelledby="rq-source"] img, section[aria-labelledby="rq-source"] script, section[aria-labelledby="rq-source"] b').count()) === 0,

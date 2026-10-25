@@ -46,6 +46,12 @@ func TestClassify(t *testing.T) {
 		{"utm e-mail", Input{UTMSource: "crm", UTMMedium: "E-Mail"}, Email, "crm"},
 		{"webmail referrer is not google search", Input{ReferrerHost: "mail.google.com", LandingPath: "/"}, Email, "gmail"},
 		{"mail.ru webmail", Input{ReferrerHost: "e.mail.ru", LandingPath: "/"}, Email, "mail.ru"},
+		{"gmail android app is not google search", Input{ReferrerHost: "com.google.android.gm", LandingPath: "/services/website-development"}, Email, "gmail"},
+
+		// Android apps
+		{"google search app", Input{ReferrerHost: "com.google.android.googlequicksearchbox", LandingPath: "/"}, OrganicSearch, "google"},
+		{"telegram android app", Input{ReferrerHost: "org.telegram.messenger", LandingPath: "/portfolio"}, Social, "telegram"},
+		{"google messages app is a referral", Input{ReferrerHost: "com.google.android.apps.messaging", LandingPath: "/"}, Referral, "com.google.android.apps.messaging"},
 
 		// Direct and unknown
 		{"home page without referrer is direct", Input{LandingPath: "/"}, Direct, SourceDirect},
@@ -88,6 +94,14 @@ func TestReferrerKind(t *testing.T) {
 		"mail.google.com": KindEmail,
 		"t.co":            KindSocial,
 		"example.org":     KindReferral,
+		// Android apps (android-app://<package> referrers), Stage 8.6I.
+		"com.google.android.googlequicksearchbox": KindSearch,
+		"com.google.android.gm":                   KindEmail,
+		"ru.yandex.mail":                          KindEmail,
+		"org.telegram.messenger":                  KindSocial,
+		"com.instagram.android":                   KindSocial,
+		"com.google.android.apps.messaging":       KindReferral,
+		"ru.yandex.disk":                          KindReferral,
 	} {
 		if _, kind := ReferrerKind(host); kind != want {
 			t.Errorf("ReferrerKind(%q) = %s, want %s", host, kind, want)

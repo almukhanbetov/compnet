@@ -199,11 +199,45 @@ var emailSites = map[string]string{
 	"mail.yandex.kz": "yandex-mail", "mail.yahoo.com": "yahoo-mail",
 }
 
+// Android apps that open a link pass an android-app://<package> referrer;
+// the browser reports the package name as the host. Checked before the
+// site tables: "com.google.android.gm" is Gmail, not Google search.
+var androidApps = map[string]struct{ name, kind string }{
+	"com.google.android.googlequicksearchbox": {"google", KindSearch},
+	"ru.yandex.searchplugin":                  {"yandex", KindSearch},
+	"com.google.android.gm":                   {"gmail", KindEmail},
+	"ru.yandex.mail":                          {"yandex-mail", KindEmail},
+	"ru.mail.mailapp":                         {"mail.ru", KindEmail},
+	"com.microsoft.office.outlook":            {"outlook", KindEmail},
+	"com.instagram.android":                   {"instagram", KindSocial},
+	"com.facebook.katana":                     {"facebook", KindSocial},
+	"com.facebook.orca":                       {"facebook", KindSocial},
+	"org.telegram.messenger":                  {"telegram", KindSocial},
+	"com.whatsapp":                            {"whatsapp", KindSocial},
+	"com.vkontakte.android":                   {"vk", KindSocial},
+	"com.linkedin.android":                    {"linkedin", KindSocial},
+	"com.twitter.android":                     {"x", KindSocial},
+	"com.google.android.youtube":              {"youtube", KindSocial},
+	"com.zhiliaoapp.musically":                {"tiktok", KindSocial},
+}
+
+// Package prefixes of the search companies' other apps (Messages, Docs,
+// Disk, …): such a referrer is an app, never the search engine itself.
+var appPackagePrefixes = []string{"com.google.", "ru.yandex.", "com.yandex."}
+
 // ReferrerKind names a referring host and tells whether it is a search
 // engine, a social network, a webmail or another site (the name is then
 // the host itself).
 func ReferrerKind(host string) (name, kind string) {
 	host = strings.ToLower(strings.TrimSpace(host))
+	if app, ok := androidApps[host]; ok {
+		return app.name, app.kind
+	}
+	for _, prefix := range appPackagePrefixes {
+		if strings.HasPrefix(host, prefix) {
+			return host, KindReferral
+		}
+	}
 	if name, ok := emailSites[host]; ok {
 		return name, KindEmail
 	}

@@ -12,13 +12,17 @@ import { looksPersonal } from "@/lib/analytics/personal";
  *   fingerprinting: a "visitor" is a browser, not a person — another
  *   device, a private window or cleared storage counts as a new one.
  * - A session ends after 30 minutes without activity, or when the visitor
- *   arrives through a link with different UTM tags.
+ *   arrives through a link with different UTM tags or a new ad click id
+ *   (auto-tagged Google Ads links carry a gclid and no UTM tags). Coming
+ *   back from a search engine within 30 minutes continues the session.
  * - The first source is stored once and never overwritten (a later direct
  *   visit does not erase where the visitor first came from).
- * - Before the visitor has chosen, the tab only remembers in memory where
- *   this visit entered the site (rememberLanding) — nothing is stored or
- *   sent. If they accept within the same visit, the first session starts
- *   from that entry; if they decline, it is forgotten.
+ * - When the page opens, the tab remembers in memory where this visit
+ *   entered the site (rememberLanding) and which page came before the
+ *   current one — nothing is stored or sent. A session this visit starts
+ *   (consent given on a later page, or the tracker became active only after
+ *   the first link was followed) starts from that entry; declining forgets
+ *   it.
  * - Only event types and page paths (no query strings) are sent — never
  *   form values, chat text, contacts or IPs (the server does not store IPs).
  * - Requests and first chat messages are recorded by the backend after
@@ -110,6 +114,10 @@ let pendingLanding: { touch: Touch; at: number } | null = null;
  *  been followed since (memory only, reported by the provider). */
 let entryPath: string | null = null;
 let navigatedInside = false;
+/** The route shown before the current one in this tab (memory only): the
+ *  previous page of a request when analytics is allowed on a later page. */
+let currentRoute: string | null = null;
+let previousRoute: string | null = null;
 
 function storage(): Storage | null {
   try {
@@ -187,6 +195,10 @@ export function forgetAnalyticsIds(): void {
 export function noteRoute(path: string): void {
   if (entryPath === null) entryPath = path;
   else if (path !== entryPath) navigatedInside = true;
+  if (path !== currentRoute) {
+    previousRoute = currentRoute;
+    currentRoute = path;
+  }
 }
 
 function currentTouch(): Touch {
@@ -216,13 +228,14 @@ function utmValue(raw: string | null): string {
 }
 
 /**
- * Called once when the site opens, before the consent choice is known:
+ * Called once when the site opens, before analytics is switched on:
  * remembers in memory (not in storage, never sent) where this visit
- * entered, so a visitor who accepts analytics on a later page is not
- * counted as "unknown". Only while no choice has been made.
+ * entered, so a visitor who accepts analytics on a later page, or who
+ * follows a link before the tracker is ready, keeps the visit's source.
+ * Not after "Necessary only".
  */
 export function rememberLanding(): void {
-  if (typeof window === "undefined" || readConsent() !== null || pendingLanding) return;
+  if (typeof window === "undefined" || readConsent() === "declined" || pendingLanding) return;
   pendingLanding = { touch: currentTouch(), at: Date.now() };
 }
 
@@ -242,18 +255,26 @@ function visitorId(): string {
 /** Current session, rotated after 30 minutes or on a new campaign link. */
 function session(now: number): StoredSession {
   const stored = read<StoredSession>(KEYS.session);
-  // The entry remembered before consent counts for the first session of
-  // this visit only (and not after 30 minutes).
-  const landing = !stored && pendingLanding && now - pendingLanding.at < SESSION_TIMEOUT_MS ? pendingLanding.touch : null;
+  // The entry remembered when the page opened describes this visit's
+  // arrival: it decides the first session this visit starts or continues
+  // (not after 30 minutes), even if a link inside the site was followed
+  // before the tracker became active.
+  const landing = pendingLanding && now - pendingLanding.at < SESSION_TIMEOUT_MS ? pendingLanding.touch : null;
   pendingLanding = null;
   const touch = landing ?? currentTouch();
   const newCampaign = utmKey(touch.utm).replace(/\|/g, "") !== "" && utmKey(touch.utm) !== utmKey(stored?.touch.utm ?? touch.utm);
-  if (stored && now - stored.lastActivity < SESSION_TIMEOUT_MS && !newCampaign) {
+  // An ad click without UTM tags (auto-tagging) is a new campaign as well;
+  // reloading the same landing page is not (the session already has it).
+  const newAdClick = !!touch.click_id && touch.click_id !== (stored?.touch.click_id ?? "");
+  if (stored && now - stored.lastActivity < SESSION_TIMEOUT_MS && !newCampaign && !newAdClick) {
     stored.lastActivity = now;
     write(KEYS.session, stored);
     return stored;
   }
   const fresh: StoredSession = { id: uuidV4(), lastActivity: now, touch };
+  // Allowed on a later page of this visit: the page before this one is
+  // known from the tab's memory (notePage then makes it the previous page).
+  if (landing && previousRoute && previousRoute !== window.location.pathname) fresh.path = previousRoute;
   write(KEYS.session, fresh);
   if (!read<Touch>(KEYS.first)) {
     write(KEYS.first, touch); // first touch: kept for good
