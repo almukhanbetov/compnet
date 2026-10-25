@@ -68,6 +68,10 @@ func TestAttribute(t *testing.T) {
 		{"ad click without referrer", UTM{}, "", "compnet.kz", "google", "cpc", "", true},
 		{"ad click with tags keeps the tags", UTM{Source: "google", Medium: "cpc", Campaign: "mobile_apps_almaty"}, "www.google.com", "compnet.kz", "google", "cpc", "mobile_apps_almaty", true},
 		{"no ad click from google is organic", UTM{}, "www.google.com", "compnet.kz", "google", "organic", "", false},
+		// Android app referrers: the package name is the host (Stage 8.6I).
+		{"gmail android app is email", UTM{}, "com.google.android.gm", "compnet.kz", "gmail", "email", "", false},
+		{"google search app is organic", UTM{}, "com.google.android.googlequicksearchbox", "compnet.kz", "google", "organic", "", false},
+		{"other google app is a referral", UTM{}, "com.google.android.apps.messaging", "compnet.kz", "com.google.android.apps.messaging", "referral", "", false},
 	}
 	for _, c := range cases {
 		a := Attribute(c.utm, c.ref, c.own, c.adClick)
@@ -92,6 +96,20 @@ func TestDeviceAndBots(t *testing.T) {
 		if IsBot(ua) {
 			t.Errorf("browser treated as bot: %q", ua)
 		}
+	}
+	// Real browsers whose user agent contains "bot"-like or app tokens (Stage 8.6I).
+	for _, ua := range []string{
+		"Mozilla/5.0 (Linux; Android 13; CUBOT KINGKONG 9 Build/TP1A.220624.014) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36",
+		"Mozilla/5.0 (Linux; Android 14; SM-A546E Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/141.0.0.0 Mobile Safari/537.36 Instagram 400.0.0.0.70 Android",
+		"Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22G86 [FBAN/FBIOS;FBAV/530.0.0.0;FBDV/iPhone15,2]",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36",
+	} {
+		if IsBot(ua) {
+			t.Errorf("browser treated as bot: %q", ua)
+		}
+	}
+	if !IsBot("Mozilla/5.0 (Linux; Android 13; CUBOT X30) HeadlessChrome/141.0") {
+		t.Error("a headless browser on a CUBOT model must still count as a bot")
 	}
 	for _, ua := range []string{
 		"", "Googlebot/2.1 (+http://www.google.com/bot.html)", "Mozilla/5.0 (compatible; YandexBot/3.0)",

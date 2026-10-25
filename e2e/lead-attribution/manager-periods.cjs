@@ -1,4 +1,4 @@
-// Stage 8.6F: fast period and filter switches on the statistics page never
+// Stage 8.6F (month preset: 8.6I): fast period and filter switches on the statistics page never
 // leave another period's figures on screen — neither from the regular load
 // nor from the quiet re-read after a realtime event. Isolated stack only.
 // usage: node manager-periods.cjs <playwright>   (credentials read from staff.env; never printed)
@@ -19,6 +19,7 @@ const PERIODS = {
   "Вчера": { from: addDays(today, -1), to: addDays(today, -1) },
   "7 дней": { from: addDays(today, -6), to: today },
   "30 дней": { from: addDays(today, -29), to: today },
+  "Текущий месяц": { from: `${today.slice(0, 8)}01`, to: today },
 };
 const REPORTS = "**/api/v1/manager/analytics/{leads,report}?**";
 
@@ -99,7 +100,7 @@ const REPORTS = "**/api/v1/manager/analytics/{leads,report}?**";
   for (const label of Object.keys(PERIODS)) want[label] = await expected(label);
 
   // 1. Fast switches, answers arriving in reverse order (the first click answers last).
-  for (const order of [["Сегодня", "Вчера", "7 дней", "30 дней"], ["30 дней", "7 дней", "Вчера", "Сегодня"]]) {
+  for (const order of [["Сегодня", "Вчера", "7 дней", "30 дней", "Текущий месяц"], ["Текущий месяц", "30 дней", "7 дней", "Вчера", "Сегодня"]]) {
     await delay((u) => {
       const i = order.findIndex((l) => PERIODS[l].from === u.searchParams.get("from") && PERIODS[l].to === u.searchParams.get("to"));
       return i < 0 ? null : (order.length - 1 - i) * 900;
@@ -126,7 +127,7 @@ const REPORTS = "**/api/v1/manager/analytics/{leads,report}?**";
   ok(all === want["30 дней"].requests, `fast filter switch direct → paid_search → all: shown ${all} = API ${want["30 дней"].requests}`);
 
   // 3. Realtime event while a period is shown, then a switch before the quiet re-read answers.
-  for (const [from, to] of [["7 дней", "Вчера"], ["Вчера", "30 дней"], ["30 дней", "Сегодня"], ["Сегодня", "7 дней"]]) {
+  for (const [from, to] of [["7 дней", "Вчера"], ["Вчера", "30 дней"], ["30 дней", "Сегодня"], ["Сегодня", "7 дней"], ["Текущий месяц", "Вчера"]]) {
     await choose(from); await sleep(1500);
     let held = 0;
     await delay((u) => (u.searchParams.get("from") === PERIODS[from].from && u.searchParams.get("to") === PERIODS[from].to ? (held++, 4000) : null));

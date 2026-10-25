@@ -58,10 +58,18 @@ different to the manager. Letters of every alphabet stay as written.
   visitor — the dashboard says "anonymous visitors (browsers, not people)".
 - **Session** (`compnet-a-session`) ends after **30 minutes without
   activity**, or when the visitor arrives through a link with different UTM
-  tags.
+  tags or a new ad click id (gclid/gbraid/wbraid without UTM — Google Ads
+  auto-tagging). Coming back from a search engine or another site within
+  30 minutes continues the session (as in GA4); the visitor's first source
+  is never replaced.
 - **Source of a session**: `utm_source` (+ medium, campaign …) → else the
-  referring site, classified as `organic` (search engines), `social` or
-  `referral` → else `(direct) / (none)`. A referrer from the site itself
+  referring site, classified as `organic` (search engines), `social`,
+  `email` (webmail) or `referral` → else `(direct) / (none)`. Android apps
+  pass `android-app://<package>`, so the package name is the host: known
+  apps are mapped (`com.google.android.gm` → Gmail / email,
+  `com.google.android.googlequicksearchbox` → Google / organic, Telegram,
+  Instagram … → social); any other Google or Yandex app is a referral, never
+  search. A referrer from the site itself
   counts as direct. `document.referrer` describes how the tab was opened,
   so it is used only until the visitor follows a link inside the site: a
   session that starts later in the same tab (after 30 minutes idle, or when
@@ -88,19 +96,24 @@ settings" in the footer. Without consent the site, forms and chat work as
 before and their records are stored as before; nothing is sent to the
 analytics endpoint and no session id is attached to requests or messages.
 
-Until the visitor has chosen, the tab remembers **in memory only** where
-this visit entered the site (landing path, referring host, UTM tags, ad
-click flag) — no storage, no request. If they accept during the same visit
-(within 30 minutes), the first session starts from that entry, so a visitor
-who accepts on a later page is not counted as "unknown"; "Necessary only"
-forgets it. A full page reload starts a new tab state.
+When a page opens (unless the visitor chose "Necessary only"), the tab
+remembers **in memory only** where this visit entered the site (landing
+path, referring host, UTM tags, ad click flag) — no storage, no request.
+The session this visit starts (within 30 minutes) starts from that entry:
+a visitor who accepts on a later page is not counted as "unknown", and a
+returning visitor who follows a link before the tracker has loaded its
+settings keeps the search engine or ad as the source; "Necessary only"
+forgets it. The page shown before the current one is kept the same way, so
+a request sent right after accepting still has its previous page. A full
+page reload starts a new tab state.
 The privacy and cookie pages describe this (still marked as a demo text; no
 legal certification is claimed).
 
 ## Exclusions and data quality
 
 - Dropped by the server: known bots and automation (User-Agent patterns incl.
-  HeadlessChrome, Lighthouse, curl, scripts), requests from localhost /
+  HeadlessChrome, Lighthouse, curl, scripts; phone brands that merely end in
+  "bot", such as CUBOT, are not bots), requests from localhost /
   `*.local` origins, the manager section (`/manager…`) and `/api` paths.
 - Not sent by the browser: `navigator.webdriver` (automated tests), the
   manager's **"Don't count this browser"** switch on the statistics page.

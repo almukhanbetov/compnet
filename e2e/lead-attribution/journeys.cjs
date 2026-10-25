@@ -1,4 +1,4 @@
-// Stage 8.6C browser journeys against the isolated local stack (never production).
+// Stage 8.6C browser journeys (extended in 8.6G/8.6I/8.6K) against the isolated local stack (never production).
 // Real Chromium; external sites are local test stand-ins mapped with --host-resolver-rules,
 // so every referrer is set by the browser itself after a real click.
 // usage: node journeys.cjs <playwright> <out.jsonl> <scenario...>
@@ -7,14 +7,18 @@ const fs = require("fs");
 const OUT = process.argv[3];
 const WANT = process.argv.slice(4);
 const SITE = "http://compnet.test:3006";
-const RULES = "MAP compnet.test 127.0.0.1, MAP api.compnet.test 127.0.0.1, MAP www.google.com:443 127.0.0.1:8443, MAP mail.google.com:443 127.0.0.1:8443, MAP l.instagram.com:443 127.0.0.1:8443";
+const RULES = "MAP compnet.test 127.0.0.1, MAP api.compnet.test 127.0.0.1, MAP www.google.com:443 127.0.0.1:8443, MAP mail.google.com:443 127.0.0.1:8443, MAP l.instagram.com:443 127.0.0.1:8443, MAP m.facebook.com:443 127.0.0.1:8443";
 // An ordinary desktop Chrome: the site and the server ignore automation and headless browsers.
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36";
 const rnd = () => Math.random().toString(16).slice(2, 8);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function visitor(browser, consent) {
-  const ctx = await browser.newContext({ userAgent: UA, ignoreHTTPSErrors: true, viewport: { width: 1366, height: 900 }, locale: "ru-RU" });
+const UA_FOR = {
+  cubot_android: "Mozilla/5.0 (Linux; Android 13; CUBOT KINGKONG 9 Build/TP1A.220624.014) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36",
+};
+
+async function visitor(browser, consent, userAgent = UA) {
+  const ctx = await browser.newContext({ userAgent, ignoreHTTPSErrors: true, viewport: { width: 1366, height: 900 }, locale: "ru-RU" });
   if (consent === "granted-before") {
     // The visitor accepted analytics on an earlier visit (choice stored in this browser).
     await ctx.addInitScript(() => {
@@ -132,6 +136,57 @@ const S = {
     await fromSite(page, "l.instagram.com", SITE + "/services/website-development");
     return { expect: { channel: "social", source: "instagram", landing_page: "/services/website-development" } };
   },
+  async social_facebook(page) {
+    await fromSite(page, "m.facebook.com", SITE + "/");
+    await clickLink(page, "/services");
+    await clickLink(page, "/services/website-development");
+    return { expect: { channel: "social", source: "facebook", landing_page: "/", source_page: "/services/website-development", previous_page: "/services" } };
+  },
+  // Gmail app on Android opens links with "android-app://com.google.android.gm/" as referrer. Chromium cannot
+  // produce that by a click, so the referrer string is set before the page loads: a check of the classification,
+  // not of a real Gmail click (Stage 8.6I).
+  async gmail_android(page) {
+    await page.addInitScript(() => {
+      if (location.pathname === "/services/website-development" && !sessionStorage.getItem("e2e-ref")) {
+        sessionStorage.setItem("e2e-ref", "1");
+        Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://com.google.android.gm/" });
+      }
+    });
+    await page.goto(SITE + "/services/website-development"); await page.waitForLoadState("networkidle");
+    return { expect: { channel: "email", source: "gmail", referrer_host: "com.google.android.gm", session: { source: "gmail", medium: "email" } } };
+  },
+  // A real browser on a CUBOT phone ("CUBOT" ends in "bot") is a visitor, not a bot (Stage 8.6I).
+  async cubot_android(page) {
+    await fromSite(page, "www.google.com", SITE + "/services/website-development");
+    return { expect: { channel: "organic_search", source: "google", session: { source: "google", medium: "organic" } } };
+  },
+  // EasyPrivacy (uBlock Origin, Brave, AdGuard) blocks every URL containing "/analytics/event", so visit batches
+  // never leave the browser; the request form is not blocked (Stage 8.6J).
+  async blocker_easyprivacy(page) {
+    await page.route("**/api/v1/analytics/events", (route) => route.abort("blockedbyclient"));
+    await fromSite(page, "www.google.com", SITE + "/services/website-development");
+    return { expect: { channel: "organic_search", source: "google", landing_page: "/services/website-development" } };
+  },
+  // Returning visitor (consent given earlier, a direct session still active) clicks an auto-tagged Google Ads
+  // link (gclid, no UTM): a new paid session, not a continuation of the direct one (Stage 8.6K).
+  async returning_ad_click(page) {
+    await page.goto(SITE + "/"); await page.waitForLoadState("networkidle"); await sleep(2600);
+    await fromSite(page, "www.google.com", SITE + "/services/mobile-app-development?gclid=TESTGCLID-SECRET-RETURNING");
+    return { expect: { channel: "paid_search", source: "google", landing_page: "/services/mobile-app-development", ad_click: true, session: { source: "google", medium: "cpc", first_source: "(direct)" } } };
+  },
+  // Returning visitor (consent given earlier, last session over) comes from Google and follows a link before the
+  // tracker has its settings (slow network): Google stays the source of the new session (Stage 8.6K).
+  async returning_early_click(page) {
+    await page.goto(SITE + "/"); await page.waitForLoadState("networkidle"); await sleep(2600);
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("compnet-a-session")); s.lastActivity -= 31 * 60 * 1000; localStorage.setItem("compnet-a-session", JSON.stringify(s)); });
+    await page.route("**/api/v1/analytics/config", async (route) => { await sleep(2500); await route.continue(); });
+    await page.goto("https://www.google.com/?to=" + encodeURIComponent(SITE + "/"));
+    await Promise.all([page.waitForURL(SITE + "/**"), page.click("#result")]);
+    await page.waitForLoadState("domcontentloaded");
+    await clickLink(page, "/services");
+    await clickLink(page, "/contact");
+    return { expect: { channel: "organic_search", source: "google", landing_page: "/", source_page: "/contact", previous_page: "/services", session: { source: "google", medium: "organic", first_source: "(direct)" } } };
+  },
   async email_utm(page) {
     await page.goto(SITE + "/services/website-development?utm_source=newsletter&utm_medium=email&utm_campaign=autumn_digest"); await page.waitForLoadState("networkidle");
     return { expect: { channel: "email", source: "newsletter", utm_campaign: "autumn_digest" } };
@@ -153,7 +208,7 @@ const S = {
     await clickLink(page, "/services");
     await clickLink(page, "/contact");
     await consentBanner(page, "accept");
-    return { consent: "none", expect: { channel: "organic_search", source: "google", landing_page: "/services/website-development", source_page: "/contact" } };
+    return { consent: "none", expect: { channel: "organic_search", source: "google", landing_page: "/services/website-development", source_page: "/contact", previous_page: "/services" } };
   },
   // 7: never answers the banner (the most common real-world case) and sends the form.
   async consent_ignored(page) {
@@ -189,7 +244,7 @@ const S = {
   const browser = await chromium.launch({ args: [`--host-resolver-rules=${RULES}`, "--disable-blink-features=AutomationControlled"] });
   for (const name of WANT) {
     const consent = ["consent_declined", "consent_late", "consent_declined_then_accepted", "consent_ignored"].includes(name) ? "none" : "granted-before";
-    const { ctx, page, log } = await visitor(browser, consent);
+    const { ctx, page, log } = await visitor(browser, consent, UA_FOR[name]);
     const label = `E2E-86C-${name}-${rnd()}`;
     let result = { name, label };
     try {

@@ -22,6 +22,8 @@ var (
 	// Automation and crawlers. Detection is best effort: a bot that
 	// pretends to be a browser is counted as one.
 	botPattern = regexp.MustCompile(`(?i)bot\b|bot/|crawl|spider|slurp|headless|lighthouse|pagespeed|preview|python|curl|wget|go-http|java/|okhttp|axios|node-fetch|undici|phantom|selenium|puppeteer|playwright|webdriver|httpclient|monitor|uptime|scanner|facebookexternalhit|embedly|whatsapp/|telegrambot`)
+	// Phone brands that end in "bot" (CUBOT): removed before botPattern runs.
+	botLookalikes = regexp.MustCompile(`(?i)\bcubot\b`)
 )
 
 // ValidUUID accepts a lowercase or uppercase canonical UUID.
@@ -154,7 +156,7 @@ func DeviceCategory(ua string) string {
 
 // IsBot reports automation and known crawlers (best effort).
 func IsBot(ua string) bool {
-	return strings.TrimSpace(ua) == "" || botPattern.MatchString(ua)
+	return strings.TrimSpace(ua) == "" || botPattern.MatchString(botLookalikes.ReplaceAllString(ua, ""))
 }
 
 // IsLocalOrigin reports a development origin (localhost, loopback, *.local).
