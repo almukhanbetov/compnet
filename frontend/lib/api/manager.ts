@@ -6,6 +6,7 @@ import type {
   ApiLeadsReport,
   LeadsFilter,
 } from "@/types/api/analytics";
+import type { ApiSourcesReport } from "@/types/api/analyticsSources";
 import type {
   ApiRequestDetail,
   ApiRequestItem,
@@ -200,6 +201,11 @@ export function fetchAnalyticsVisits(signal?: AbortSignal) {
 
 export function fetchAnalyticsSession(id: string, signal?: AbortSignal) {
   return request<ApiEnvelope<ApiAnalyticsSessionDetail>>(`/analytics/sessions/${encodeURIComponent(id)}`, { signal });
+}
+
+/** Traffic sources: sessions of the period by channel (of the session and of the visitor's first one). */
+export function fetchTrafficSources(from: string, to: string, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiSourcesReport>>(`/analytics/sources${query({ from, to })}`, { signal });
 }
 
 /** Project requests, newest first. Contacts are only ever read here. */

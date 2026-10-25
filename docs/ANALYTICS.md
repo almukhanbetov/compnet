@@ -137,6 +137,7 @@ legal certification is claimed).
 | `GET /api/v1/manager/analytics/report?from&to` | staff session + role with analytics rights (manager, admin) | Asia/Almaty dates, inclusive, ≤ 366 days |
 | `GET /api/v1/manager/analytics/sessions/:id` | same | events in order, linked request (id, type, status — no contacts), linked conversation (what the visitor left in the chat) |
 | `GET /api/v1/manager/analytics/funnel?from&to` | same | conversion funnel of the sessions started in the period (see below) |
+| `GET /api/v1/manager/analytics/sources?from&to` | same | traffic sources: sessions of the period by channel (see below) |
 
 Requests and chat messages accept an optional `analytics_session_id`; the
 backend records the conversion after the save, once per request /
@@ -178,6 +179,34 @@ Sessions started in the period (Asia/Almaty days), per step:
   steps 3–4, and the block says so.
 - Only consenting browsers have sessions: the funnel has fewer inquiries
   than the requests report, which counts every request.
+## Traffic sources
+
+Sessions started in the period (Asia/Almaty days), grouped by channel —
+of the session itself (`channels`) and of the visitor's first source
+(`first_channels`). The channel is derived when reading
+(`attribution.SessionChannel`, the request channels' tag rules); stored
+sources are never changed.
+
+| Channel | Stored session source / medium |
+|---|---|
+| `google_organic` | `google` / `organic` (Google referrer, or such UTM tags) |
+| `google_cpc` | `google` / a paid medium (`cpc`, `ppc`, …): an ad click id without UTM is stored as `google/cpc` |
+| `chatgpt` | source `chatgpt.com` (with `utm_source=chatgpt.com`, or as the referrer without UTM) or `chat.openai.com` |
+| `direct` | `(direct)` / `(none)` |
+| `social` | social networks, paid social included |
+| `referral` | other sites (medium `referral`) |
+| `other` | other search engines and their ads, email, other tags, unknown |
+
+- Per channel: sessions, distinct visitors, new and returning visitors,
+  sessions with an inquiry (a request or first chat message, however many),
+  conversion (of the channel's sessions) and share of all sessions.
+- A visitor is **new** in a set of sessions when their earliest stored
+  session is in it, otherwise **returning**: new + returning = visitors in
+  every row, but one visitor can be new in one channel and returning in
+  another, so rows do not add up to the totals. Earliest *stored*: details
+  are kept for the retention period, so an older visitor can count as new.
+- Shares are percent with one decimal, `null` when there is nothing to
+  divide by. All seven channels are always listed.
 
 ## Time zone
 

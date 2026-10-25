@@ -140,6 +140,7 @@ func New(deps Deps) (*gin.Engine, error) {
 	staffOnly.GET("/analytics/leads", deps.Analytics.Leads)
 	staffOnly.GET("/analytics/funnel", deps.Analytics.Funnel)
 	staffOnly.GET("/analytics/visits", deps.Analytics.Visits)
+	staffOnly.GET("/analytics/sources", deps.Analytics.Sources)
 	staffOnly.GET("/analytics/sessions/:id", deps.Analytics.Session)
 
 	return engine, nil

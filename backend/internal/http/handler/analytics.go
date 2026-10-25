@@ -28,6 +28,7 @@ type AnalyticsService interface {
 	Funnel(ctx context.Context, fromDate, toDate string) (analyticssvc.FunnelResult, error)
 	SessionDetail(ctx context.Context, id string) (analytics.SessionDetail, error)
 	Visits(ctx context.Context) (analyticssvc.VisitsResult, error)
+	Sources(ctx context.Context, fromDate, toDate string) (analyticssvc.SourcesResult, error)
 }
 
 // AnalyticsHandler serves event intake (public, write-only) and the

@@ -30,6 +30,8 @@ Run (Playwright from the npx cache, not a project dependency):
     node returning.cjs <playwright>                                                   # new vs returning visitors: first touch, session source (8.6M)
     ./restart-backend.sh && node conversions.cjs <playwright>                         # request/chat conversions counted once, report deltas (8.6M)
     python3 -I report-sql.py                                                          # reports = independent SQL for 6 periods (8.6M)
+    node sources-report.cjs <playwright> [screenshot-dir]                             # traffic sources: visits by channel → API deltas → manager section (8.7D)
+    python3 -I sources-sql.py                                                         # sources API = independent count for 6 periods (8.7D)
     node funnel.cjs <playwright>                                                      # funnel steps once, consent, blocker, returning (8.7B)
     GA4_MEASUREMENT_ID=G-TEST87B0 ./restart-backend.sh && node funnel.cjs <playwright> --ga4   # what reaches GA4 (gtag.js blocked)
     node funnel-report.cjs <playwright> [screenshot-dir]                               # conversion funnel: visits → API deltas → manager block (8.7C)
