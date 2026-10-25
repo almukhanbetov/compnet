@@ -44,7 +44,13 @@ export type ClientEventType =
   | "promo_click"
   | "whatsapp_click"
   | "phone_click"
-  | "chat_open";
+  | "chat_open"
+  // Funnel steps: actions only, never what was entered or chosen.
+  | "calculator_start"
+  | "calculator_result"
+  | "form_start"
+  | "cta_click"
+  | "email_click";
 
 const KEYS = {
   visitor: "compnet-a-visitor",
@@ -56,6 +62,9 @@ const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 const FLUSH_DELAY_MS = 2_000;
 const BATCH_LIMIT = 20;
 const QUEUE_LIMIT = 100;
+/** A click repeated this fast on the same page (double click) counts once. */
+const CLICK_REPEAT_MS = 1_500;
+const ONCE_PER_CLICK: ReadonlySet<ClientEventType> = new Set(["cta_click", "email_click"]);
 const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
 const CLICK_IDS = ["gclid", "gbraid", "wbraid"] as const;
 /** A real click id is a longish token of URL-safe characters; "?gclid=" or junk does not count. */
@@ -108,6 +117,13 @@ let enabled = false;
 let queue: QueuedEvent[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let lastPageView: { path: string; at: number } | null = null;
+/** Last time each repeat-guarded click type was counted, per page. */
+const lastClicks = new Map<string, number>();
+/** A link click (cta_click) made while no session was active. It must not
+ *  start one: the click fires before the navigation, on the old page, whose
+ *  referrer would wrongly become the new session's source. It joins the
+ *  session the next event (the page it led to) starts (memory only). */
+let heldClick: { id: string; path: string; at: number } | null = null;
 /** Entry of this tab's visit, kept in memory only until consent is given. */
 let pendingLanding: { touch: Touch; at: number } | null = null;
 /** First path of this document and whether a link inside the site has
@@ -167,10 +183,14 @@ export function setOptedOut(value: boolean): void {
   }
 }
 
+/** The manager's excluded browser, or an automated one: counted nowhere (GA4 included). */
+function isExcluded(): boolean {
+  return isOptedOut() || navigator.webdriver;
+}
+
 function isActive(): boolean {
   if (!enabled || typeof window === "undefined") return false;
-  if (readConsent() !== "granted" || isOptedOut()) return false;
-  if (navigator.webdriver) return false; // automated browsers (tests, scrapers)
+  if (readConsent() !== "granted" || isExcluded()) return false;
   return !window.location.pathname.startsWith("/manager");
 }
 
@@ -178,6 +198,7 @@ function isActive(): boolean {
 export function forgetAnalyticsIds(): void {
   queue = [];
   pendingLanding = null;
+  heldClick = null;
   try {
     storage()?.removeItem(KEYS.visitor);
     storage()?.removeItem(KEYS.session);
@@ -282,6 +303,12 @@ function session(now: number): StoredSession {
   return fresh;
 }
 
+/** Whether a stored session is still active (no rotation needed for idleness). */
+function hasLiveSession(now: number): boolean {
+  const stored = read<StoredSession>(KEYS.session);
+  return !!stored && now - stored.lastActivity < SESSION_TIMEOUT_MS;
+}
+
 /** Remembers the page just viewed and the one before it in the session. */
 function notePage(stored: StoredSession, path: string): void {
   if (stored.path === path) return;
@@ -324,19 +351,32 @@ export function analyticsSessionId(): string | undefined {
 }
 
 export function track(type: ClientEventType): void {
-  // GA4 (if configured) follows the same consent; it gets no ids.
-  ga4Event(type, window.location.pathname);
-  if (!isActive()) return;
   const path = window.location.pathname;
   const now = Date.now();
   if (type === "page_view") {
     // Re-renders and repeated effects for the same page are not new views.
     if (lastPageView && lastPageView.path === path && now - lastPageView.at < 1_500) return;
     lastPageView = { path, at: now };
+  } else if (ONCE_PER_CLICK.has(type)) {
+    const key = `${type} ${path}`;
+    if (now - (lastClicks.get(key) ?? -Infinity) < CLICK_REPEAT_MS) return;
+    lastClicks.set(key, now);
+  }
+  // GA4 (if configured) follows the same consent and exclusions, after the
+  // repeat checks above; it gets no ids.
+  if (!isExcluded()) ga4Event(type, path);
+  if (!isActive()) return;
+  if (type === "cta_click" && !hasLiveSession(now)) {
+    heldClick = { id: uuidV4(), path, at: now };
+    return;
   }
   const current = session(now);
   if (type === "page_view") notePage(current, path);
   const sessionId = current.id;
+  if (heldClick) {
+    if (now - heldClick.at < SESSION_TIMEOUT_MS) queue.push({ id: heldClick.id, type: "cta_click", path: heldClick.path, sessionId });
+    heldClick = null;
+  }
   queue.push({ id: uuidV4(), type, path, sessionId });
   if (queue.length > QUEUE_LIMIT) queue = queue.slice(-QUEUE_LIMIT);
   if (queue.length >= BATCH_LIMIT) {

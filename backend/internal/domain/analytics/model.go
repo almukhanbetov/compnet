@@ -12,14 +12,20 @@ import (
 type EventType string
 
 const (
-	EventPageView     EventType = "page_view"
-	EventPromoView    EventType = "promo_view"
-	EventPromoClick   EventType = "promo_click"
-	EventWhatsApp     EventType = "whatsapp_click"
-	EventPhone        EventType = "phone_click"
-	EventChatOpen     EventType = "chat_open"
-	EventChatFirstMsg EventType = "chat_first_message" // backend only, after the message is stored
-	EventLeadSubmit   EventType = "lead_submit"        // backend only, after the request is stored
+	EventPageView   EventType = "page_view"
+	EventPromoView  EventType = "promo_view"
+	EventPromoClick EventType = "promo_click"
+	EventWhatsApp   EventType = "whatsapp_click"
+	EventPhone      EventType = "phone_click"
+	EventChatOpen   EventType = "chat_open"
+	// Funnel steps (Stage 8.7B): what the visitor did, never what they entered.
+	EventCalculatorStart  EventType = "calculator_start"   // first use of the calculator on a page view
+	EventCalculatorResult EventType = "calculator_result"  // the calculator showed an estimate, once per page view
+	EventFormStart        EventType = "form_start"         // first interaction with the request form, once per page view
+	EventCTAClick         EventType = "cta_click"          // a link to /contact or /calculator
+	EventEmailClick       EventType = "email_click"        // a mailto: link
+	EventChatFirstMsg     EventType = "chat_first_message" // backend only, after the message is stored
+	EventLeadSubmit       EventType = "lead_submit"        // backend only, after the request is stored
 )
 
 // ClientEventTypes are the only types a browser may send. Conversions are
@@ -32,6 +38,13 @@ var ClientEventTypes = map[EventType]bool{
 	EventWhatsApp:   true,
 	EventPhone:      true,
 	EventChatOpen:   true,
+	// Funnel steps: actions, not conversions (a request or a chat counts
+	// only once the backend has saved it).
+	EventCalculatorStart:  true,
+	EventCalculatorResult: true,
+	EventFormStart:        true,
+	EventCTAClick:         true,
+	EventEmailClick:       true,
 }
 
 // Limits.

@@ -15,10 +15,24 @@ import {
 import { configureGa4, ga4Revoke } from "@/lib/analytics/ga4";
 import { flush, forgetAnalyticsIds, noteRoute, rememberLanding, setAnalyticsEnabled, track } from "@/lib/analytics/tracker";
 
+/** Pages a call to action leads to: the request form and the calculator. */
+const CTA_PATHS = new Set(["/contact", "/calculator"]);
+
+/** A link inside the site to one of CTA_PATHS (query and hash ignored). */
+function isCtaLink(link: HTMLAnchorElement): boolean {
+  try {
+    const url = new URL(link.href);
+    return url.origin === window.location.origin && CTA_PATHS.has(url.pathname.replace(/\/$/, ""));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Mounted once in the root layout. Reads the backend's switches, asks for
  * consent when something optional is configured, tracks page views on
- * every client-side navigation and phone/WhatsApp/promo clicks anywhere.
+ * every client-side navigation and phone/WhatsApp/email/promo and
+ * call-to-action clicks anywhere.
  * Renders nothing but the consent banner.
  */
 export default function AnalyticsProvider() {
@@ -76,7 +90,9 @@ export default function AnalyticsProvider() {
     if (configured && choice === "granted") track("page_view");
   }, [pathname, configured, choice]);
 
-  // Clicks anywhere: tel: and wa.me links, and actions inside the promo block.
+  // Clicks anywhere: tel:, wa.me and mailto: links, links to the request
+  // form or the calculator (only that one was clicked, not where it led),
+  // and actions inside the promo block.
   useEffect(() => {
     if (!configured) return;
     const onClick = (event: MouseEvent) => {
@@ -85,6 +101,8 @@ export default function AnalyticsProvider() {
       const href = link?.getAttribute("href") ?? "";
       if (href.startsWith("tel:")) track("phone_click");
       else if (href.startsWith("https://wa.me/")) track("whatsapp_click");
+      else if (href.startsWith("mailto:")) track("email_click");
+      else if (link instanceof HTMLAnchorElement && isCtaLink(link)) track("cta_click");
       if (target?.closest("#promo a, #promo button")) track("promo_click");
     };
     const onHide = () => {

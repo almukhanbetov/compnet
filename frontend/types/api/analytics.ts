@@ -67,6 +67,11 @@ export type ApiAnalyticsEventType =
   | "whatsapp_click"
   | "phone_click"
   | "chat_open"
+  | "calculator_start"
+  | "calculator_result"
+  | "form_start"
+  | "cta_click"
+  | "email_click"
   | "chat_first_message"
   | "lead_submit";
 

@@ -13,8 +13,16 @@ accepted analytics; shown to managers at `/manager/analytics`.
 | `promo_click` | a link/button inside the promo block was clicked | browser |
 | `whatsapp_click`, `phone_click` | any `wa.me` / `tel:` link clicked | browser |
 | `chat_open` | the chat widget was opened | browser |
+| `calculator_start` | first click or change in the calculator form (once per page view) | browser |
+| `calculator_result` | the calculator showed an estimate for the first time (once per page view) | browser |
+| `form_start` | first focus or input in the request form, not the hidden anti-spam field (once per page view) | browser |
+| `cta_click` | a link inside the site to `/contact` or `/calculator` was clicked (the page it was on is stored, not the target; a repeat on the same page within 1.5 s ignored) | browser |
+| `email_click` | a `mailto:` link was clicked (repeats within 1.5 s ignored) | browser |
 | `chat_first_message` | the conversation's **first visitor message was stored** | backend, after saving |
 | `lead_submit` | a request **was stored** | backend, after saving |
+
+Funnel steps carry only the type and the page path: never the calculator's
+choices or estimate, a form field or its value.
 
 Clicks are not inquiries. Only `lead_submit` and `chat_first_message` count
 as inquiries, and the API refuses them from browsers.
@@ -209,8 +217,12 @@ poll while the socket is down.
 Not installed before (no gtag/GTM in the code). Optional and off: with a real
 `GA4_MEASUREMENT_ID` the browser loads `gtag.js` **after consent** and sends
 `page_view` (path only), `promo_view`, `promo_click`, `whatsapp_click`,
-`phone_click`, `chat_open` and `generate_lead` (after the server confirmed a
-saved request). Never contacts, chat text, request or conversation ids;
+`phone_click`, `chat_open`, `calculator_start`, `calculator_result`,
+`request_form_start` (the tracker's `form_start`; GA4's own enhanced
+measurement uses `form_start` for any form), `cta_click`, `email_click` and
+`generate_lead` (after the server confirmed a saved request). Browsers the
+manager excluded ("do not count this browser") and automated browsers send
+nothing to GA4 either. Never contacts, chat text, request or conversation ids;
 Google signals and ad personalisation off. Withdrawing consent sets
 `analytics_storage` to denied. Create the property in Google Analytics
 yourself and put its id in the VPS `.env`.

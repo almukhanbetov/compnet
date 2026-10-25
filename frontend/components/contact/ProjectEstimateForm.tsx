@@ -28,7 +28,7 @@ import type {
 } from "@/types/contactPage";
 import { buildProjectRequestPayload } from "@/lib/api/projectRequestMapping";
 import { submitProjectRequest } from "@/lib/api/projectRequests";
-import { analyticsSessionId, leadAttribution } from "@/lib/analytics/tracker";
+import { analyticsSessionId, leadAttribution, track } from "@/lib/analytics/tracker";
 import { ga4Event } from "@/lib/analytics/ga4";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { byId, fill } from "@/lib/i18n";
@@ -183,6 +183,15 @@ export default function ProjectEstimateForm({
   // invalid field, the success message, or the first field after "send
   // another".
   const pendingFocus = useRef<string | null>(null);
+  // Analytics: the first interaction with the form, once per page view
+  // (that it happened only — never a field or its value). The hidden
+  // anti-spam field does not count.
+  const formStarted = useRef(false);
+  const noteFormStart = (event: { target: EventTarget }) => {
+    if (formStarted.current || (event.target as Element | null)?.id === "website") return;
+    formStarted.current = true;
+    track("form_start");
+  };
 
   useEffect(() => {
     const id = pendingFocus.current;
@@ -363,6 +372,8 @@ export default function ProjectEstimateForm({
               ref={formRef}
               noValidate
               onSubmit={handleSubmit}
+              onFocusCapture={noteFormStart}
+              onChangeCapture={noteFormStart}
               aria-labelledby={heading ? FORM_TITLE_ID : undefined}
               className="space-y-6"
             >

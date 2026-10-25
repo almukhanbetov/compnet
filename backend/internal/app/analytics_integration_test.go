@@ -599,3 +599,46 @@ func TestAnalytics_VisitCounter(t *testing.T) {
 		t.Fatalf("second cleanup: %+v", again.AllTime)
 	}
 }
+
+// Stage 8.7B: the funnel steps are stored (the migrated type check accepts
+// them) with the path only, are never conversions, and resending the batch
+// adds nothing.
+func TestAnalytics_FunnelEvents(t *testing.T) {
+	e := newEnv(t)
+	s := e.startAnalytics()
+	a := s.actor(t)
+	visitor, session := uuid(), uuid()
+	e.trackSession(session)
+
+	b := newBatch(visitor, session,
+		[2]string{"page_view", "/calculator"},
+		[2]string{"calculator_start", "/calculator"},
+		[2]string{"calculator_result", "/calculator?type=corporate&phone=77001234567"},
+		[2]string{"cta_click", "/calculator"},
+		[2]string{"form_start", "/contact"},
+		[2]string{"email_click", "/contact"},
+	)
+	for i := 0; i < 2; i++ { // the second time: a retry with the same ids
+		if code, body := a.send("/api/v1/analytics/events", testOrigin, browserUA, b); code != 204 {
+			t.Fatalf("ingest %d: %d %s", i, code, body)
+		}
+	}
+	for _, typ := range []string{"calculator_start", "calculator_result", "cta_click", "form_start", "email_click"} {
+		if n := e.count(`SELECT count(*) FROM analytics_events WHERE session_id = $1 AND type = $2`, session, typ); n != 1 {
+			t.Errorf("%s stored %d times, want 1", typ, n)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_events WHERE session_id = $1 AND path LIKE '%?%'`, session); n != 0 {
+		t.Fatal("query string kept in a funnel event path")
+	}
+	if n := e.count(`SELECT count(*) FROM analytics_events WHERE session_id = $1 AND (type IN ('lead_submit','chat_first_message') OR project_request_id IS NOT NULL OR conversation_id IS NOT NULL)`, session); n != 0 {
+		t.Fatal("a funnel step was stored as a conversion")
+	}
+	if n := e.count(`SELECT event_count FROM analytics_sessions WHERE id = $1`, session); n != 6 {
+		t.Fatalf("event_count %d, want 6", n)
+	}
+	// Names close to the new ones are still refused.
+	if code, _ := a.send("/api/v1/analytics/events", testOrigin, browserUA, newBatch(visitor, session, [2]string{"form_submit", "/contact"})); code != 422 {
+		t.Errorf("form_submit: want 422, got %d", code)
+	}
+}
