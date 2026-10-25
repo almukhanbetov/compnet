@@ -20,6 +20,7 @@ import {
 import ManagerHeader from "@/components/manager/ManagerHeader";
 import { useManagerEvents } from "@/components/manager/ManagerRealtime";
 import VisitCounter from "@/components/manager/analytics/VisitCounter";
+import FunnelReport from "@/components/manager/analytics/FunnelReport";
 import LeadsReport from "@/components/manager/analytics/LeadsReport";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { AuthErrorHandler } from "@/components/manager/useInbox";
@@ -231,6 +232,7 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
         {/* Requests come from the requests themselves: shown even when the
             visit report is still loading or failed. */}
         <LeadsReport range={range} onAuthError={onAuthError} />
+        <FunnelReport range={range} onAuthError={onAuthError} />
 
         {state === "loading" && !report ? (
           <p className="flex items-center gap-2 py-16 text-sm text-slate-400 light:text-slate-600">

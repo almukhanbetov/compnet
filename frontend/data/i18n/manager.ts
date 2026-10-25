@@ -171,6 +171,39 @@ const ru = {
       other: "Другое",
       unknown: "Неизвестно",
     },
+    funnel: {
+      title: "Воронка конверсий",
+      hint: "Сессии, начатые в выбранном периоде. Сессия попадает на шаг, только если в ней пройдены и все предыдущие шаги; порядок по времени не важен (обычно сначала нажимают «Связаться», потом заполняют форму). Учитываются только браузеры с согласием на аналитику — поэтому обращений здесь меньше, чем в блоке «Заявки и источники».",
+      label: "Шаги воронки",
+      steps: {
+        visit: "Посещение сайта",
+        interest: "Интерес к услугам",
+        start: "Начало взаимодействия",
+        intent: "Намерение обратиться",
+        conversion: "Обращение",
+      },
+      stepHints: {
+        visit: "все сессии периода",
+        interest: "открыл услуги или калькулятор",
+        start: "начал расчёт в калькуляторе или форму заявки",
+        intent: "нажал ссылку на заявку или калькулятор либо email",
+        conversion: "сохранённая заявка или первое сообщение в чате",
+      },
+      /** {count} */
+      sessions: "Сессий: {count}",
+      /** {value} */
+      ofFirst: "{value} от посещений",
+      ofPrevious: "{value} от предыдущего шага",
+      /** {count} {value} */
+      lost: "Не дошли: {count} ({value})",
+      /** {total} {outside} */
+      outside: "Сессий с обращением за период: {total}, из них не прошли все шаги: {outside} — например, написали в чат с главной страницы.",
+      /** {date} */
+      since: "Шаги «Начало взаимодействия» и «Намерение обратиться» собираются с {date}. Более ранние сессии не могут их пройти — воронка за этот период занижена.",
+      notYet: "События шагов «Начало взаимодействия» и «Намерение обратиться» ещё не поступали — дальше шага «Интерес к услугам» воронка пока пустая.",
+      empty: "Сессий за период нет.",
+      failed: "Не удалось загрузить воронку.",
+    },
     leads: {
       title: "Заявки и источники",
       hint: "Считаются все заявки за период. Источник известен только для заявок, отправленных с согласием на аналитику, остальные попадают в «Неизвестно». Источник сообщает браузер посетителя, канал определяет сервер.",
@@ -654,6 +687,39 @@ export const managerTranslations: Record<Locale, ManagerTranslations> = {
         other: "Басқа",
         unknown: "Белгісіз",
       },
+      funnel: {
+        title: "Конверсия воронкасы",
+        hint: "Таңдалған кезеңде басталған сессиялар. Сессия қадамға тек сол сессияда алдыңғы барлық қадамдар өтілсе ғана түседі; уақыт реті маңызды емес (әдетте алдымен «Байланысу» басылады, содан кейін форма толтырылады). Тек аналитикаға келісім берген браузерлер ескеріледі — сондықтан мұнда өтініштер «Өтінімдер және көздер» блогындағыдан аз.",
+        label: "Воронка қадамдары",
+        steps: {
+          visit: "Сайтқа кіру",
+          interest: "Қызметтерге қызығушылық",
+          start: "Әрекеттің басталуы",
+          intent: "Хабарласу ниеті",
+          conversion: "Өтініш",
+        },
+        stepHints: {
+          visit: "кезеңнің барлық сессиялары",
+          interest: "қызметтерді немесе калькуляторды ашты",
+          start: "калькуляторда есептеуді немесе өтінім формасын бастады",
+          intent: "өтінімге не калькуляторға сілтемені немесе email-ді басты",
+          conversion: "сақталған өтінім немесе чаттағы алғашқы хабарлама",
+        },
+        /** {count} */
+        sessions: "Сессиялар: {count}",
+        /** {value} */
+        ofFirst: "кірулердің {value}",
+        ofPrevious: "алдыңғы қадамның {value}",
+        /** {count} {value} */
+        lost: "Жетпегендер: {count} ({value})",
+        /** {total} {outside} */
+        outside: "Кезеңдегі өтініші бар сессиялар: {total}, оның ішінде барлық қадамнан өтпегендер: {outside} — мысалы, басты беттен чатқа жазғандар.",
+        /** {date} */
+        since: "«Әрекеттің басталуы» және «Хабарласу ниеті» қадамдары {date} бастап жиналады. Бұрынғы сессиялар оларды өте алмайды — бұл кезеңнің воронкасы төмендетілген.",
+        notYet: "«Әрекеттің басталуы» және «Хабарласу ниеті» қадамдарының оқиғалары әлі түскен жоқ — воронка «Қызметтерге қызығушылық» қадамынан әрі қарай әзірге бос.",
+        empty: "Кезеңде сессиялар жоқ.",
+        failed: "Воронканы жүктеу мүмкін болмады.",
+      },
       leads: {
         title: "Өтінімдер және дереккөздер",
         hint: "Кезеңдегі барлық өтінімдер саналады. Дереккөз тек аналитикаға келісіммен жіберілген өтінімдер үшін белгілі, қалғандары «Белгісіз» болып есептеледі. Дереккөзді келушінің браузері хабарлайды, арнаны сервер анықтайды.",
@@ -1115,6 +1181,39 @@ export const managerTranslations: Record<Locale, ManagerTranslations> = {
         email: "Email",
         other: "Other",
         unknown: "Unknown",
+      },
+      funnel: {
+        title: "Conversion funnel",
+        hint: "Sessions started in the selected period. A session counts on a step only if it also passed every earlier step; the order in time does not matter (people usually click “Contact us” first and fill in the form after). Only browsers with analytics consent count — so there are fewer inquiries here than in “Requests and sources”.",
+        label: "Funnel steps",
+        steps: {
+          visit: "Site visit",
+          interest: "Interest in services",
+          start: "Started interacting",
+          intent: "Intent to get in touch",
+          conversion: "Inquiry",
+        },
+        stepHints: {
+          visit: "every session of the period",
+          interest: "opened services or the calculator",
+          start: "started the calculator or the request form",
+          intent: "clicked a link to the request form or calculator, or an email",
+          conversion: "a stored request or a first chat message",
+        },
+        /** {count} */
+        sessions: "Sessions: {count}",
+        /** {value} */
+        ofFirst: "{value} of visits",
+        ofPrevious: "{value} of the previous step",
+        /** {count} {value} */
+        lost: "Dropped: {count} ({value})",
+        /** {total} {outside} */
+        outside: "Sessions with an inquiry in the period: {total}, of them did not pass every step: {outside} — e.g. wrote in the chat from the home page.",
+        /** {date} */
+        since: "The “Started interacting” and “Intent to get in touch” steps are collected since {date}. Earlier sessions cannot pass them — the funnel for this period is understated.",
+        notYet: "No “Started interacting” or “Intent to get in touch” events yet — the funnel is empty after “Interest in services” for now.",
+        empty: "No sessions in this period.",
+        failed: "Could not load the funnel.",
       },
       leads: {
         title: "Requests and sources",

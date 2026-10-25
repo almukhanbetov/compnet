@@ -2,6 +2,7 @@ import type {
   ApiAnalyticsReport,
   ApiAnalyticsSessionDetail,
   ApiAnalyticsVisits,
+  ApiFunnel,
   ApiLeadsReport,
   LeadsFilter,
 } from "@/types/api/analytics";
@@ -185,6 +186,11 @@ export function fetchAnalyticsReport(from: string, to: string, signal?: AbortSig
 /** Requests by status, source, page, project type and day (Asia/Almaty dates). */
 export function fetchLeadsReport(from: string, to: string, filter: LeadsFilter, signal?: AbortSignal) {
   return request<ApiEnvelope<ApiLeadsReport>>(`/analytics/leads${query({ from, to, ...filter })}`, { signal });
+}
+
+/** Conversion funnel of the sessions started in the period. */
+export function fetchFunnel(from: string, to: string, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiFunnel>>(`/analytics/funnel${query({ from, to })}`, { signal });
 }
 
 /** Visit counter: today (Asia/Almaty) and all time. */

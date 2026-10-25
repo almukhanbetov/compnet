@@ -138,6 +138,7 @@ func New(deps Deps) (*gin.Engine, error) {
 	// Statistics: staff session + a role with analytics rights.
 	staffOnly.GET("/analytics/report", deps.Analytics.Report)
 	staffOnly.GET("/analytics/leads", deps.Analytics.Leads)
+	staffOnly.GET("/analytics/funnel", deps.Analytics.Funnel)
 	staffOnly.GET("/analytics/visits", deps.Analytics.Visits)
 	staffOnly.GET("/analytics/sessions/:id", deps.Analytics.Session)
 

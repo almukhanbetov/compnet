@@ -186,3 +186,23 @@ type LeadsReport struct {
 	Days          []LeadCount // YYYY-MM-DD, Asia/Almaty, every day of the period
 	Conversion    LeadConversion
 }
+
+// Funnel counts the sessions started in a period on each step of the way to
+// an inquiry. A session counts on a step only if it reached every earlier
+// step in the same session; the order in time is not required (the request
+// form is usually opened through a link to it before it is started, and a
+// batch of events shares one server time). Each session counts once per
+// step, however many events it has.
+type Funnel struct {
+	Visits     int // sessions started in the period
+	Interest   int // … that viewed /services, a service page or /calculator
+	Started    int // … that also started the calculator or the request form
+	Intent     int // … that also clicked a link to /contact or /calculator, or an email
+	Conversion int // … that also sent a stored request or a first chat message
+	// ConvertedSessions: every session of the period with a request or a
+	// first chat message, inside the funnel or not.
+	ConvertedSessions int
+	// StepEventsSince is when the first started/intent event was stored at
+	// all (these events are newer than page views); nil means none yet.
+	StepEventsSince *time.Time
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"math"
 	"net/http"
 	"time"
 
@@ -24,6 +25,7 @@ type AnalyticsService interface {
 	Ingest(ctx context.Context, in analyticssvc.IngestInput) error
 	Report(ctx context.Context, fromDate, toDate string) (analyticssvc.ReportResult, error)
 	Leads(ctx context.Context, fromDate, toDate string, f analytics.LeadFilter) (analyticssvc.LeadsResult, error)
+	Funnel(ctx context.Context, fromDate, toDate string) (analyticssvc.FunnelResult, error)
 	SessionDetail(ctx context.Context, id string) (analytics.SessionDetail, error)
 	Visits(ctx context.Context) (analyticssvc.VisitsResult, error)
 }
@@ -113,6 +115,20 @@ func (h *AnalyticsHandler) Leads(c *gin.Context) {
 		return
 	}
 	response.OK(c, newLeadsResponse(result))
+}
+
+// Funnel handles GET /api/v1/manager/analytics/funnel?from=YYYY-MM-DD&to=YYYY-MM-DD
+// (Asia/Almaty dates, inclusive): session counts per funnel step.
+func (h *AnalyticsHandler) Funnel(c *gin.Context) {
+	if !requireAnalyticsRole(c) {
+		return
+	}
+	result, err := h.service.Funnel(c.Request.Context(), c.Query("from"), c.Query("to"))
+	if err != nil {
+		apierr.Write(c, err)
+		return
+	}
+	response.OK(c, newFunnelResponse(result))
 }
 
 // Session handles GET /api/v1/manager/analytics/sessions/:id.
@@ -472,5 +488,67 @@ func newLeadsResponse(r analyticssvc.LeadsResult) leadsResponse {
 	for _, s := range rep.Sources {
 		out.Sources = append(out.Sources, leadSourceResponse(s))
 	}
+	return out
+}
+
+// funnelStepResponse is one step: its sessions and how they compare with
+// the first and the previous step. Shares are percentages with one
+// decimal, null when there is nothing to compare with (a zero step).
+type funnelStepResponse struct {
+	Key        string   `json:"key"`
+	Sessions   int      `json:"sessions"`
+	OfFirst    *float64 `json:"of_first"`
+	OfPrevious *float64 `json:"of_previous"` // null for the first step
+	Lost       int      `json:"lost"`        // sessions of the previous step that did not reach this one
+	LostPct    *float64 `json:"lost_pct"`
+}
+
+type funnelResponse struct {
+	Period struct {
+		From     string `json:"from"`
+		To       string `json:"to"`
+		TimeZone string `json:"time_zone"`
+	} `json:"period"`
+	Steps []funnelStepResponse `json:"steps"`
+	// Every converted session of the period, and those of them that did not
+	// pass every step (e.g. a chat started from the home page).
+	ConvertedSessions int        `json:"converted_sessions"`
+	OutsideFunnel     int        `json:"conversions_outside_funnel"`
+	StepEventsSince   *time.Time `json:"step_events_since"`
+}
+
+// share is part/whole in percent with one decimal, nil when whole is 0.
+func share(part, whole int) *float64 {
+	if whole <= 0 {
+		return nil
+	}
+	v := math.Round(float64(part)*1000/float64(whole)) / 10
+	return &v
+}
+
+func newFunnelResponse(r analyticssvc.FunnelResult) funnelResponse {
+	var out funnelResponse
+	out.Period.From, out.Period.To, out.Period.TimeZone = r.Period.FromDate, r.Period.ToDate, analyticssvc.ReportZone
+	f := r.Funnel
+	counts := []struct {
+		key string
+		n   int
+	}{
+		{"visit", f.Visits}, {"interest", f.Interest}, {"start", f.Started}, {"intent", f.Intent}, {"conversion", f.Conversion},
+	}
+	out.Steps = make([]funnelStepResponse, 0, len(counts))
+	for i, c := range counts {
+		step := funnelStepResponse{Key: c.key, Sessions: c.n, OfFirst: share(c.n, f.Visits)}
+		if i > 0 {
+			prev := counts[i-1].n
+			step.OfPrevious = share(c.n, prev)
+			step.Lost = prev - c.n
+			step.LostPct = share(prev-c.n, prev)
+		}
+		out.Steps = append(out.Steps, step)
+	}
+	out.ConvertedSessions = f.ConvertedSessions
+	out.OutsideFunnel = f.ConvertedSessions - f.Conversion
+	out.StepEventsSince = f.StepEventsSince
 	return out
 }
