@@ -32,6 +32,8 @@ Run (Playwright from the npx cache, not a project dependency):
     python3 -I report-sql.py                                                          # reports = independent SQL for 6 periods (8.6M)
     node funnel.cjs <playwright>                                                      # funnel steps once, consent, blocker, returning (8.7B)
     GA4_MEASUREMENT_ID=G-TEST87B0 ./restart-backend.sh && node funnel.cjs <playwright> --ga4   # what reaches GA4 (gtag.js blocked)
+    node funnel-report.cjs <playwright> [screenshot-dir]                               # conversion funnel: visits → API deltas → manager block (8.7C)
+    python3 -I funnel-sql.py                                                          # funnel API = independent count for 6 periods (8.7C)
     node prod-readonly.cjs <playwright>                                               # production: open pages only, click nothing
 
 Staff for the test DB are created with `mkstaff.py` (pty for `api create-staff`; password from

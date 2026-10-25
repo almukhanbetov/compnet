@@ -575,3 +575,39 @@ func (r *AnalyticsRepository) LeadsReport(ctx context.Context, from, to time.Tim
 	}
 	return rep, nil
 }
+
+// Funnel counts the sessions started in [from, to) per funnel step (see
+// analytics.Funnel). A session's events count whenever they happened, like
+// the "converted" flag of the dashboard, so the conversion figures match.
+// One pass over the period's sessions and their events (session index);
+// the first step event is read per type from the (type, occurred_at) index.
+func (r *AnalyticsRepository) Funnel(ctx context.Context, from, to time.Time) (analytics.Funnel, error) {
+	var f analytics.Funnel
+	err := r.pool.QueryRow(ctx, `
+		WITH s AS (
+			SELECT s.id,
+				COALESCE(bool_or(e.type = 'page_view'
+				         AND (e.path = '/services' OR e.path LIKE '/services/%' OR e.path = '/calculator')), false) AS interest,
+				COALESCE(bool_or(e.type IN ('calculator_start', 'form_start')), false) AS started,
+				COALESCE(bool_or(e.type IN ('cta_click', 'email_click')), false) AS intent,
+				COALESCE(bool_or(e.type IN ('lead_submit', 'chat_first_message')), false) AS converted
+			FROM analytics_sessions s
+			LEFT JOIN analytics_events e ON e.session_id = s.id
+			WHERE s.started_at >= $1 AND s.started_at < $2
+			GROUP BY s.id
+		)
+		SELECT count(*),
+		       count(*) FILTER (WHERE interest),
+		       count(*) FILTER (WHERE interest AND started),
+		       count(*) FILTER (WHERE interest AND started AND intent),
+		       count(*) FILTER (WHERE interest AND started AND intent AND converted),
+		       count(*) FILTER (WHERE converted),
+		       LEAST(
+		           (SELECT min(occurred_at) FROM analytics_events WHERE type = 'calculator_start'),
+		           (SELECT min(occurred_at) FROM analytics_events WHERE type = 'calculator_result'),
+		           (SELECT min(occurred_at) FROM analytics_events WHERE type = 'form_start'),
+		           (SELECT min(occurred_at) FROM analytics_events WHERE type = 'cta_click'),
+		           (SELECT min(occurred_at) FROM analytics_events WHERE type = 'email_click'))
+		FROM s`, from, to).Scan(&f.Visits, &f.Interest, &f.Started, &f.Intent, &f.Conversion, &f.ConvertedSessions, &f.StepEventsSince)
+	return f, err
+}

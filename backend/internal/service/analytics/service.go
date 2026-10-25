@@ -26,6 +26,7 @@ type Repository interface {
 	Purge(ctx context.Context, before time.Time) (events, sessions int64, err error)
 	Report(ctx context.Context, from, to time.Time, fromDate, toDate string) (analytics.Report, error)
 	LeadsReport(ctx context.Context, from, to time.Time, fromDate, toDate string, f analytics.LeadFilter) (analytics.LeadsReport, error)
+	Funnel(ctx context.Context, from, to time.Time) (analytics.Funnel, error)
 	SessionDetail(ctx context.Context, id string) (analytics.SessionDetail, error)
 	Visits(ctx context.Context, todayFrom, todayTo time.Time) (analytics.Visits, error)
 }
@@ -263,6 +264,28 @@ func (s *Service) Leads(ctx context.Context, fromDate, toDate string, f analytic
 		return LeadsResult{}, apperr.Internal(err)
 	}
 	return LeadsResult{Period: period, Filter: f, Report: rep}, nil
+}
+
+// FunnelResult is the conversion funnel payload.
+type FunnelResult struct {
+	Period Period
+	Funnel analytics.Funnel
+}
+
+// Funnel returns the conversion funnel of the sessions started in whole
+// Asia/Almaty days [from, to].
+func (s *Service) Funnel(ctx context.Context, fromDate, toDate string) (FunnelResult, error) {
+	period, ok := ParsePeriod(fromDate, toDate)
+	if !ok {
+		return FunnelResult{}, apperr.Validation("проверьте период", map[string]string{
+			"period": "даты YYYY-MM-DD, from ≤ to, не больше 366 дней",
+		})
+	}
+	f, err := s.repo.Funnel(ctx, period.From, period.To)
+	if err != nil {
+		return FunnelResult{}, apperr.Internal(err)
+	}
+	return FunnelResult{Period: period, Funnel: f}, nil
 }
 
 // SessionDetail returns one session's history.

@@ -139,3 +139,27 @@ export interface LeadsFilter {
   page?: string;
   project_type?: string;
 }
+
+/** GET /api/v1/manager/analytics/funnel: sessions started in the period per step. */
+export type ApiFunnelStepKey = "visit" | "interest" | "start" | "intent" | "conversion";
+
+export interface ApiFunnelStep {
+  key: ApiFunnelStepKey;
+  sessions: number;
+  /** Percent of the first step, one decimal; null when the first step is 0. */
+  of_first: number | null;
+  /** Percent of the previous step; null for the first step or after a zero step. */
+  of_previous: number | null;
+  /** Sessions of the previous step that did not reach this one. */
+  lost: number;
+  lost_pct: number | null;
+}
+
+export interface ApiFunnel {
+  period: { from: string; to: string; time_zone: string };
+  steps: ApiFunnelStep[];
+  converted_sessions: number;
+  conversions_outside_funnel: number;
+  /** When the first calculator/form/link step event was stored; null = none yet. */
+  step_events_since: string | null;
+}

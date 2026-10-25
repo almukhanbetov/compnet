@@ -136,6 +136,7 @@ legal certification is claimed).
 | `GET /api/v1/analytics/config` | public | `{enabled, ga4_measurement_id}` only |
 | `GET /api/v1/manager/analytics/report?from&to` | staff session + role with analytics rights (manager, admin) | Asia/Almaty dates, inclusive, ≤ 366 days |
 | `GET /api/v1/manager/analytics/sessions/:id` | same | events in order, linked request (id, type, status — no contacts), linked conversation (what the visitor left in the chat) |
+| `GET /api/v1/manager/analytics/funnel?from&to` | same | conversion funnel of the sessions started in the period (see below) |
 
 Requests and chat messages accept an optional `analytics_session_id`; the
 backend records the conversion after the save, once per request /
@@ -148,6 +149,35 @@ the save, as soon as that session's first batch arrives. Nothing delays the
 request itself. A session that never arrives (consent withdrawn before the
 flush, filtered bot, analytics off) leaves no link; its waiting row is
 deleted by the cleanup task after 24 hours.
+
+## Conversion funnel
+
+Sessions started in the period (Asia/Almaty days), per step:
+
+| Step | Key | A session reached it when it has… |
+|---|---|---|
+| 1. Site visit | `visit` | — (every session) |
+| 2. Interest in services | `interest` | a `page_view` of `/services`, `/services/…` or `/calculator` |
+| 3. Started interacting | `start` | a `calculator_start` or `form_start` |
+| 4. Intent to get in touch | `intent` | a `cta_click` or `email_click` |
+| 5. Inquiry | `conversion` | a `lead_submit` or `chat_first_message` (stored by the backend) |
+
+- A session counts on a step only if it also reached every earlier step in
+  the same session; the order in time is not required (people usually click
+  a link to the form before starting it, and one event batch shares one
+  server time). Each session counts once per step.
+- A session's events count whenever they happened, like the dashboard's
+  "converted sessions", so `converted_sessions` equals that figure.
+  `conversions_outside_funnel` is the converted sessions that skipped a step
+  (e.g. a chat started from the home page).
+- Shares are percent with one decimal of the first and of the previous step;
+  `lost` is how many sessions of the previous step did not reach this one.
+  A share is `null` when there is nothing to compare with (a zero step).
+- `step_events_since` is when the first step 3–4 event was stored at all
+  (those events exist since Stage 8.7B): sessions before it cannot reach
+  steps 3–4, and the block says so.
+- Only consenting browsers have sessions: the funnel has fewer inquiries
+  than the requests report, which counts every request.
 
 ## Time zone
 
