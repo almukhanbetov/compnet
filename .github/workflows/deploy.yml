@@ -3,7 +3,24 @@ on:
   push:
     branches:
       - main
+    # A push deploys unless EVERY changed file is listed here: these paths
+    # never reach the images, the VPS or the database. Anything else —
+    # including any new, unlisted path — deploys (fail-safe). The push diff
+    # covers the whole merge, so "frontend + docs" still deploys.
+    # Checks for pull requests live in ci.yml and never deploy.
+    paths-ignore:
+      - "docs/**"
+      - "e2e/**"
+      - "*.md"
+      - "backend/*.md"
+      - "frontend/*.md"
+      - ".claude/**"
+      - "backend/.claude/**"
+      - "frontend/.claude/**"
+      - "deploy/checks/**"
+      - ".github/workflows/ci.yml"
 
+  # Manual run: deploys main's HEAD, no path filter (other branches: skipped).
   workflow_dispatch:
 
 permissions:
@@ -16,6 +33,9 @@ concurrency:
 jobs:
   build-and-push:
     name: Build and push Docker images
+    # Production only from main: a manual run on any other branch would
+    # otherwise push its images as :latest and deploy them. Skipped there.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -70,6 +90,8 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: build-and-push
+    # Repeated so the deploy can never run for another branch on its own.
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout repository
