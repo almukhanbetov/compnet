@@ -22,6 +22,7 @@ import { useManagerEvents } from "@/components/manager/ManagerRealtime";
 import VisitCounter from "@/components/manager/analytics/VisitCounter";
 import FunnelReport from "@/components/manager/analytics/FunnelReport";
 import LeadsReport from "@/components/manager/analytics/LeadsReport";
+import SourcesReport from "@/components/manager/analytics/SourcesReport";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { AuthErrorHandler } from "@/components/manager/useInbox";
 import {
@@ -259,6 +260,7 @@ export default function AnalyticsDashboard({ user, onAuthError, onLogout }: Prop
           <div className={`space-y-5 transition-opacity ${state === "loading" ? "opacity-60" : ""}`}>
             <Cards report={report} />
             <DailyChart report={report} />
+            <SourcesReport range={range} onAuthError={onAuthError} />
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <SourceTable title={a.sources.title} rows={report.sources} labelOf={sourceLabel} />
               <SourceTable title={a.sources.first} rows={report.first_sources} labelOf={sourceLabel} />

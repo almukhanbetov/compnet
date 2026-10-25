@@ -29,6 +29,7 @@ type Repository interface {
 	Funnel(ctx context.Context, from, to time.Time) (analytics.Funnel, error)
 	SessionDetail(ctx context.Context, id string) (analytics.SessionDetail, error)
 	Visits(ctx context.Context, todayFrom, todayTo time.Time) (analytics.Visits, error)
+	SourceSessions(ctx context.Context, from, to time.Time) ([]analytics.SourceSession, error)
 }
 
 // Notifier tells connected managers that new visits or page views were
