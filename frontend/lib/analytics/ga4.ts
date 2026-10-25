@@ -25,6 +25,13 @@ const EVENT_NAMES: Record<string, string> = {
   whatsapp_click: "whatsapp_click",
   phone_click: "phone_click",
   chat_open: "chat_open",
+  calculator_start: "calculator_start",
+  calculator_result: "calculator_result",
+  // Not "form_start": GA4's enhanced measurement sends that one itself for
+  // any form when enabled on the stream; the two would mix.
+  form_start: "request_form_start",
+  cta_click: "cta_click",
+  email_click: "email_click",
   // Sent only after the server confirmed the request was saved.
   lead_confirmed: "generate_lead",
 };

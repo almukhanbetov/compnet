@@ -2,7 +2,7 @@
 
 import { byId } from "@/lib/i18n";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import FieldWrapper from "@/components/ui/FieldWrapper";
 import SelectField from "@/components/ui/SelectField";
@@ -17,6 +17,7 @@ import {
   appScaleTiers,
 } from "@/data/projectPricing";
 import { calculateProjectEstimate } from "@/lib/pricingCalculator";
+import { track } from "@/lib/analytics/tracker";
 import type {
   ProjectPricingLabel,
   ProjectPricingScale,
@@ -70,6 +71,15 @@ export default function CalculatorForm() {
   const { t } = useLocale();
   const c = t.catalog;
   const [form, setForm] = useState<CalculatorFormState>(initialState);
+  // Analytics, once per page view each: the first action in the form and
+  // the first estimate shown (only that it happened, never the choices).
+  const started = useRef(false);
+  const resultShown = useRef(false);
+  const noteStart = () => {
+    if (started.current) return;
+    started.current = true;
+    track("calculator_start");
+  };
 
   const entry = projectPricingList.find(
     (item) => item.label === form.projectType,
@@ -118,10 +128,21 @@ export default function CalculatorForm() {
 
   const isIndividual = Boolean(entry) && (entry?.basePrice === null || scalePrice === null);
 
+  const hasResult = result !== null;
+  useEffect(() => {
+    if (!hasResult || resultShown.current) return;
+    resultShown.current = true;
+    track("calculator_result");
+  }, [hasResult]);
+
   return (
     <section className="px-6 py-8 md:py-12">
       <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-8 rounded-[28px] border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl md:p-10">
+        <div
+          onClickCapture={noteStart}
+          onChangeCapture={noteStart}
+          className="space-y-8 rounded-[28px] border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl md:p-10"
+        >
           <FieldWrapper label={c.form.projectType} htmlFor="calc-project-type">
             <SelectField<ProjectPricingLabel | "">
               id="calc-project-type"
