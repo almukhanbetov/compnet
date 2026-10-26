@@ -30,7 +30,7 @@ export default function ManagerHeader({ current, user, onLogout, loggingOut = fa
             COMP
             <span className="bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent">NET</span>
           </span>
-          <ManagerNav current={current} />
+          <ManagerNav current={current} role={user.role} />
           {children}
         </div>
         <div className="flex items-center gap-2">

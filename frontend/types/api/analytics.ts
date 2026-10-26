@@ -130,6 +130,8 @@ export interface ApiLeadsReport {
   pages: ApiLeadCount[];
   service_pages: ApiLeadCount[];
   project_types: ApiLeadCount[];
+  /** By tariff slug; "" = individual estimate. */
+  tariffs: ApiLeadCount[];
   /** Every Asia/Almaty day of the period. */
   days: ApiLeadCount[];
 }

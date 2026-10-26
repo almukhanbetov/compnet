@@ -7,6 +7,7 @@ import type {
   LeadsFilter,
 } from "@/types/api/analytics";
 import type { ApiSourcesReport } from "@/types/api/analyticsSources";
+import type { ApiAdminPromotion, ApiAdminTariff, ApiPricingAdmin, PromotionPatch, TariffVersionInput } from "@/types/api/pricingAdmin";
 import type {
   ApiRequestDetail,
   ApiRequestItem,
@@ -220,6 +221,27 @@ export function fetchRequestSummary(signal?: AbortSignal) {
 
 export function fetchRequest(id: string, signal?: AbortSignal) {
   return request<ApiEnvelope<ApiRequestDetail>>(`/project-requests/${encodeURIComponent(id)}`, { signal });
+}
+
+/** Tariffs and promotions (administrators only). */
+export function fetchPricingAdmin(signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiPricingAdmin>>("/pricing", { signal });
+}
+
+export function updateTariff(slug: string, patch: { title?: string; description?: string; sort_order?: number; is_active?: boolean }) {
+  return request<ApiEnvelope<ApiAdminTariff>>(`/pricing/tariffs/${encodeURIComponent(slug)}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+
+export function createTariffVersion(slug: string, input: TariffVersionInput) {
+  return request<ApiEnvelope<ApiAdminTariff>>(`/pricing/tariffs/${encodeURIComponent(slug)}/versions`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function setTariffCost(slug: string, cost: number) {
+  return request<ApiEnvelope<ApiAdminTariff>>(`/pricing/tariffs/${encodeURIComponent(slug)}/cost`, { method: "PUT", body: JSON.stringify({ cost_tenge: cost }) });
+}
+
+export function updatePromotion(slug: string, patch: PromotionPatch) {
+  return request<ApiEnvelope<ApiAdminPromotion>>(`/pricing/promotions/${encodeURIComponent(slug)}`, { method: "PATCH", body: JSON.stringify(patch) });
 }
 
 export function updateRequest(id: string, change: { status?: RequestStatus; note?: string }) {

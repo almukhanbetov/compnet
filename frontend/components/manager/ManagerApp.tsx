@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert, WifiOff } from "lucide-react";
 import ManagerShell from "@/components/manager/ManagerShell";
 import AnalyticsDashboard from "@/components/manager/analytics/AnalyticsDashboard";
+import PricingAdmin from "@/components/manager/pricing/PricingAdmin";
 import RequestsPage from "@/components/manager/requests/RequestsPage";
 import { ManagerRealtimeProvider } from "@/components/manager/ManagerRealtime";
 import type { ManagerSection } from "@/components/manager/ManagerNav";
@@ -87,7 +88,9 @@ export default function ManagerApp({ section = "inbox" }: { section?: ManagerSec
   if (gate.kind === "authed") {
     return (
       <ManagerRealtimeProvider onSessionEnded={handleSessionEnded}>
-        {section === "analytics" ? (
+        {section === "pricing" ? (
+          <PricingAdmin user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />
+        ) : section === "analytics" ? (
           <AnalyticsDashboard user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />
         ) : section === "requests" ? (
           <RequestsPage user={gate.user} onAuthError={handleAuthError} onLogout={handleLogout} />

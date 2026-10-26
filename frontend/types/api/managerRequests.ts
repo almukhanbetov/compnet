@@ -59,6 +59,17 @@ export interface ApiRequestEstimate {
     multilingual_amount_tenge: number;
     subtotal_tenge: number | null;
     estimated_raw_tenge: number | null;
+    /** Requests sent with a tariff: its terms as the server priced them. */
+    tariff?: {
+      slug: string;
+      version: number;
+      price_kind: "fixed" | "from";
+      base_price_tenge: number;
+      discount_tenge: number;
+      promotion_slug?: string;
+      promotion_applied: boolean;
+      final_price_tenge: number;
+    };
   };
   created_at: string;
 }
@@ -101,6 +112,16 @@ export interface ApiRequestDetail extends ApiRequestItem {
   analytics: ApiRequestAnalytics | null;
   /** null: sent without analytics consent, or before sources were recorded. */
   attribution: ApiRequestAttribution | null;
+  /** The promotional place the request holds or held (tariff requests on a promotion). */
+  promotion_place: {
+    promotion_slug: string;
+    promotion_title: string;
+    status: "reserved" | "confirmed" | "released";
+    release_reason?: "rejected" | "archived" | "expired";
+    reserved_at: string;
+    confirmed_at: string | null;
+    released_at: string | null;
+  } | null;
 }
 
 /** Marketing channels decided by the backend (internal/attribution). */

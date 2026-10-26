@@ -24,7 +24,10 @@ func NewProjectRequestRepository(pool *pgxpool.Pool) *ProjectRequestRepository {
 }
 
 // Create inserts the request, its selected features and its estimate in a
-// single transaction: either all three are stored, or none are. The
+// single transaction: either all three are stored, or none are. A request
+// sent with a tariff (order != nil) also stores its tariff terms; its
+// promotional place, if any, is reserved in the same transaction — when none
+// is left the request is saved at the regular price. The
 // request's source (attribution) is optional: it is written in the same
 // transaction behind a savepoint, so a failure there drops only the source
 // and never the request itself.
@@ -34,6 +37,7 @@ func (r *ProjectRequestRepository) Create(
 	features []projectrequest.Feature,
 	estimate projectrequest.Estimate,
 	attribution *projectrequest.Attribution,
+	order *projectrequest.TariffOrder,
 ) (projectrequest.ProjectRequest, projectrequest.Estimate, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -63,6 +67,12 @@ func (r *ProjectRequestRepository) Create(
 	).Scan(&request.ID, &request.Number, &request.Status, &request.CreatedAt, &request.UpdatedAt)
 	if err != nil {
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
+	}
+
+	if order != nil {
+		if estimate, err = r.priceTariffOrder(ctx, tx, request.ID, order, estimate); err != nil {
+			return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
+		}
 	}
 
 	const insertFeature = `
@@ -170,4 +180,52 @@ func nullableString(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// priceTariffOrder reserves the order's promotional place (if it has one),
+// stores the tariff terms and returns the estimate with the final price —
+// the discount only when the place was taken.
+func (r *ProjectRequestRepository) priceTariffOrder(ctx context.Context, tx pgx.Tx, requestID string, order *projectrequest.TariffOrder, estimate projectrequest.Estimate) (projectrequest.Estimate, error) {
+	q := order.Quote
+	promotionSlug := ""
+	if q.Promotion != nil {
+		discount, version, ok, err := reservePromotion(ctx, tx, q.Promotion.ID, q.TariffID, requestID, q.BasePriceTenge, order.ReservationTTL)
+		if err != nil {
+			return estimate, err
+		}
+		if ok {
+			promo := *q.Promotion
+			promo.Version = version
+			q.Promotion = &promo
+			q.DiscountTenge = discount
+			q.FinalTenge = q.BasePriceTenge - discount + q.ModulesTotalTenge
+			promotionSlug = promo.Slug
+		} else {
+			q = q.WithoutPromotion()
+		}
+	}
+	var promotionID *string
+	var promotionVersion *int
+	if q.Promotion != nil {
+		promotionID, promotionVersion = &q.Promotion.ID, &q.Promotion.Version
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO project_request_tariffs
+			(project_request_id, tariff_id, tariff_version_id, tariff_slug, tariff_version, price_kind,
+			 base_price_tenge, discount_tenge, promotion_id, promotion_version, modules_total_tenge,
+			 final_price_tenge, pricing_rules_version)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		requestID, q.TariffID, q.VersionID, q.Slug, q.Version, string(q.PriceKind),
+		q.BasePriceTenge, q.DiscountTenge, promotionID, promotionVersion, q.ModulesTotalTenge,
+		q.FinalTenge, q.RulesVersion); err != nil {
+		return estimate, err
+	}
+	final := q.FinalTenge
+	estimate.MinimumTenge, estimate.MaximumTenge = &final, &final
+	estimate.Breakdown.Tariff = &projectrequest.TariffBreakdown{
+		Slug: q.Slug, Version: q.Version, PriceKind: string(q.PriceKind), BasePriceTenge: q.BasePriceTenge,
+		DiscountTenge: q.DiscountTenge, PromotionSlug: promotionSlug, PromotionApplied: q.Promotion != nil,
+		FinalPriceTenge: q.FinalTenge,
+	}
+	return estimate, nil
 }

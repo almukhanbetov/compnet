@@ -1,6 +1,7 @@
 # Generated locally, never committed: credentials, test certificate, results, binary
 db.env
 staff.env
+admin.env
 ref.key
 ref.crt
 api

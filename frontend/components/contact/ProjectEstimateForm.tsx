@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { AlertCircle, CheckCircle2, Loader2, Send } from "lucide-react";
 import EstimatePreview from "@/components/contact/EstimatePreview";
@@ -26,7 +27,11 @@ import type {
   Timeline,
   ContactMethod,
 } from "@/types/contactPage";
-import { buildProjectRequestPayload } from "@/lib/api/projectRequestMapping";
+import { buildProjectRequestPayload, buildTariffRequestPayload } from "@/lib/api/projectRequestMapping";
+import { tariffChoiceFromUrl, tariffHref, useTariffs } from "@/lib/api/tariffs";
+import { tariffTexts, tariffTranslations } from "@/data/i18n/tariffs";
+import { tenge } from "@/components/tariffs/format";
+import type { TariffChoice } from "@/types/api/tariffs";
 import { submitProjectRequest } from "@/lib/api/projectRequests";
 import { analyticsSessionId, leadAttribution, track } from "@/lib/analytics/tracker";
 import { ga4Event } from "@/lib/analytics/ga4";
@@ -161,9 +166,21 @@ export default function ProjectEstimateForm({
   showPrices = true,
   aside,
 }: ProjectEstimateFormProps = {}) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const f = t.contactPage.form;
+  const tt = tariffTranslations[locale];
   const initialType = initialProjectType ?? "";
+  // Tariffs (only once an administrator activated some): a request for a
+  // tariff replaces the project type; a link (?tariff=…&modules=…) can preselect one.
+  const { tariffs } = useTariffs();
+  // From the route's own parameters: right after a client-side navigation
+  // window.location may still show the previous page.
+  const searchParams = useSearchParams();
+  const fromUrl = useMemo(() => tariffChoiceFromUrl(searchParams.toString()), [searchParams]);
+  const [tariffPick, setTariffPick] = useState<TariffChoice | null | undefined>(undefined);
+  const wanted = tariffPick === undefined ? fromUrl : tariffPick;
+  const selectedTariff = wanted ? tariffs.find((item) => item.slug === wanted.slug) : undefined;
+  const tariffChoice = selectedTariff && wanted ? wanted : null;
   const [form, setForm] = useState<EstimateFormState>(() => initialFormState(initialType));
   const [errors, setErrors] = useState<EstimateFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -237,6 +254,8 @@ export default function ProjectEstimateForm({
     }
 
     const validationErrors = validate(form, f.errors);
+    // A tariff request is filed under the tariff's project type.
+    if (tariffChoice) delete validationErrors.projectType;
     setErrors(validationErrors);
     setApiError(null);
 
@@ -245,7 +264,10 @@ export default function ProjectEstimateForm({
       return;
     }
 
-    const payload = buildProjectRequestPayload(form);
+    const payload =
+      tariffChoice && selectedTariff
+        ? buildTariffRequestPayload(form, selectedTariff, tariffChoice)
+        : buildProjectRequestPayload(form);
     if (!payload) {
       setApiError(f.errors.chooseFromList);
       return;
@@ -270,7 +292,7 @@ export default function ProjectEstimateForm({
       pendingFocus.current = "success";
       // GA4 (if configured and consented) learns only that a request was
       // saved — confirmed by the server, never with contacts or ids.
-      ga4Event("lead_confirmed", window.location.pathname);
+      ga4Event("lead_confirmed", window.location.pathname, { tariff: result.data.tariff?.slug });
       return;
     }
 
@@ -304,6 +326,17 @@ export default function ProjectEstimateForm({
     setApiError(null);
     setSubmitResult(null);
     pendingFocus.current = "name";
+  };
+
+  /** A tariff request: the tariff's final price, and whether the promotion applied. */
+  const tariffText = (result: ProjectRequestData) => {
+    const terms = result.tariff;
+    const tariff = terms ? tariffs.find((item) => item.slug === terms.slug) : undefined;
+    if (!terms) return null;
+    const price = terms.price_kind === "from" ? fill(tt.from, { price: tenge(terms.final_price_tenge) }) : tenge(terms.final_price_tenge);
+    const title = tariff ? tariffTexts(tariff, locale).title : terms.slug;
+    const promo = terms.promotion_applied ? ` ${tt.success.promoApplied}` : tariff?.promotion ? ` ${tt.success.promoMissed}` : "";
+    return fill(tt.success.tariff, { title, price }) + promo;
   };
 
   const estimateText = (estimate: ProjectRequestData["estimate"]) =>
@@ -352,7 +385,7 @@ export default function ProjectEstimateForm({
               </p>
               {showPrices ? (
                 <p className="mt-2 max-w-md text-sm leading-6 text-slate-400 light:text-slate-600">
-                  {estimateText(submitResult.estimate)}
+                  {tariffText(submitResult) ?? estimateText(submitResult.estimate)}
                 </p>
               ) : null}
               <p className="mt-2 max-w-md text-xs leading-5 text-slate-500 light:text-slate-600">
@@ -465,6 +498,38 @@ export default function ProjectEstimateForm({
               </p>
 
               <div className="grid gap-6 sm:grid-cols-2">
+                {tariffs.length > 0 ? (
+                  <FieldWrapper label={tt.form.label} htmlFor="tariff">
+                    <SelectField<string>
+                      id="tariff"
+                      value={tariffChoice?.slug ?? ""}
+                      onChange={(slug) => setTariffPick(slug ? { slug, moduleIds: [], externalApiCount: 0 } : null)}
+                      options={["", ...tariffs.map((item) => item.slug)]}
+                      getLabel={(slug) => {
+                        const item = tariffs.find((x) => x.slug === slug);
+                        if (!item) return tt.form.none;
+                        const price = item.promotion
+                          ? tenge(item.promotion.price_tenge)
+                          : item.price_kind === "from"
+                            ? fill(tt.from, { price: tenge(item.price_tenge) })
+                            : tenge(item.price_tenge);
+                        return `${tariffTexts(item, locale).title} — ${price}`;
+                      }}
+                    />
+                    {tariffChoice && tariffChoice.moduleIds.length > 0 ? (
+                      <p className="mt-2 text-xs text-slate-400 light:text-slate-600">
+                        {fill(tt.form.modules, {
+                          list: tariffChoice.moduleIds.map((id) => t.catalog.modules[id as keyof typeof t.catalog.modules] ?? id).join(", "),
+                        })}{" "}
+                        <a href={tariffHref("/calculator", tariffChoice)} className="text-cyan-300 hover:text-cyan-200 light:text-cyan-700">
+                          {tt.form.editModules}
+                        </a>
+                      </p>
+                    ) : null}
+                  </FieldWrapper>
+                ) : null}
+
+                {tariffChoice ? null : (
                 <FieldWrapper
                   label={f.labels.projectType}
                   htmlFor="projectType"
@@ -482,6 +547,7 @@ export default function ProjectEstimateForm({
                     required
                   />
                 </FieldWrapper>
+                )}
 
                 <FieldWrapper label={f.labels.contactMethod} htmlFor="contactMethod" error={errors.contactMethod}>
                   <SelectField<ContactMethod>
@@ -582,7 +648,10 @@ export default function ProjectEstimateForm({
           )}
         </div>
 
-        {aside ?? (showPrices ? <EstimatePreview projectType={form.projectType} /> : null)}
+        {aside ??
+          (showPrices ? (
+            <EstimatePreview projectType={form.projectType} tariff={tariffChoice && selectedTariff ? { tariff: selectedTariff, choice: tariffChoice } : undefined} />
+          ) : null)}
       </div>
     </section>
   );

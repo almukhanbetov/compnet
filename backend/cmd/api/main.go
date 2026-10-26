@@ -31,6 +31,10 @@ const shutdownTimeout = 10 * time.Second
 // period are deleted (also once at startup).
 const analyticsCleanupInterval = 6 * time.Hour
 
+// reservationCleanupInterval: how often promotional places held by requests
+// nobody took into work in time are given back (reserving does it as well).
+const reservationCleanupInterval = 10 * time.Minute
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "create-staff" {
 		if err := runCreateStaff(os.Args[2:]); err != nil {
@@ -98,6 +102,7 @@ func run() error {
 
 	// Background jobs stop with the process (ctx is cancelled on SIGTERM).
 	jobsDone := jobs.Periodic(ctx, "analytics retention", analyticsCleanupInterval, application.Analytics.Purge)
+	reservationsDone := jobs.Periodic(ctx, "promotion reservations", reservationCleanupInterval, application.Tariffs.ReleaseExpired)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.AppPort,
@@ -135,6 +140,7 @@ func run() error {
 	}
 
 	<-jobsDone
+	<-reservationsDone
 	log.Println("api: shutdown complete")
 	return nil
 }

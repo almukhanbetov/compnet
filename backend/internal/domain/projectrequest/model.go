@@ -7,6 +7,8 @@ package projectrequest
 import (
 	"errors"
 	"time"
+
+	"github.com/almukha/compnet-backend/internal/domain/tariff"
 )
 
 // ErrNotFound is returned when a request does not exist.
@@ -106,6 +108,29 @@ type EstimateBreakdown struct {
 	MultilingualAmountTenge int64             `json:"multilingual_amount_tenge"`
 	SubtotalTenge           *int64            `json:"subtotal_tenge"`
 	EstimatedRawTenge       *int64            `json:"estimated_raw_tenge"`
+	// Tariff: set for a request sent with a tariff; its amounts are the
+	// estimate (minimum = maximum = the final price).
+	Tariff *TariffBreakdown `json:"tariff,omitempty"`
+}
+
+// TariffBreakdown is the tariff part of an estimate, as the server priced it
+// when the request was saved.
+type TariffBreakdown struct {
+	Slug             string `json:"slug"`
+	Version          int    `json:"version"`
+	PriceKind        string `json:"price_kind"`
+	BasePriceTenge   int64  `json:"base_price_tenge"`
+	DiscountTenge    int64  `json:"discount_tenge"`
+	PromotionSlug    string `json:"promotion_slug,omitempty"`
+	PromotionApplied bool   `json:"promotion_applied"`
+	FinalPriceTenge  int64  `json:"final_price_tenge"`
+}
+
+// TariffOrder is the tariff part of a request to save: the server's quote,
+// and how long an unconfirmed promotional place is held.
+type TariffOrder struct {
+	Quote          tariff.Quote
+	ReservationTTL time.Duration
 }
 
 // BreakdownModule is one line item inside EstimateBreakdown.Modules.
@@ -200,6 +225,22 @@ type Detail struct {
 	// Attribution is nil for requests sent without analytics consent and
 	// for those received before the source was recorded.
 	Attribution *Attribution
+	// PromotionPlace: the promotional place the request holds or held
+	// (requests sent with a tariff on a promotion); nil otherwise.
+	PromotionPlace *PromotionPlace
+}
+
+// PromotionPlace is a request's promotional place: reserved when saved,
+// confirmed when taken into work, released when rejected, archived or not
+// confirmed in time.
+type PromotionPlace struct {
+	PromotionSlug  string
+	PromotionTitle string
+	Status         string // reserved, confirmed or released
+	ReleaseReason  string // rejected, archived or expired
+	ReservedAt     time.Time
+	ConfirmedAt    *time.Time
+	ReleasedAt     *time.Time
 }
 
 // Update is a manager's change to a request; nil fields stay as they are.

@@ -17,6 +17,8 @@ export interface CreateProjectRequestPayload {
   desired_timeline: string;
   contact_method: string;
   consent: boolean;
+  /** A request for a tariff: only the tariff and its modules; the server prices it. */
+  tariff?: { slug: string; module_ids: string[]; external_api_count: number };
   calculator: {
     scale_tier_id: string;
     selected_module_ids: string[];
@@ -40,6 +42,16 @@ export interface ProjectRequestData {
   id: string;
   status: string;
   estimate: ProjectRequestEstimate;
+  /** The tariff terms the request was saved with (tariff requests only). */
+  tariff?: {
+    slug: string;
+    version: number;
+    price_kind: "fixed" | "from";
+    base_price_tenge: number;
+    discount_tenge: number;
+    promotion_applied: boolean;
+    final_price_tenge: number;
+  };
   created_at: string;
 }
 

@@ -8,6 +8,7 @@ import {
 } from "@/data/projectPricing";
 import type { EstimateFormState, ContactMethod } from "@/types/contactPage";
 import type { CreateProjectRequestPayload } from "@/types/api/projectRequest";
+import type { ApiTariff, TariffChoice } from "@/types/api/tariffs";
 
 const CONTACT_METHOD_TO_SLUG: Record<ContactMethod, string> = {
   Телефон: "phone",
@@ -67,6 +68,42 @@ export function buildProjectRequestPayload(
     desired_timeline: form.timeline,
     contact_method: CONTACT_METHOD_TO_SLUG[form.contactMethod],
     consent: form.consent,
+    calculator: {
+      scale_tier_id: scaleTierId,
+      selected_module_ids: [],
+      external_api_count: 0,
+      multilingual: false,
+      design_level_id: DEFAULT_DESIGN_LEVEL_ID,
+      complexity_id: DEFAULT_COMPLEXITY_ID,
+      urgency_id: DEFAULT_URGENCY_ID,
+    },
+  };
+}
+
+/**
+ * The payload of a request for a tariff: the tariff and its modules, filed
+ * under the tariff's project type. The server prices it from the tariff
+ * (ignoring the calculator part, still sent in its usual shape).
+ */
+export function buildTariffRequestPayload(
+  form: EstimateFormState,
+  tariff: ApiTariff,
+  choice: TariffChoice,
+): CreateProjectRequestPayload {
+  const entry = projectPricingList.find((item) => item.projectType === tariff.project_type);
+  const scaleTierId = entry && (entry.category === "site" || entry.category === "app") ? firstScaleTierId(entry.category) : "";
+  return {
+    name: form.name.trim(),
+    phone: form.phone.trim(),
+    email: form.email.trim(),
+    company: form.company.trim(),
+    project_type: tariff.project_type,
+    description: form.description.trim(),
+    budget_range: form.budget,
+    desired_timeline: form.timeline,
+    contact_method: CONTACT_METHOD_TO_SLUG[form.contactMethod],
+    consent: form.consent,
+    tariff: { slug: choice.slug, module_ids: choice.moduleIds, external_api_count: choice.externalApiCount },
     calculator: {
       scale_tier_id: scaleTierId,
       selected_module_ids: [],

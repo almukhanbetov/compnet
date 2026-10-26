@@ -183,6 +183,7 @@ type LeadsReport struct {
 	Pages         []LeadCount // "" = unknown page
 	ServicePages  []LeadCount // pages under /services/
 	ProjectTypes  []LeadCount
+	Tariffs       []LeadCount // by tariff slug; "" = individual estimate
 	Days          []LeadCount // YYYY-MM-DD, Asia/Almaty, every day of the period
 	Conversion    LeadConversion
 }

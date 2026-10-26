@@ -39,6 +39,8 @@ type Deps struct {
 	Realtime *handler.RealtimeHandler
 	// Analytics: public event intake and the managers' statistics.
 	Analytics *handler.AnalyticsHandler
+	// Tariffs: public tariffs and quotes; administrators manage them.
+	Tariffs *handler.TariffHandler
 	// AnalyticsIPLimiter bounds event batches per client IP.
 	AnalyticsIPLimiter middleware.Limiter
 	// StaffAuth authenticates every manager request from its session cookie.
@@ -87,6 +89,8 @@ func New(deps Deps) (*gin.Engine, error) {
 	v1.GET("/portfolio", deps.Content.ListPortfolio)
 	v1.GET("/portfolio/:slug", deps.Content.GetPortfolioCase)
 	v1.GET("/testimonials", deps.Content.ListTestimonials)
+	v1.GET("/tariffs", deps.Tariffs.List)
+	v1.GET("/tariffs/:slug/quote", deps.Tariffs.Quote)
 
 	chatGroup := v1.Group("/chat",
 		middleware.RateLimitByIP(deps.ChatIPLimiter),
@@ -143,6 +147,12 @@ func New(deps Deps) (*gin.Engine, error) {
 	staffOnly.GET("/analytics/visits", deps.Analytics.Visits)
 	staffOnly.GET("/analytics/sources", deps.Analytics.Sources)
 	staffOnly.GET("/analytics/sessions/:id", deps.Analytics.Session)
+	// Tariffs and promotions: administrators only (costs included).
+	staffOnly.GET("/pricing", deps.Tariffs.AdminList)
+	staffOnly.PATCH("/pricing/tariffs/:slug", deps.Tariffs.UpdateTariff)
+	staffOnly.POST("/pricing/tariffs/:slug/versions", deps.Tariffs.CreateVersion)
+	staffOnly.PUT("/pricing/tariffs/:slug/cost", deps.Tariffs.SetCost)
+	staffOnly.PATCH("/pricing/promotions/:slug", deps.Tariffs.UpdatePromotion)
 
 	return engine, nil
 }

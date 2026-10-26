@@ -453,6 +453,7 @@ type leadsResponse struct {
 	Pages        []leadCountResponse  `json:"pages"`
 	ServicePages []leadCountResponse  `json:"service_pages"`
 	ProjectTypes []leadCountResponse  `json:"project_types"`
+	Tariffs      []leadCountResponse  `json:"tariffs"` // "" = individual estimate
 	Days         []leadCountResponse  `json:"days"`
 }
 
@@ -484,6 +485,7 @@ func newLeadsResponse(r analyticssvc.LeadsResult) leadsResponse {
 	out.Pages = leadCounts(rep.Pages)
 	out.ServicePages = leadCounts(rep.ServicePages)
 	out.ProjectTypes = leadCounts(rep.ProjectTypes)
+	out.Tariffs = leadCounts(rep.Tariffs)
 	out.Days = leadCounts(rep.Days)
 	out.Sources = make([]leadSourceResponse, 0, len(rep.Sources))
 	for _, s := range rep.Sources {

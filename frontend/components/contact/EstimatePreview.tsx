@@ -6,13 +6,20 @@ import { projectPricingList } from "@/data/projectPricing";
 import { usePricingCatalog } from "@/lib/api/pricingCatalog";
 import { fill } from "@/lib/i18n";
 import type { ProjectType } from "@/types/contactPage";
+import type { ApiTariff, TariffChoice } from "@/types/api/tariffs";
+import { useTariffQuote } from "@/lib/api/tariffs";
+import { tariffTexts, tariffTranslations } from "@/data/i18n/tariffs";
+import { tenge } from "@/components/tariffs/format";
 
 interface EstimatePreviewProps {
   projectType: ProjectType | "";
+  /** A request for a tariff: its server quote replaces the project type's price. */
+  tariff?: { tariff: ApiTariff; choice: TariffChoice };
 }
 
-export default function EstimatePreview({ projectType }: EstimatePreviewProps) {
-  const { t } = useLocale();
+export default function EstimatePreview({ projectType, tariff }: EstimatePreviewProps) {
+  const { t, locale } = useLocale();
+  const quote = useTariffQuote(tariff ? tariff.choice : null);
   const e = t.contactPage.estimate;
   const entry = projectPricingList.find((item) => item.label === projectType);
   // The starting price comes only from the server's catalog; none is shown
@@ -31,7 +38,22 @@ export default function EstimatePreview({ projectType }: EstimatePreviewProps) {
         {e.title}
       </p>
 
-      {entry ? (
+      {tariff ? (
+        <>
+          <p className="mt-2 text-sm text-slate-400 light:text-slate-600">{tariffTexts(tariff.tariff, locale).title}</p>
+          {quote.status === "ready" && quote.quote ? (
+            <p className="mt-3 bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-3xl font-bold text-transparent light:from-violet-600 light:via-blue-600 light:to-cyan-600">
+              {quote.quote.price_kind === "from"
+                ? fill(tariffTranslations[locale].from, { price: tenge(quote.quote.final_price_tenge) })
+                : tenge(quote.quote.final_price_tenge)}
+            </p>
+          ) : quote.status === "error" ? (
+            <p className="mt-3 text-sm leading-6 text-slate-300 light:text-slate-700">{e.unavailable}</p>
+          ) : (
+            <p className="mt-3 text-sm text-slate-400 light:text-slate-600" role="status">{e.loading}</p>
+          )}
+        </>
+      ) : entry ? (
         <>
           <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
             {t.contactPage.form.options.projectType[entry.label]}

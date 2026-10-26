@@ -15,6 +15,7 @@ import (
 	"github.com/almukha/compnet-backend/internal/apperr"
 	"github.com/almukha/compnet-backend/internal/attribution"
 	"github.com/almukha/compnet-backend/internal/domain/projectrequest"
+	"github.com/almukha/compnet-backend/internal/domain/tariff"
 	"github.com/almukha/compnet-backend/internal/http/dto"
 	"github.com/almukha/compnet-backend/internal/pricing"
 	analyticssvc "github.com/almukha/compnet-backend/internal/service/analytics"
@@ -29,7 +30,14 @@ type Repository interface {
 		features []projectrequest.Feature,
 		estimate projectrequest.Estimate,
 		attribution *projectrequest.Attribution,
+		order *projectrequest.TariffOrder,
 	) (projectrequest.ProjectRequest, projectrequest.Estimate, error)
+}
+
+// TariffQuoter prices a tariff selection (internal/service/tariffs).
+type TariffQuoter interface {
+	Quote(ctx context.Context, sel tariff.Selection) (tariff.Quote, error)
+	ReservationTTL() time.Duration
 }
 
 // ConversionRecorder links a saved request to the visitor's analytics
@@ -57,6 +65,7 @@ type Service struct {
 	repo        Repository
 	conversions ConversionRecorder
 	notifier    Notifier
+	tariffs     TariffQuoter
 	// attribution: request sources are stored only while the first-party
 	// visit analytics is on (it is what visitors consent to).
 	attribution bool
@@ -77,6 +86,11 @@ func (s *Service) SetNotifier(n Notifier) {
 // SetAttributionEnabled lets requests keep their source (ANALYTICS_ENABLED).
 func (s *Service) SetAttributionEnabled(enabled bool) {
 	s.attribution = enabled
+}
+
+// SetTariffs enables requests sent with a tariff; without it they are refused.
+func (s *Service) SetTariffs(q TariffQuoter) {
+	s.tariffs = q
 }
 
 // SetConversionRecorder enables linking requests to analytics sessions.
@@ -101,6 +115,109 @@ func (s *Service) CreateProjectRequest(
 
 	fields := req.Validate()
 
+	var (
+		projectType string
+		features    []projectrequest.Feature
+		estimate    projectrequest.Estimate
+		order       *projectrequest.TariffOrder
+	)
+	if req.Tariff != nil {
+		projectType, features, estimate, order = s.tariffEstimate(ctx, *req.Tariff, fields)
+	} else {
+		projectType, features, estimate = calculatorEstimate(req, fields)
+	}
+
+	if len(fields) > 0 {
+		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Validation("проверьте введённые данные", fields)
+	}
+
+	request := projectrequest.ProjectRequest{
+		Name:            strings.TrimSpace(req.Name),
+		Phone:           dto.NormalizedPhone(req.Phone),
+		Email:           dto.NormalizedEmail(req.Email),
+		Company:         strings.TrimSpace(req.Company),
+		ProjectType:     projectType,
+		Description:     strings.TrimSpace(req.Description),
+		BudgetRange:     strings.TrimSpace(req.BudgetRange),
+		DesiredTimeline: strings.TrimSpace(req.DesiredTimeline),
+		ContactMethod:   projectrequest.ContactMethod(strings.ToLower(strings.TrimSpace(req.ContactMethod))),
+		Consent:         req.Consent,
+		Status:          projectrequest.StatusNew,
+	}
+
+	var source *projectrequest.Attribution
+	if s.attribution {
+		source = attributionFrom(req)
+	}
+	savedRequest, savedEstimate, err := s.repo.Create(ctx, request, features, estimate, source, order)
+	if err != nil {
+		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Internal(err)
+	}
+	// Saved: only now does it count as a request in the statistics.
+	if req.AnalyticsSessionID != "" {
+		s.conversions.LeadCreated(ctx, req.AnalyticsSessionID, savedRequest.ID)
+	}
+	s.notifier.RequestCreated(ctx, savedRequest.ID)
+
+	return savedRequest, savedEstimate, nil
+}
+
+// tariffEstimate prices a request sent with a tariff: the server's quote of
+// the tariff and its extra modules (never a client's amount). The project
+// type is the tariff version's. The promotional place is reserved — or not —
+// when the request is saved (repository), which sets the final price.
+func (s *Service) tariffEstimate(ctx context.Context, sel dto.TariffSelectionInput, fields map[string]string) (string, []projectrequest.Feature, projectrequest.Estimate, *projectrequest.TariffOrder) {
+	if s.tariffs == nil {
+		fields["tariff.slug"] = "тарифы недоступны"
+		return "", nil, projectrequest.Estimate{}, nil
+	}
+	if len(fields) > 0 {
+		return "", nil, projectrequest.Estimate{}, nil
+	}
+	q, err := s.tariffs.Quote(ctx, tariff.Selection{Slug: sel.Slug, ModuleIDs: sel.ModuleIDs, ExternalApiCount: sel.ExternalApiCount})
+	switch {
+	case errors.Is(err, tariff.ErrNotFound):
+		fields["tariff.slug"] = "этот тариф сейчас недоступен"
+		return "", nil, projectrequest.Estimate{}, nil
+	case errors.Is(err, tariff.ErrModuleNotAllowed), errors.Is(err, tariff.ErrDuplicateModule):
+		fields["tariff.module_ids"] = "модуль недоступен для этого тарифа"
+		return "", nil, projectrequest.Estimate{}, nil
+	case err != nil:
+		log.Printf("projectrequest: tariff quote failed: %v", err)
+		fields["tariff.slug"] = "не удалось рассчитать стоимость тарифа"
+		return "", nil, projectrequest.Estimate{}, nil
+	}
+
+	features := make([]projectrequest.Feature, 0, len(q.Modules))
+	breakdownModules := make([]projectrequest.BreakdownModule, 0, len(q.Modules))
+	for _, m := range q.Modules {
+		breakdownModules = append(breakdownModules, projectrequest.BreakdownModule{
+			ModuleID: m.ModuleID, Quantity: m.Quantity, UnitPriceTenge: m.UnitPriceTenge, TotalTenge: m.TotalTenge,
+		})
+		if m.Quantity > 0 {
+			features = append(features, projectrequest.Feature{ModuleID: m.ModuleID, Quantity: m.Quantity, UnitPriceTenge: m.UnitPriceTenge})
+		}
+	}
+	base := q.BasePriceTenge
+	final := q.FinalTenge
+	estimate := projectrequest.Estimate{
+		PricingVersion: fmt.Sprintf("tariff:%s@%d", q.Slug, q.Version),
+		MinimumTenge:   &final,
+		MaximumTenge:   &final,
+		DurationLabel:  q.DurationLabel,
+		Breakdown: projectrequest.EstimateBreakdown{
+			ProjectType:       q.ProjectType,
+			BasePriceTenge:    &base,
+			Modules:           breakdownModules,
+			ModulesTotalTenge: q.ModulesTotalTenge,
+		},
+	}
+	return q.ProjectType, features, estimate, &projectrequest.TariffOrder{Quote: q, ReservationTTL: s.tariffs.ReservationTTL()}
+}
+
+// calculatorEstimate is the individual estimate: the Go catalog's formula
+// on the request's calculator selection.
+func calculatorEstimate(req dto.CreateProjectRequestRequest, fields map[string]string) (string, []projectrequest.Feature, projectrequest.Estimate) {
 	calcInput := pricing.CalculateInput{
 		ProjectTypeID:     strings.TrimSpace(req.ProjectType),
 		ScaleTierID:       strings.TrimSpace(req.Calculator.ScaleTierID),
@@ -115,24 +232,6 @@ func (s *Service) CreateProjectRequest(
 	calcResult, calcErr := pricing.Calculate(calcInput)
 	if calcErr != nil {
 		mergeCalcError(fields, calcErr)
-	}
-
-	if len(fields) > 0 {
-		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Validation("проверьте введённые данные", fields)
-	}
-
-	request := projectrequest.ProjectRequest{
-		Name:            strings.TrimSpace(req.Name),
-		Phone:           dto.NormalizedPhone(req.Phone),
-		Email:           dto.NormalizedEmail(req.Email),
-		Company:         strings.TrimSpace(req.Company),
-		ProjectType:     calcInput.ProjectTypeID,
-		Description:     strings.TrimSpace(req.Description),
-		BudgetRange:     strings.TrimSpace(req.BudgetRange),
-		DesiredTimeline: strings.TrimSpace(req.DesiredTimeline),
-		ContactMethod:   projectrequest.ContactMethod(strings.ToLower(strings.TrimSpace(req.ContactMethod))),
-		Consent:         req.Consent,
-		Status:          projectrequest.StatusNew,
 	}
 
 	features := make([]projectrequest.Feature, 0, len(calcResult.Modules))
@@ -181,21 +280,7 @@ func (s *Service) CreateProjectRequest(
 		},
 	}
 
-	var source *projectrequest.Attribution
-	if s.attribution {
-		source = attributionFrom(req)
-	}
-	savedRequest, savedEstimate, err := s.repo.Create(ctx, request, features, estimate, source)
-	if err != nil {
-		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Internal(err)
-	}
-	// Saved: only now does it count as a request in the statistics.
-	if req.AnalyticsSessionID != "" {
-		s.conversions.LeadCreated(ctx, req.AnalyticsSessionID, savedRequest.ID)
-	}
-	s.notifier.RequestCreated(ctx, savedRequest.ID)
-
-	return savedRequest, savedEstimate, nil
+	return calcInput.ProjectTypeID, features, estimate
 }
 
 // mergeCalcError adds a message for the field responsible for a pricing

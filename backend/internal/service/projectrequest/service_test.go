@@ -16,6 +16,7 @@ type fakeRepository struct {
 	lastFeatures []projectrequest.Feature
 	lastEstimate projectrequest.Estimate
 	lastAttrib   *projectrequest.Attribution
+	lastOrder    *projectrequest.TariffOrder
 	createCalled bool
 	returnErr    error
 }
@@ -26,8 +27,10 @@ func (f *fakeRepository) Create(
 	features []projectrequest.Feature,
 	estimate projectrequest.Estimate,
 	attribution *projectrequest.Attribution,
+	order *projectrequest.TariffOrder,
 ) (projectrequest.ProjectRequest, projectrequest.Estimate, error) {
 	f.createCalled = true
+	f.lastOrder = order
 	f.lastAttrib = attribution
 	f.lastRequest = request
 	f.lastFeatures = features

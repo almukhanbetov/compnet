@@ -196,6 +196,19 @@ type ManagerRequestDetailResponse struct {
 	// Attribution is null for requests sent without analytics consent and
 	// for those received before the source was recorded.
 	Attribution *ManagerRequestAttributionResponse `json:"attribution"`
+	// PromotionPlace: null unless the request was sent with a tariff on a promotion.
+	PromotionPlace *ManagerPromotionPlaceResponse `json:"promotion_place"`
+}
+
+// ManagerPromotionPlaceResponse is a request's promotional place.
+type ManagerPromotionPlaceResponse struct {
+	PromotionSlug  string     `json:"promotion_slug"`
+	PromotionTitle string     `json:"promotion_title"`
+	Status         string     `json:"status"`
+	ReleaseReason  string     `json:"release_reason,omitempty"`
+	ReservedAt     time.Time  `json:"reserved_at"`
+	ConfirmedAt    *time.Time `json:"confirmed_at"`
+	ReleasedAt     *time.Time `json:"released_at"`
 }
 
 // NewManagerRequestDetailResponse builds the detail DTO.
@@ -225,6 +238,9 @@ func NewManagerRequestDetailResponse(d projectrequest.Detail) ManagerRequestDeta
 			MinimumTenge: e.MinimumTenge, MaximumTenge: e.MaximumTenge,
 			DurationLabel: e.DurationLabel, Breakdown: breakdown, CreatedAt: e.CreatedAt.UTC(),
 		}
+	}
+	if p := d.PromotionPlace; p != nil {
+		out.PromotionPlace = &ManagerPromotionPlaceResponse{p.PromotionSlug, p.PromotionTitle, p.Status, p.ReleaseReason, p.ReservedAt.UTC(), p.ConfirmedAt, p.ReleasedAt}
 	}
 	for _, c := range d.History {
 		out.History = append(out.History, ManagerRequestStatusChangeResponse{

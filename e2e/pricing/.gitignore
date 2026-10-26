@@ -1,0 +1,5 @@
+# Generated locally, never committed: credentials and parity cases
+db.env
+staff.env
+admin.env
+*.jsonl
