@@ -24,12 +24,15 @@ type PricingCatalogResponse struct {
 }
 
 // CatalogProjectType: a nil base price means an individual estimate only.
+// BasePriceVersion is the stored version of the base price in force (0: the
+// seed price); the request form sends the base price it showed.
 type CatalogProjectType struct {
-	ID              string `json:"id"`
-	Label           string `json:"label"`
-	BasePriceTenge  *int64 `json:"base_price_tenge"`
-	Category        string `json:"category"` // site, app or none (no scale tiers)
-	DefaultDuration string `json:"default_duration"`
+	ID               string `json:"id"`
+	Label            string `json:"label"`
+	BasePriceTenge   *int64 `json:"base_price_tenge"`
+	BasePriceVersion int    `json:"base_price_version"`
+	Category         string `json:"category"` // site, app or none (no scale tiers)
+	DefaultDuration  string `json:"default_duration"`
 }
 
 // CatalogScaleTier: a nil add price forces an individual estimate.
@@ -63,8 +66,9 @@ type CatalogDurationBracket struct {
 	Label          string `json:"label"`
 }
 
-// NewPricingCatalogResponse copies the catalog, in its order.
-func NewPricingCatalogResponse() PricingCatalogResponse {
+// NewPricingCatalogResponse copies the catalog, in its order, with the base
+// prices in force.
+func NewPricingCatalogResponse(catalog pricing.Catalog) PricingCatalogResponse {
 	out := PricingCatalogResponse{
 		Version:             pricing.RulesVersion,
 		Currency:            "KZT",
@@ -73,7 +77,8 @@ func NewPricingCatalogResponse() PricingCatalogResponse {
 		MaximumRatio:        pricing.MaximumRatio,
 	}
 	for _, p := range pricing.ProjectTypes {
-		out.ProjectTypes = append(out.ProjectTypes, CatalogProjectType{p.ID, p.Label, p.BasePriceTenge, string(p.Category), p.DefaultDuration})
+		base := catalog.BasePrice(p.ID)
+		out.ProjectTypes = append(out.ProjectTypes, CatalogProjectType{p.ID, p.Label, base.PriceTenge, base.Version, string(p.Category), p.DefaultDuration})
 	}
 	for _, t := range pricing.ScaleTiers {
 		out.ScaleTiers = append(out.ScaleTiers, CatalogScaleTier{t.ID, string(t.Category), t.Label, t.AddPriceTenge})

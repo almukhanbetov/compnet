@@ -10,6 +10,8 @@ import type { ApiSourcesReport } from "@/types/api/analyticsSources";
 import type {
   ApiAdminPromotion,
   ApiAdminTariff,
+  ApiBasePrice,
+  ApiBasePricePreview,
   ApiPriceHistoryEntry,
   ApiPricePreview,
   ApiPricingAdmin,
@@ -258,6 +260,24 @@ export function changeTariffPrice(slug: string, input: PriceChangeInput) {
 
 export function fetchTariffPriceHistory(slug: string, signal?: AbortSignal) {
   return request<ApiEnvelope<ApiPriceHistoryEntry[]>>(`/pricing/tariffs/${encodeURIComponent(slug)}/history`, { signal });
+}
+
+export function fetchBasePrices(signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiBasePrice[]>>("/pricing/base-prices", { signal });
+}
+
+export function previewBasePrice(projectType: string, price: number) {
+  return request<ApiEnvelope<ApiBasePricePreview>>(`/pricing/base-prices/${encodeURIComponent(projectType)}/preview`, {
+    method: "POST", body: JSON.stringify({ price_tenge: price }),
+  });
+}
+
+export function changeBasePrice(projectType: string, input: { price_tenge: number; reason: string; expected_version: number }) {
+  return request<ApiEnvelope<ApiBasePrice>>(`/pricing/base-prices/${encodeURIComponent(projectType)}`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function fetchBasePriceHistory(projectType: string, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiPriceHistoryEntry[]>>(`/pricing/base-prices/${encodeURIComponent(projectType)}/history`, { signal });
 }
 
 export function setTariffCost(slug: string, cost: number) {

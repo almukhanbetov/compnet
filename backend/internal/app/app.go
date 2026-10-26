@@ -19,6 +19,7 @@ import (
 	"github.com/almukha/compnet-backend/internal/security"
 	analyticssvc "github.com/almukha/compnet-backend/internal/service/analytics"
 	"github.com/almukha/compnet-backend/internal/service/analyticsevents"
+	basepricesvc "github.com/almukha/compnet-backend/internal/service/baseprices"
 	chatsvc "github.com/almukha/compnet-backend/internal/service/chat"
 	"github.com/almukha/compnet-backend/internal/service/chatevents"
 	contentsvc "github.com/almukha/compnet-backend/internal/service/content"
@@ -121,10 +122,15 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 	projectRequestService.SetConversionRecorder(analyticsService)
 	projectRequestService.SetNotifier(requestEvents)
 	projectRequestService.SetAttributionEnabled(cfg.Analytics.Enabled)
-	tariffService := tariffsvc.NewService(postgres.NewTariffRepository(pool))
+	tariffRepo := postgres.NewTariffRepository(pool)
+	tariffService := tariffsvc.NewService(tariffRepo)
 	projectRequestService.SetTariffs(tariffService)
+	// Base prices of the project types (PostgreSQL): the calculator, the
+	// pricing pages and the requests all price with this one catalog.
+	basePriceService := basepricesvc.NewService(postgres.NewBasePriceRepository(pool), tariffRepo)
+	projectRequestService.SetBasePrices(basePriceService)
 	projectRequestHandler := handler.NewProjectRequestHandler(projectRequestService)
-	contentHandler := handler.NewContentHandler(contentsvc.NewService(postgres.NewContentRepository(pool)))
+	contentHandler := handler.NewContentHandler(contentsvc.NewService(postgres.NewContentRepository(pool), basePriceService))
 
 	managerRequestsService, err := managerrequests.NewService(projectRequestRepo)
 	if err != nil {
@@ -173,6 +179,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 		Realtime:                realtimeHandler,
 		Analytics:               handler.NewAnalyticsHandler(analyticsService),
 		Tariffs:                 handler.NewTariffHandler(tariffService),
+		BasePrices:              handler.NewBasePriceHandler(basePriceService),
 		AnalyticsIPLimiter:      limiters.AnalyticsIP,
 		StaffAuth:               staffAuthService,
 		ManagerIPLimiter:        limiters.ManagerIP,

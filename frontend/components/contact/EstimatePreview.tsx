@@ -4,6 +4,7 @@ import { Wallet, Info } from "lucide-react";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { projectPricingList } from "@/data/projectPricing";
 import { usePricingCatalog } from "@/lib/api/pricingCatalog";
+import type { PricingCatalogState } from "@/lib/api/pricingCatalog";
 import { fill } from "@/lib/i18n";
 import type { ProjectType } from "@/types/contactPage";
 import type { ApiTariff, ApiTariffQuote } from "@/types/api/tariffs";
@@ -12,19 +13,22 @@ import { tenge } from "@/components/tariffs/format";
 
 interface EstimatePreviewProps {
   projectType: ProjectType | "";
+  /** The form's catalog (the base price it sends is the one shown here). */
+  pricing?: PricingCatalogState;
   /** A request for a tariff: its server quote (the form's, the amount it
    * sends) replaces the project type's price. */
   tariff?: { tariff: ApiTariff; quote: { status: "idle" | "loading" | "ready" | "error"; quote: ApiTariffQuote | null } };
 }
 
-export default function EstimatePreview({ projectType, tariff }: EstimatePreviewProps) {
+export default function EstimatePreview({ projectType, pricing: given, tariff }: EstimatePreviewProps) {
   const { t, locale } = useLocale();
   const quote = tariff?.quote ?? { status: "idle", quote: null };
   const e = t.contactPage.estimate;
   const entry = projectPricingList.find((item) => item.label === projectType);
   // The starting price comes only from the server's catalog; none is shown
   // while it loads or when it cannot be loaded.
-  const pricing = usePricingCatalog();
+  const own = usePricingCatalog();
+  const pricing = given ?? own;
   const catalogType =
     pricing.status === "ready" && entry ? pricing.catalog.project_types.find((p) => p.id === entry.projectType) : undefined;
 

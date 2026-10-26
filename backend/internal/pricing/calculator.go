@@ -55,15 +55,22 @@ type Result struct {
 	DurationLabel           string
 }
 
-// Calculate is the estimate formula; frontend/lib/pricingCalculator.ts repeats
-// it in the browser on the published catalog (e2e/pricing/parity.mjs checks
-// that both agree). It looks up every id against the catalog itself — the
-// caller must not pass pre-resolved prices.
+// Calculate is Catalog.Calculate on the seed base prices (no database:
+// unit tests and parity cases without a published catalog).
 func Calculate(input CalculateInput) (Result, error) {
+	return SeedCatalog().Calculate(input)
+}
+
+// Calculate is the estimate formula with the catalog's base prices;
+// frontend/lib/pricingCalculator.ts repeats it in the browser on the
+// published catalog (e2e/pricing/parity.mjs checks that both agree). It
+// looks up every id itself — the caller must not pass pre-resolved prices.
+func (c Catalog) Calculate(input CalculateInput) (Result, error) {
 	projectType, ok := FindProjectType(input.ProjectTypeID)
 	if !ok {
 		return Result{}, ErrUnknownProjectType
 	}
+	basePrice := c.BasePrice(projectType.ID).PriceTenge
 
 	designLevel, ok := FindDesignLevel(input.DesignLevelID)
 	if !ok {
@@ -124,19 +131,19 @@ func Calculate(input CalculateInput) (Result, error) {
 	}
 
 	result := Result{
-		BasePriceTenge:    projectType.BasePriceTenge,
+		BasePriceTenge:    basePrice,
 		ScalePriceTenge:   scalePrice,
 		Modules:           modules,
 		ModulesTotalTenge: modulesTotal,
 	}
 
-	if projectType.BasePriceTenge == nil || scalePrice == nil {
+	if basePrice == nil || scalePrice == nil {
 		result.IsIndividual = true
 		result.DurationLabel = "индивидуальный срок"
 		return result, nil
 	}
 
-	subtotal := *projectType.BasePriceTenge + *scalePrice + modulesTotal
+	subtotal := *basePrice + *scalePrice + modulesTotal
 	designAmount := round(float64(subtotal) * designLevel.Percent)
 
 	var multilingualAmount int64

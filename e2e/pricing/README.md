@@ -38,6 +38,19 @@ level and both multilingual choices, plus 50 000 random cases with invalid input
     # next to it. Leaves Business at 109 000 ₸ (tariffs-ui.cjs expects the seeded 99 000 ₸).
     node e2e/pricing/price-change-request.cjs <playwright> [screenshot-dir]
 
+    # Base prices of the services ("Базовые цены услуг", docs/BASE_PRICES.md): manager refused,
+    # preview = the calculator, confirmation, history, the same price at once on the catalog,
+    # /pricing, the service page and the calculator, two administrators at once, a price changed
+    # while the form is open (409 → confirmed), the API directly, SEO texts with the base price
+    # (tariffs and the promotion switched on for it), 375 px. Landing is restored at the end.
+    node e2e/pricing/base-prices-ui.cjs <playwright> [screenshot-dir]
+
+    # Parity on the prices in force (after administrators changed them): generate the cases
+    # with the published base prices, then compare as above.
+    (cd backend && PRICING_PARITY_OUT=/tmp/cases.jsonl PRICING_CATALOG_URL=http://127.0.0.1:8096/api/v1/pricing/catalog \
+        go test ./internal/pricing -run TestWriteParityCases)
+
 The tariff rules themselves (prices, places under concurrency, release, versions, access, price
-changes, requests during a change) are covered by the Go integration tests `TestTariffs_*` and
-`TestTariffPrices_*` (backend/internal/app). See docs/TARIFFS.md.
+changes, requests during a change) are covered by the Go integration tests `TestTariffs_*`,
+`TestTariffPrices_*` and `TestBasePrices_*` (backend/internal/app). See docs/TARIFFS.md and
+docs/BASE_PRICES.md.

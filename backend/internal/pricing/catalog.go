@@ -3,6 +3,11 @@
 // from these catalog entries, never supply a price directly. The catalog
 // is published read-only at GET /api/v1/pricing/catalog, which the browser's
 // calculator and estimate preview use — the frontend keeps no prices.
+//
+// The base prices of the project types are kept in PostgreSQL
+// (project_type_prices, versioned, changed by administrators); a Catalog
+// carries the ones in force. Everything else here — scale tiers, modules,
+// coefficients, rounding — is fixed in code and changes only with a release.
 package pricing
 
 // RulesVersion tags every estimate with the pricing-rule revision that
@@ -30,13 +35,17 @@ const (
 	ScaleCategoryNone ScaleCategory = "none"
 )
 
-// ProjectType is a purchasable kind of project with its starting price.
+// ProjectType is a purchasable kind of project. Its base price in force is
+// the Catalog's (PostgreSQL); SeedBasePriceTenge is only the initial value
+// the migration stored, used where no database is involved (unit tests,
+// parity cases without a catalog). nil: an individual estimate only, never
+// a price (not editable).
 type ProjectType struct {
-	ID              string
-	Label           string
-	BasePriceTenge  *int64 // nil means "individual estimate only"
-	Category        ScaleCategory
-	DefaultDuration string
+	ID                 string
+	Label              string
+	SeedBasePriceTenge *int64
+	Category           ScaleCategory
+	DefaultDuration    string
 }
 
 // ScaleTier is a size bracket within a ScaleCategory, adding to the base
@@ -87,18 +96,18 @@ type DurationBracket struct {
 func ptr(v int64) *int64 { return &v }
 
 var ProjectTypes = []ProjectType{
-	{ID: "landing", Label: "Лендинг", BasePriceTenge: ptr(120000), Category: ScaleCategorySite, DefaultDuration: "1–2 недели"},
-	{ID: "business-card", Label: "Сайт-визитка", BasePriceTenge: ptr(180000), Category: ScaleCategorySite, DefaultDuration: "1–2 недели"},
-	{ID: "corporate", Label: "Корпоративный сайт", BasePriceTenge: ptr(300000), Category: ScaleCategorySite, DefaultDuration: "3–5 недель"},
-	{ID: "catalog", Label: "Сайт-каталог", BasePriceTenge: ptr(400000), Category: ScaleCategorySite, DefaultDuration: "4–6 недель"},
-	{ID: "online-store", Label: "Интернет-магазин", BasePriceTenge: ptr(500000), Category: ScaleCategorySite, DefaultDuration: "6–10 недель"},
-	{ID: "web-app", Label: "Web-приложение", BasePriceTenge: ptr(700000), Category: ScaleCategoryApp, DefaultDuration: "8–12 недель"},
-	{ID: "crm", Label: "CRM-система", BasePriceTenge: ptr(800000), Category: ScaleCategoryApp, DefaultDuration: "8–12 недель"},
-	{ID: "mobile-app", Label: "Мобильное приложение", BasePriceTenge: ptr(900000), Category: ScaleCategoryApp, DefaultDuration: "10–14 недель"},
-	{ID: "ai-solution", Label: "AI-решение", BasePriceTenge: ptr(500000), Category: ScaleCategoryApp, DefaultDuration: "4–8 недель"},
-	{ID: "backend-api", Label: "Backend/API", BasePriceTenge: ptr(450000), Category: ScaleCategoryNone, DefaultDuration: "4–8 недель"},
-	{ID: "devops-vps", Label: "DevOps/VPS", BasePriceTenge: ptr(150000), Category: ScaleCategoryNone, DefaultDuration: "1–3 недели"},
-	{ID: "other", Label: "Другое", BasePriceTenge: nil, Category: ScaleCategoryNone, DefaultDuration: "по договорённости"},
+	{ID: "landing", Label: "Лендинг", SeedBasePriceTenge: ptr(120000), Category: ScaleCategorySite, DefaultDuration: "1–2 недели"},
+	{ID: "business-card", Label: "Сайт-визитка", SeedBasePriceTenge: ptr(180000), Category: ScaleCategorySite, DefaultDuration: "1–2 недели"},
+	{ID: "corporate", Label: "Корпоративный сайт", SeedBasePriceTenge: ptr(300000), Category: ScaleCategorySite, DefaultDuration: "3–5 недель"},
+	{ID: "catalog", Label: "Сайт-каталог", SeedBasePriceTenge: ptr(400000), Category: ScaleCategorySite, DefaultDuration: "4–6 недель"},
+	{ID: "online-store", Label: "Интернет-магазин", SeedBasePriceTenge: ptr(500000), Category: ScaleCategorySite, DefaultDuration: "6–10 недель"},
+	{ID: "web-app", Label: "Web-приложение", SeedBasePriceTenge: ptr(700000), Category: ScaleCategoryApp, DefaultDuration: "8–12 недель"},
+	{ID: "crm", Label: "CRM-система", SeedBasePriceTenge: ptr(800000), Category: ScaleCategoryApp, DefaultDuration: "8–12 недель"},
+	{ID: "mobile-app", Label: "Мобильное приложение", SeedBasePriceTenge: ptr(900000), Category: ScaleCategoryApp, DefaultDuration: "10–14 недель"},
+	{ID: "ai-solution", Label: "AI-решение", SeedBasePriceTenge: ptr(500000), Category: ScaleCategoryApp, DefaultDuration: "4–8 недель"},
+	{ID: "backend-api", Label: "Backend/API", SeedBasePriceTenge: ptr(450000), Category: ScaleCategoryNone, DefaultDuration: "4–8 недель"},
+	{ID: "devops-vps", Label: "DevOps/VPS", SeedBasePriceTenge: ptr(150000), Category: ScaleCategoryNone, DefaultDuration: "1–3 недели"},
+	{ID: "other", Label: "Другое", SeedBasePriceTenge: nil, Category: ScaleCategoryNone, DefaultDuration: "по договорённости"},
 }
 
 var ScaleTiers = []ScaleTier{

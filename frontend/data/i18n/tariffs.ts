@@ -48,6 +48,8 @@ const ru = {
     /** {from} {to} */
     priceChanged: "Стоимость тарифа изменилась: было {from}, теперь {to}. Заявка не отправлена — проверьте новую сумму и подтвердите отправку.",
     confirmSubmit: "Подтвердить новую цену и отправить",
+    /** {from} {to} — the project type's base price ("от X") */
+    basePriceChanged: "Стоимость изменилась: было {from}, теперь {to}. Заявка не отправлена — проверьте новую сумму и подтвердите отправку.",
   },
   success: {
     /** {title} {price} */
@@ -100,6 +102,7 @@ export const tariffTranslations: Record<Locale, TariffTranslations> = {
       total: "Тариф бойынша құны: {price}",
       priceChanged: "Тариф құны өзгерді: {from} болды, енді {to}. Өтінім жіберілмеді — жаңа соманы тексеріп, жіберуді растаңыз.",
       confirmSubmit: "Жаңа бағаны растап, жіберу",
+      basePriceChanged: "Құны өзгерді: {from} болды, енді {to}. Өтінім жіберілмеді — жаңа соманы тексеріп, жіберуді растаңыз.",
     },
     success: {
       tariff: "«{title}» тарифі: {price}.",
@@ -146,6 +149,7 @@ export const tariffTranslations: Record<Locale, TariffTranslations> = {
       total: "Price with this tariff: {price}",
       priceChanged: "The tariff's price has changed: it was {from}, now it is {to}. The request was not sent — check the new amount and confirm sending.",
       confirmSubmit: "Confirm the new price and send",
+      basePriceChanged: "The price has changed: it was {from}, now it is {to}. The request was not sent — check the new amount and confirm sending.",
     },
     success: {
       tariff: "“{title}” tariff: {price}.",

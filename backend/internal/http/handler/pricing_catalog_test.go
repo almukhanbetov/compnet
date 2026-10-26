@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,15 +12,26 @@ import (
 	"github.com/almukha/compnet-backend/internal/pricing"
 )
 
+// catalogOnly serves a fixed catalog (the other content methods are unused).
+type catalogOnly struct {
+	ContentService
+	catalog pricing.Catalog
+}
+
+func (c catalogOnly) PricingCatalog(context.Context) (pricing.Catalog, error) { return c.catalog, nil }
+
 // The published catalog is the server's catalog, value for value, under
-// the field names the frontend reads.
+// the field names the frontend reads: the base prices in force (stored
+// versions, the seed for the others), everything else from the Go catalog.
 func TestPricingCatalog_MirrorsServerCatalog(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	engine.GET("/pricing/catalog", NewContentHandler(nil).PricingCatalog)
+	landing := int64(130000)
+	catalog := pricing.NewCatalog([]pricing.BasePrice{{ProjectType: "landing", VersionID: "v", Version: 2, PriceTenge: &landing}})
+	engine.GET("/pricing/catalog", NewContentHandler(catalogOnly{catalog: catalog}).PricingCatalog)
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/pricing/catalog", nil))
-	if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "public, max-age=300" {
+	if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "public, max-age=30" {
 		t.Fatalf("status %d, cache %q", rec.Code, rec.Header().Get("Cache-Control"))
 	}
 	var body struct {
@@ -30,9 +42,10 @@ func TestPricingCatalog_MirrorsServerCatalog(t *testing.T) {
 			MultilingualPercent float64 `json:"multilingual_percent"`
 			MaximumRatio        float64 `json:"maximum_ratio"`
 			ProjectTypes        []struct {
-				ID             string `json:"id"`
-				BasePriceTenge *int64 `json:"base_price_tenge"`
-				Category       string `json:"category"`
+				ID               string `json:"id"`
+				BasePriceTenge   *int64 `json:"base_price_tenge"`
+				BasePriceVersion int    `json:"base_price_version"`
+				Category         string `json:"category"`
 			} `json:"project_types"`
 			ScaleTiers []struct {
 				ID            string `json:"id"`
@@ -76,7 +89,11 @@ func TestPricingCatalog_MirrorsServerCatalog(t *testing.T) {
 	}
 	for i, p := range pricing.ProjectTypes {
 		got := d.ProjectTypes[i]
-		if got.ID != p.ID || !eqPtr(got.BasePriceTenge, p.BasePriceTenge) || got.Category != string(p.Category) {
+		want, version := p.SeedBasePriceTenge, 0
+		if p.ID == "landing" {
+			want, version = &landing, 2
+		}
+		if got.ID != p.ID || !eqPtr(got.BasePriceTenge, want) || got.BasePriceVersion != version || got.Category != string(p.Category) {
 			t.Errorf("project type %d: %+v, want %+v", i, got, p)
 		}
 	}

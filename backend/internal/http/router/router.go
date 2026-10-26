@@ -41,6 +41,8 @@ type Deps struct {
 	Analytics *handler.AnalyticsHandler
 	// Tariffs: public tariffs and quotes; administrators manage them.
 	Tariffs *handler.TariffHandler
+	// BasePrices: administrators manage the project types' base prices.
+	BasePrices *handler.BasePriceHandler
 	// AnalyticsIPLimiter bounds event batches per client IP.
 	AnalyticsIPLimiter middleware.Limiter
 	// StaffAuth authenticates every manager request from its session cookie.
@@ -154,6 +156,10 @@ func New(deps Deps) (*gin.Engine, error) {
 	staffOnly.POST("/pricing/tariffs/:slug/price", deps.Tariffs.ChangePrice)
 	staffOnly.POST("/pricing/tariffs/:slug/price/preview", deps.Tariffs.PreviewPrice)
 	staffOnly.GET("/pricing/tariffs/:slug/history", deps.Tariffs.PriceHistory)
+	staffOnly.GET("/pricing/base-prices", deps.BasePrices.List)
+	staffOnly.POST("/pricing/base-prices/:type", deps.BasePrices.Change)
+	staffOnly.POST("/pricing/base-prices/:type/preview", deps.BasePrices.Preview)
+	staffOnly.GET("/pricing/base-prices/:type/history", deps.BasePrices.History)
 	staffOnly.PUT("/pricing/tariffs/:slug/cost", deps.Tariffs.SetCost)
 	staffOnly.PATCH("/pricing/promotions/:slug", deps.Tariffs.UpdatePromotion)
 

@@ -39,19 +39,21 @@ export function isPricingCatalog(data: unknown): data is PricingCatalog {
   );
 }
 
-async function fetchCatalog(): Promise<PricingCatalog> {
+async function fetchCatalog(fresh: boolean): Promise<PricingCatalog> {
   if (!API_BASE_URL) throw new Error("NEXT_PUBLIC_API_URL is not configured");
-  const response = await fetch(`${API_BASE_URL}/api/v1/pricing/catalog`, { credentials: "omit" });
+  const response = await fetch(`${API_BASE_URL}/api/v1/pricing/catalog`, { credentials: "omit", ...(fresh ? { cache: "no-store" as const } : {}) });
   if (!response.ok) throw new Error(`pricing catalog: HTTP ${response.status}`);
   const body = (await response.json()) as { data?: unknown };
   if (!isPricingCatalog(body.data)) throw new Error("pricing catalog: unexpected shape");
   return body.data;
 }
 
-/** The shared load; a failure is forgotten so the next call tries again. */
-export function loadPricingCatalog(): Promise<PricingCatalog> {
+/** The shared load; a failure is forgotten so the next call tries again.
+ * fresh: past every cache (a base price changed; see usePricingCatalog). */
+export function loadPricingCatalog(fresh = false): Promise<PricingCatalog> {
+  if (fresh) pending = null;
   if (!pending) {
-    pending = fetchCatalog().catch((err: unknown) => {
+    pending = fetchCatalog(fresh).catch((err: unknown) => {
       pending = null;
       throw err;
     });
@@ -64,31 +66,33 @@ export type PricingCatalogState =
   | { status: "ready"; catalog: PricingCatalog }
   | { status: "error"; retry: () => void };
 
-export function usePricingCatalog(): PricingCatalogState {
-  const [state, setState] = useState<{ status: "loading" } | { status: "ready"; catalog: PricingCatalog } | { status: "error" }>({
-    status: "loading",
-  });
+/** The catalog for this page. A new refresh value loads it again past the
+ * caches (a request was refused because a base price changed): until then
+ * it counts as loading, so no outdated price is shown or sent. */
+export function usePricingCatalog(refresh = 0): PricingCatalogState {
+  type Loaded = { key: string; status: "ready"; catalog: PricingCatalog } | { key: string; status: "error" };
+  const [state, setState] = useState<Loaded | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const key = `${refresh}|${attempt}`;
 
   useEffect(() => {
     let cancelled = false;
-    loadPricingCatalog().then(
+    loadPricingCatalog(refresh > 0).then(
       (catalog) => {
-        if (!cancelled) setState({ status: "ready", catalog });
+        if (!cancelled) setState({ key, status: "ready", catalog });
       },
       () => {
-        if (!cancelled) setState({ status: "error" });
+        if (!cancelled) setState({ key, status: "error" });
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the key covers refresh and attempt
+  }, [key]);
 
-  const retry = useCallback(() => {
-    setState({ status: "loading" });
-    setAttempt((n) => n + 1);
-  }, []);
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return state.status === "error" ? { status: "error", retry } : state;
+  if (!state || state.key !== key) return { status: "loading" };
+  return state.status === "error" ? { status: "error", retry } : { status: "ready", catalog: state.catalog };
 }

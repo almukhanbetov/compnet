@@ -9,6 +9,7 @@ import (
 	"github.com/almukha/compnet-backend/internal/http/apierr"
 	"github.com/almukha/compnet-backend/internal/http/dto"
 	"github.com/almukha/compnet-backend/internal/http/response"
+	"github.com/almukha/compnet-backend/internal/pricing"
 	contentsvc "github.com/almukha/compnet-backend/internal/service/content"
 )
 
@@ -18,6 +19,7 @@ type ContentService interface {
 	ListServiceDetails(ctx context.Context) ([]content.ServiceDetail, error)
 	GetServiceDetail(ctx context.Context, slug string) (content.ServiceDetail, error)
 	ListPricing(ctx context.Context) ([]contentsvc.PricingCardView, error)
+	PricingCatalog(ctx context.Context) (pricing.Catalog, error)
 	ListPortfolioCases(ctx context.Context) ([]content.PortfolioCase, error)
 	GetPortfolioCase(ctx context.Context, slug string) (content.PortfolioCase, error)
 	ListTestimonials(ctx context.Context) ([]content.Testimonial, error)
@@ -63,10 +65,16 @@ func (h *ContentHandler) ListPricing(c *gin.Context) {
 
 // PricingCatalog handles GET /api/v1/pricing/catalog: the prices and
 // parameters of the estimate formula, for the browser's calculator and
-// preview. Static per build, so it may be cached briefly.
+// preview. Base prices change in /manager/pricing: cached only briefly
+// (a request sent with an outdated base price is refused and re-shown).
 func (h *ContentHandler) PricingCatalog(c *gin.Context) {
-	c.Header("Cache-Control", "public, max-age=300")
-	response.OK(c, dto.NewPricingCatalogResponse())
+	catalog, err := h.service.PricingCatalog(c.Request.Context())
+	if err != nil {
+		apierr.Write(c, err)
+		return
+	}
+	c.Header("Cache-Control", "public, max-age=30")
+	response.OK(c, dto.NewPricingCatalogResponse(catalog))
 }
 
 func (h *ContentHandler) ListPortfolio(c *gin.Context) {

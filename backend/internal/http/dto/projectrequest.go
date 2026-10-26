@@ -89,6 +89,11 @@ type CreateProjectRequestRequest struct {
 	// (optional). Only the tariff and its extra modules are taken from the
 	// client; the price, the promotion and the project type are the server's.
 	Tariff *TariffSelectionInput `json:"tariff,omitempty"`
+	// ExpectedBasePriceTenge is the base price ("от X") the form showed for
+	// the project type (individual estimate). Optional for older clients;
+	// when sent, never used as a price, only compared with the one in force:
+	// a request whose base price changed meanwhile is refused (409).
+	ExpectedBasePriceTenge *int64 `json:"expected_base_price_tenge,omitempty"`
 	// AnalyticsSessionID links the saved request to the visit (only sent
 	// after analytics consent; optional, ignored when unknown).
 	AnalyticsSessionID string `json:"analytics_session_id,omitempty"`
@@ -143,6 +148,10 @@ func NormalizedEmail(raw string) string {
 // resolve, and the service layer merges those errors into the same map.
 func (r CreateProjectRequestRequest) Validate() map[string]string {
 	fields := map[string]string{}
+
+	if r.ExpectedBasePriceTenge != nil && *r.ExpectedBasePriceTenge <= 0 {
+		fields["expected_base_price_tenge"] = "обновите страницу и проверьте стоимость"
+	}
 
 	name := strings.TrimSpace(r.Name)
 	switch {

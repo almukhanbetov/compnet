@@ -105,7 +105,45 @@ export interface ApiPricePreview {
   can_save: boolean;
 }
 
-/** GET /pricing/tariffs/:slug/history — newest first. */
+/** GET /pricing/base-prices — every project type of the catalog. */
+export interface ApiBasePrice {
+  project_type: string;
+  label: string;
+  category: "site" | "app" | "none";
+  /** null: individual estimate only (not editable). */
+  price_tenge: number | null;
+  /** 0: no stored version. */
+  version: number;
+  changed_at: string | null;
+  /** "" for the seeded versions. */
+  author: string;
+  reason: string;
+  editable: boolean;
+}
+
+export interface ApiEstimateRange {
+  individual: boolean;
+  minimum_tenge: number | null;
+  maximum_tenge: number | null;
+}
+
+/** POST /pricing/base-prices/:type/preview — the calculator itself; nothing stored. */
+export interface ApiBasePricePreview {
+  project_type: string;
+  label: string;
+  current_version: number;
+  new_version: number;
+  current_price_tenge: number | null;
+  new_price_tenge: number;
+  /** The standard estimate (basic design, standard complexity, normal urgency,
+   * no modules) of every scale tier; tier_id "" for types without tiers. */
+  rows: Array<{ tier_id: string; tier_label: string; current: ApiEstimateRange; proposed: ApiEstimateRange }>;
+  problems: Record<string, string>;
+  warnings: string[];
+  can_save: boolean;
+}
+
+/** GET /pricing/tariffs/:slug/history and /pricing/base-prices/:type/history — newest first. */
 export interface ApiPriceHistoryEntry {
   version: number;
   price_tenge: number;
