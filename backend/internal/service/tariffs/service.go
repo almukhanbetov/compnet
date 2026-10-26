@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -29,8 +30,9 @@ type Repository interface {
 	ActivePromotion(ctx context.Context, tariffID string, ttl time.Duration) (*tariff.Promotion, error)
 	ListPromotions(ctx context.Context, ttl time.Duration) ([]tariff.Promotion, error)
 	UpdateTariff(ctx context.Context, staffID, slug string, p tariff.TariffPatch) (tariff.Tariff, error)
-	CreateVersion(ctx context.Context, staffID, slug string, v tariff.Version, cost *int64) (tariff.Tariff, error)
-	SetCurrentCost(ctx context.Context, staffID, slug string, cost int64) (tariff.Tariff, error)
+	CreateVersion(ctx context.Context, staffID, slug string, nv tariff.NewVersion) (tariff.Tariff, error)
+	PriceHistory(ctx context.Context, slug string, limit int) ([]tariff.HistoryEntry, error)
+	SetCurrentCost(ctx context.Context, staffID, slug string, cost int64, check tariff.VersionCheck) (tariff.Tariff, error)
 	UpdatePromotion(ctx context.Context, staffID, slug string, p tariff.PromotionPatch, ttl time.Duration, check tariff.PromotionCheck) (tariff.Promotion, error)
 	ReleaseExpiredReservations(ctx context.Context, ttl time.Duration) (int64, error)
 }
@@ -135,6 +137,8 @@ func wrap(err error, what string) error {
 		return err
 	case errors.Is(err, tariff.ErrNotFound):
 		return apperr.NotFound(what + " не найден")
+	case errors.Is(err, tariff.ErrVersionConflict):
+		return apperr.Conflict("цену уже изменил другой администратор — обновите данные и проверьте расчёт ещё раз")
 	default:
 		return apperr.Internal(err)
 	}
@@ -177,13 +181,49 @@ type VersionInput struct {
 	AllowedModuleIDs []string
 	DurationLabel    string
 	CostTenge        *int64
+	Reason           string
+	// ExpectedVersion: the version the administrator edited (0: not checked).
+	ExpectedVersion int
+}
+
+// MaxPriceTenge bounds tariff prices and costs.
+const MaxPriceTenge = 100_000_000
+
+// versionProblems is what forbids a tariff's new current version (cost
+// resolved), against its active promotion: the price not below the cost,
+// and the rules the promotion was switched on with still true.
+func versionProblems(t tariff.Tariff, active *tariff.Promotion) map[string]string {
+	fields := map[string]string{}
+	v := t.Current
+	if v.CostTenge != nil && v.PriceTenge < *v.CostTenge {
+		fields["price_tenge"] = "цена ниже себестоимости (" + formatTenge(*v.CostTenge) + ")"
+	}
+	if active != nil {
+		switch {
+		case active.DiscountTenge >= v.PriceTenge:
+			fields["price_tenge"] = "скидка действующей акции «" + active.Title + "» (" + formatTenge(active.DiscountTenge) + ") должна быть меньше цены"
+		case v.CostTenge == nil:
+			fields["cost_tenge"] = "у тарифа действует акция — укажите себестоимость"
+		case v.PriceTenge-active.DiscountTenge < *v.CostTenge:
+			fields["price_tenge"] = "акционная цена (" + formatTenge(v.PriceTenge-active.DiscountTenge) + ") ниже себестоимости"
+		}
+	}
+	return fields
+}
+
+func versionCheck(t tariff.Tariff, active *tariff.Promotion) error {
+	if fields := versionProblems(t, active); len(fields) > 0 {
+		return apperr.Validation("проверьте цену", fields)
+	}
+	return nil
 }
 
 // CreateVersion validates and stores a new current price version. The
-// project type and modules must exist in the Go catalog.
+// project type and modules must exist in the Go catalog; without a cost the
+// current version's is kept.
 func (s *Service) CreateVersion(ctx context.Context, staffID, slug string, in VersionInput) (tariff.Tariff, error) {
 	fields := map[string]string{}
-	if in.PriceTenge <= 0 || in.PriceTenge > 100_000_000 {
+	if in.PriceTenge <= 0 || in.PriceTenge > MaxPriceTenge {
 		fields["price_tenge"] = "цена от 1 до 100 000 000 ₸"
 	}
 	if in.PriceKind != string(tariff.PriceFixed) && in.PriceKind != string(tariff.PriceFrom) {
@@ -210,25 +250,224 @@ func (s *Service) CreateVersion(ctx context.Context, staffID, slug string, in Ve
 	if !between(in.DurationLabel, 1, 50) {
 		fields["duration_label"] = "от 1 до 50 символов"
 	}
-	if in.CostTenge != nil && *in.CostTenge < 0 {
-		fields["cost_tenge"] = "не может быть отрицательной"
+	if in.CostTenge != nil && (*in.CostTenge < 0 || *in.CostTenge > MaxPriceTenge) {
+		fields["cost_tenge"] = "от 0 до 100 000 000 ₸"
+	}
+	if utf8.RuneCountInString(in.Reason) > 500 {
+		fields["reason"] = "не больше 500 символов"
 	}
 	if len(fields) > 0 {
 		return tariff.Tariff{}, apperr.Validation("проверьте версию тарифа", fields)
 	}
-	t, err := s.repo.CreateVersion(ctx, staffID, slug, tariff.Version{
-		PriceTenge: in.PriceTenge, PriceKind: tariff.PriceKind(in.PriceKind), ProjectType: in.ProjectType,
-		Features: nonNil(in.Features), AllowedModuleIDs: nonNil(in.AllowedModuleIDs), DurationLabel: in.DurationLabel,
-	}, in.CostTenge)
+	t, err := s.repo.CreateVersion(ctx, staffID, slug, tariff.NewVersion{
+		Version: tariff.Version{
+			PriceTenge: in.PriceTenge, PriceKind: tariff.PriceKind(in.PriceKind), ProjectType: in.ProjectType,
+			Features: nonNil(in.Features), AllowedModuleIDs: nonNil(in.AllowedModuleIDs), DurationLabel: in.DurationLabel,
+			ChangeReason: strings.TrimSpace(in.Reason),
+		},
+		CostTenge: in.CostTenge, CarryCost: true, ExpectedVersion: in.ExpectedVersion, Check: versionCheck,
+	})
 	return t, wrap(err, "тариф")
 }
 
-// SetCost sets the internal cost of a tariff's current version.
+// PriceChangeInput is a new price for a tariff, everything else kept.
+type PriceChangeInput struct {
+	PriceTenge int64
+	// CostTenge of the new version; nil keeps the current version's.
+	CostTenge       *int64
+	Reason          string
+	ExpectedVersion int
+}
+
+func (in PriceChangeInput) problems() map[string]string {
+	fields := map[string]string{}
+	if in.PriceTenge <= 0 || in.PriceTenge > MaxPriceTenge {
+		fields["price_tenge"] = "цена от 1 до 100 000 000 ₸"
+	}
+	if in.CostTenge != nil && (*in.CostTenge < 0 || *in.CostTenge > MaxPriceTenge) {
+		fields["cost_tenge"] = "от 0 до 100 000 000 ₸"
+	}
+	return fields
+}
+
+// ChangePrice makes a new current version of a tariff with another price:
+// contents, modules, project type and timeline are those of the current
+// version, which must still be the one the administrator edited. Requests
+// already saved keep their version and price.
+func (s *Service) ChangePrice(ctx context.Context, staffID, slug string, in PriceChangeInput) (tariff.Tariff, error) {
+	fields := in.problems()
+	if !between(in.Reason, 3, 500) {
+		fields["reason"] = "укажите причину: от 3 до 500 символов"
+	}
+	if in.ExpectedVersion < 1 {
+		fields["expected_version"] = "обновите данные"
+	}
+	if len(fields) > 0 {
+		return tariff.Tariff{}, apperr.Validation("проверьте цену", fields)
+	}
+	cur, err := s.repo.GetTariff(ctx, slug, false)
+	if err != nil {
+		return tariff.Tariff{}, wrap(err, "тариф")
+	}
+	if cur.Current.Number != in.ExpectedVersion {
+		return tariff.Tariff{}, wrap(tariff.ErrVersionConflict, "тариф")
+	}
+	if cur.Current.PriceTenge == in.PriceTenge {
+		return tariff.Tariff{}, apperr.Validation("проверьте цену", map[string]string{"price_tenge": "новая цена совпадает с текущей"})
+	}
+	v := cur.Current
+	v.ID, v.PriceTenge, v.ChangeReason, v.CostTenge = "", in.PriceTenge, strings.TrimSpace(spaces.ReplaceAllString(in.Reason, " ")), nil
+	t, err := s.repo.CreateVersion(ctx, staffID, slug, tariff.NewVersion{
+		Version: v, CostTenge: in.CostTenge, CarryCost: true, ExpectedVersion: in.ExpectedVersion, Check: versionCheck,
+	})
+	return t, wrap(err, "тариф")
+}
+
+// PreviewInput is a price to try, with a selection of extra modules to price.
+type PreviewInput struct {
+	PriceTenge       int64
+	CostTenge        *int64
+	ModuleIDs        []string
+	ExternalApiCount int
+}
+
+// PricePreview is what a new price would do, computed by the same rules as
+// the site and the requests (tariff.Price), nothing stored.
+type PricePreview struct {
+	Current  tariff.Tariff // with cost
+	Proposed tariff.Tariff // the new version as it would be (cost resolved)
+	// The selection at the current and at the new price (regular price).
+	CurrentQuote, NewQuote tariff.Quote
+	// The tariff's promotion (the active one, otherwise the first), with the
+	// selection's price after its discount (nil when the discount would not
+	// apply) and whether it is live now.
+	Promotion      *tariff.Promotion
+	PromotionLive  bool
+	PromotionFinal *int64
+	// Problems block the change (the same rules as saving it); warnings do not.
+	Problems map[string]string
+	Warnings []string
+}
+
+// PreviewPrice computes a new price's effect for an administrator.
+func (s *Service) PreviewPrice(ctx context.Context, slug string, in PreviewInput) (PricePreview, error) {
+	if fields := (PriceChangeInput{PriceTenge: in.PriceTenge, CostTenge: in.CostTenge}).problems(); len(fields) > 0 {
+		return PricePreview{}, apperr.Validation("проверьте цену", fields)
+	}
+	view, err := s.AdminList(ctx)
+	if err != nil {
+		return PricePreview{}, err
+	}
+	var out PricePreview
+	found := false
+	for _, t := range view.Tariffs {
+		if t.Slug == slug {
+			out.Current, found = t, true
+		}
+	}
+	if !found {
+		return PricePreview{}, apperr.NotFound("тариф не найден")
+	}
+	var active *tariff.Promotion
+	for i := range view.Promotions {
+		p := &view.Promotions[i]
+		if p.TariffID != out.Current.ID {
+			continue
+		}
+		if p.IsActive {
+			active = p
+			out.Promotion = p
+		} else if out.Promotion == nil {
+			out.Promotion = p
+		}
+	}
+	out.Proposed = out.Current
+	out.Proposed.Current.Number++
+	out.Proposed.Current.PriceTenge = in.PriceTenge
+	if in.CostTenge != nil {
+		out.Proposed.Current.CostTenge = in.CostTenge
+	}
+	sel := tariff.Selection{Slug: slug, ModuleIDs: in.ModuleIDs, ExternalApiCount: in.ExternalApiCount}
+	now := s.now()
+	if out.CurrentQuote, err = tariff.Price(out.Current, nil, sel, now); err == nil {
+		out.NewQuote, err = tariff.Price(out.Proposed, nil, sel, now)
+	}
+	if errors.Is(err, tariff.ErrModuleNotAllowed) || errors.Is(err, tariff.ErrDuplicateModule) {
+		return PricePreview{}, apperr.Validation("проверьте модули", map[string]string{"modules": "модуль недоступен для этого тарифа"})
+	}
+	if err != nil {
+		return PricePreview{}, apperr.Internal(err)
+	}
+	out.Problems = versionProblems(out.Proposed, active)
+	if in.PriceTenge == out.Current.Current.PriceTenge {
+		out.Problems["price_tenge"] = "новая цена совпадает с текущей"
+	}
+	out.Warnings = []string{}
+	if p := out.Promotion; p != nil {
+		out.PromotionLive = p.LiveAt(now)
+		if p.DiscountTenge < in.PriceTenge {
+			final := out.NewQuote.FinalTenge - p.DiscountTenge
+			out.PromotionFinal = &final
+		}
+		if !p.IsActive {
+			if fields := versionProblems(out.Proposed, p); len(fields) > 0 {
+				out.Warnings = append(out.Warnings, "акция «"+p.Title+"» выключена; с этой ценой её нельзя будет включить: "+firstValue(fields))
+			}
+		}
+	}
+	old := out.Current.Current.PriceTenge
+	if diff := in.PriceTenge - old; diff*2 > old || -diff*2 > old {
+		out.Warnings = append(out.Warnings, "цена меняется больше чем на 50% — проверьте сумму")
+	}
+	if out.Proposed.Current.CostTenge == nil {
+		out.Warnings = append(out.Warnings, "себестоимость не указана — маржа не рассчитана")
+	}
+	if out.Current.Current.PriceKind == tariff.PriceFrom {
+		out.Warnings = append(out.Warnings, "цена «от»: итоговая стоимость заявки по ТЗ может быть выше")
+	}
+	return out, nil
+}
+
+// PriceHistory lists a tariff's price versions, newest first.
+func (s *Service) PriceHistory(ctx context.Context, slug string) ([]tariff.HistoryEntry, error) {
+	h, err := s.repo.PriceHistory(ctx, slug, 50)
+	return h, wrap(err, "тариф")
+}
+
+func firstValue(m map[string]string) string {
+	for _, k := range []string{"price_tenge", "cost_tenge"} {
+		if v, ok := m[k]; ok {
+			return v
+		}
+	}
+	return ""
+}
+
+// formatTenge writes 10000 as "10 000 ₸" (messages for administrators).
+func formatTenge(n int64) string {
+	digits := strconv.FormatInt(n, 10)
+	neg := strings.HasPrefix(digits, "-")
+	digits = strings.TrimPrefix(digits, "-")
+	var b strings.Builder
+	for i, r := range digits {
+		if i > 0 && (len(digits)-i)%3 == 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteRune(r)
+	}
+	if neg {
+		return "-" + b.String() + " ₸"
+	}
+	return b.String() + " ₸"
+}
+
+// SetCost sets the internal cost of a tariff's current version: not above
+// its price, nor above the active promotion's price.
 func (s *Service) SetCost(ctx context.Context, staffID, slug string, cost int64) (tariff.Tariff, error) {
-	if cost < 0 || cost > 100_000_000 {
+	if cost < 0 || cost > MaxPriceTenge {
 		return tariff.Tariff{}, apperr.Validation("проверьте себестоимость", map[string]string{"cost_tenge": "от 0 до 100 000 000 ₸"})
 	}
-	t, err := s.repo.SetCurrentCost(ctx, staffID, slug, cost)
+	t, err := s.repo.SetCurrentCost(ctx, staffID, slug, cost, versionCheck)
 	return t, wrap(err, "тариф")
 }
 

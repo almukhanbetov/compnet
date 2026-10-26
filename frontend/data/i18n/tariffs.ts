@@ -43,6 +43,11 @@ const ru = {
     /** {list} */
     modules: "Модули: {list}",
     editModules: "Изменить модули",
+    /** {price} — the server's quote, the amount the request is sent with. */
+    total: "Стоимость по тарифу: {price}",
+    /** {from} {to} */
+    priceChanged: "Стоимость тарифа изменилась: было {from}, теперь {to}. Заявка не отправлена — проверьте новую сумму и подтвердите отправку.",
+    confirmSubmit: "Подтвердить новую цену и отправить",
   },
   success: {
     /** {title} {price} */
@@ -92,6 +97,9 @@ export const tariffTranslations: Record<Locale, TariffTranslations> = {
       none: "Тарифсіз — жеке есептеу",
       modules: "Модульдер: {list}",
       editModules: "Модульдерді өзгерту",
+      total: "Тариф бойынша құны: {price}",
+      priceChanged: "Тариф құны өзгерді: {from} болды, енді {to}. Өтінім жіберілмеді — жаңа соманы тексеріп, жіберуді растаңыз.",
+      confirmSubmit: "Жаңа бағаны растап, жіберу",
     },
     success: {
       tariff: "«{title}» тарифі: {price}.",
@@ -135,6 +143,9 @@ export const tariffTranslations: Record<Locale, TariffTranslations> = {
       none: "No tariff — individual estimate",
       modules: "Modules: {list}",
       editModules: "Change modules",
+      total: "Price with this tariff: {price}",
+      priceChanged: "The tariff's price has changed: it was {from}, now it is {to}. The request was not sent — check the new amount and confirm sending.",
+      confirmSubmit: "Confirm the new price and send",
     },
     success: {
       tariff: "“{title}” tariff: {price}.",

@@ -43,6 +43,7 @@ type Version struct {
 	Features         []string
 	AllowedModuleIDs []string
 	DurationLabel    string
+	ChangeReason     string // why the administrator made this version
 	CreatedAt        time.Time
 	// CostTenge: internal cost, administrators only; nil when unknown.
 	CostTenge *int64
@@ -118,6 +119,12 @@ var (
 	ErrNotFound         = errors.New("tariff: not found")
 	ErrModuleNotAllowed = errors.New("tariff: module not available for this tariff")
 	ErrDuplicateModule  = errors.New("tariff: module selected twice")
+	// ErrVersionConflict: the tariff's current version is no longer the one
+	// the administrator edited (another administrator changed it).
+	ErrVersionConflict = errors.New("tariff: the current version has changed")
+	// ErrPriceChanged: a request's price is no longer the one the visitor
+	// was shown (new price version, promotion changed or its places ran out).
+	ErrPriceChanged = errors.New("tariff: the price has changed since it was shown")
 )
 
 // Price prices a selection on a version: the version's price, the allowed
@@ -192,3 +199,36 @@ type PromotionPatch struct {
 // against its tariff (current version, with cost). Called inside the
 // transaction, with the promotion row locked.
 type PromotionCheck func(p Promotion, t Tariff) error
+
+// NewVersion is a new current version as an administrator asked for it.
+type NewVersion struct {
+	Version Version
+	// CostTenge of the new version; nil with CarryCost keeps the current
+	// version's cost (a new price does not change what the work costs).
+	CostTenge *int64
+	CarryCost bool
+	// ExpectedVersion is the version number the administrator edited; the
+	// change is refused (ErrVersionConflict) when another one became
+	// current meanwhile. 0 skips the check.
+	ExpectedVersion int
+	// Check validates the tariff as it would be with the new version
+	// (cost resolved) against its active promotion (nil without one), inside
+	// the transaction with the tariff and the promotion locked.
+	Check VersionCheck
+}
+
+// VersionCheck: see NewVersion.Check.
+type VersionCheck func(proposed Tariff, active *Promotion) error
+
+// HistoryEntry is one price version with who made it, when and why.
+type HistoryEntry struct {
+	Version            int
+	PriceTenge         int64
+	PreviousPriceTenge *int64 // nil for the first version
+	PriceKind          PriceKind
+	Reason             string
+	AuthorName         string // "" for the seeded versions
+	CreatedAt          time.Time
+	IsCurrent          bool
+	Requests           int // requests saved with this version
+}

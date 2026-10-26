@@ -7,7 +7,17 @@ import type {
   LeadsFilter,
 } from "@/types/api/analytics";
 import type { ApiSourcesReport } from "@/types/api/analyticsSources";
-import type { ApiAdminPromotion, ApiAdminTariff, ApiPricingAdmin, PromotionPatch, TariffVersionInput } from "@/types/api/pricingAdmin";
+import type {
+  ApiAdminPromotion,
+  ApiAdminTariff,
+  ApiPriceHistoryEntry,
+  ApiPricePreview,
+  ApiPricingAdmin,
+  PriceChangeInput,
+  PricePreviewInput,
+  PromotionPatch,
+  TariffVersionInput,
+} from "@/types/api/pricingAdmin";
 import type {
   ApiRequestDetail,
   ApiRequestItem,
@@ -234,6 +244,20 @@ export function updateTariff(slug: string, patch: { title?: string; description?
 
 export function createTariffVersion(slug: string, input: TariffVersionInput) {
   return request<ApiEnvelope<ApiAdminTariff>>(`/pricing/tariffs/${encodeURIComponent(slug)}/versions`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function previewTariffPrice(slug: string, input: PricePreviewInput, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiPricePreview>>(`/pricing/tariffs/${encodeURIComponent(slug)}/price/preview`, {
+    method: "POST", body: JSON.stringify(input), signal,
+  });
+}
+
+export function changeTariffPrice(slug: string, input: PriceChangeInput) {
+  return request<ApiEnvelope<ApiAdminTariff>>(`/pricing/tariffs/${encodeURIComponent(slug)}/price`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function fetchTariffPriceHistory(slug: string, signal?: AbortSignal) {
+  return request<ApiEnvelope<ApiPriceHistoryEntry[]>>(`/pricing/tariffs/${encodeURIComponent(slug)}/history`, { signal });
 }
 
 export function setTariffCost(slug: string, cost: number) {

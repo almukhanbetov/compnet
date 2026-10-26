@@ -36,7 +36,7 @@ func tariffSelect(withCost bool) string {
 	return `
 		SELECT t.id, t.slug, t.title, t.description, t.sort_order, t.is_active,
 		       v.id, v.version, v.price_tenge, v.price_kind, v.project_type, v.features,
-		       v.allowed_module_ids, v.duration_label, v.created_at, ` + cost + `
+		       v.allowed_module_ids, v.duration_label, v.change_reason, v.created_at, ` + cost + `
 		FROM tariffs t
 		JOIN tariff_versions v ON v.tariff_id = t.id AND v.is_current
 		` + join + "\n"
@@ -46,7 +46,7 @@ func scanTariff(row pgx.Row) (tariff.Tariff, error) {
 	var t tariff.Tariff
 	err := row.Scan(&t.ID, &t.Slug, &t.Title, &t.Description, &t.SortOrder, &t.IsActive,
 		&t.Current.ID, &t.Current.Number, &t.Current.PriceTenge, &t.Current.PriceKind, &t.Current.ProjectType,
-		&t.Current.Features, &t.Current.AllowedModuleIDs, &t.Current.DurationLabel, &t.Current.CreatedAt, &t.Current.CostTenge)
+		&t.Current.Features, &t.Current.AllowedModuleIDs, &t.Current.DurationLabel, &t.Current.ChangeReason, &t.Current.CreatedAt, &t.Current.CostTenge)
 	t.Current.TariffID = t.ID
 	return t, err
 }
@@ -160,31 +160,58 @@ func (r *TariffRepository) UpdateTariff(ctx context.Context, staffID, slug strin
 }
 
 // CreateVersion stores a new price version and makes it current; the
-// previous ones stay as history. cost is optional (administrators only).
-func (r *TariffRepository) CreateVersion(ctx context.Context, staffID, slug string, v tariff.Version, cost *int64) (tariff.Tariff, error) {
+// previous ones stay as history (and with the requests quoted with them).
+// Locks the tariff and its current version, then its active promotion — the
+// order a request being saved takes them in (version, then promotion), so the
+// two never wait for each other in a cycle. NO KEY UPDATE: the keys do not
+// change, so a request's foreign key checks (KEY SHARE on the tariff) are
+// not blocked. Refuses with ErrVersionConflict when the current version is
+// no longer the expected one.
+func (r *TariffRepository) CreateVersion(ctx context.Context, staffID, slug string, nv tariff.NewVersion) (tariff.Tariff, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return tariff.Tariff{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	var tariffID string
-	if err := tx.QueryRow(ctx, `SELECT id FROM tariffs WHERE slug = $1 FOR UPDATE`, slug).Scan(&tariffID); errors.Is(err, pgx.ErrNoRows) {
+	cur, err := scanTariff(tx.QueryRow(ctx, tariffSelect(true)+"WHERE t.slug = $1 FOR NO KEY UPDATE OF t, v", slug))
+	if errors.Is(err, pgx.ErrNoRows) {
 		return tariff.Tariff{}, tariff.ErrNotFound
-	} else if err != nil {
+	}
+	if err != nil {
 		return tariff.Tariff{}, err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE tariff_versions SET is_current = FALSE WHERE tariff_id = $1 AND is_current`, tariffID); err != nil {
+	if nv.ExpectedVersion != 0 && cur.Current.Number != nv.ExpectedVersion {
+		return tariff.Tariff{}, tariff.ErrVersionConflict
+	}
+	cost := nv.CostTenge
+	if cost == nil && nv.CarryCost {
+		cost = cur.Current.CostTenge
+	}
+	if nv.Check != nil {
+		proposed := cur
+		proposed.Current = nv.Version
+		proposed.Current.TariffID, proposed.Current.Number, proposed.Current.CostTenge = cur.ID, cur.Current.Number+1, cost
+		promo, err := lockActivePromotion(ctx, tx, cur.ID)
+		if err != nil {
+			return tariff.Tariff{}, err
+		}
+		if err := nv.Check(proposed, promo); err != nil {
+			return tariff.Tariff{}, err
+		}
+	}
+	v := nv.Version
+	if _, err := tx.Exec(ctx, `UPDATE tariff_versions SET is_current = FALSE WHERE tariff_id = $1 AND is_current`, cur.ID); err != nil {
 		return tariff.Tariff{}, err
 	}
 	var versionID string
 	var number int
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO tariff_versions (tariff_id, version, price_tenge, price_kind, project_type, features,
-		                             allowed_module_ids, duration_label, is_current, created_by)
-		SELECT $1, COALESCE(max(version), 0) + 1, $2, $3, $4, $5, $6, $7, TRUE, NULLIF($8, '')::uuid
+		                             allowed_module_ids, duration_label, change_reason, is_current, created_by)
+		SELECT $1, COALESCE(max(version), 0) + 1, $2, $3, $4, $5, $6, $7, $8, TRUE, NULLIF($9, '')::uuid
 		FROM tariff_versions WHERE tariff_id = $1
-		RETURNING id, version`, tariffID, v.PriceTenge, string(v.PriceKind), v.ProjectType, v.Features,
-		v.AllowedModuleIDs, v.DurationLabel, staffID).Scan(&versionID, &number); err != nil {
+		RETURNING id, version`, cur.ID, v.PriceTenge, string(v.PriceKind), v.ProjectType, v.Features,
+		v.AllowedModuleIDs, v.DurationLabel, v.ChangeReason, staffID).Scan(&versionID, &number); err != nil {
 		return tariff.Tariff{}, err
 	}
 	if cost != nil {
@@ -195,44 +222,102 @@ func (r *TariffRepository) CreateVersion(ctx context.Context, staffID, slug stri
 	}
 	if err := audit(ctx, tx, staffID, "tariff_version", versionID, "create", map[string]any{
 		"tariff": slug, "version": number, "price_tenge": v.PriceTenge, "price_kind": v.PriceKind,
+		"previous_version": cur.Current.Number, "previous_price_tenge": cur.Current.PriceTenge,
 		"project_type": v.ProjectType, "allowed_module_ids": v.AllowedModuleIDs, "cost_set": cost != nil,
+		"reason": v.ChangeReason,
 	}); err != nil {
 		return tariff.Tariff{}, err
 	}
-	t, err := scanTariff(tx.QueryRow(ctx, tariffSelect(true)+"WHERE t.id = $1", tariffID))
+	t, err := scanTariff(tx.QueryRow(ctx, tariffSelect(true)+"WHERE t.id = $1", cur.ID))
 	if err != nil {
 		return tariff.Tariff{}, err
 	}
 	return t, tx.Commit(ctx)
 }
 
-// SetCurrentCost sets the internal cost of a tariff's current version.
-func (r *TariffRepository) SetCurrentCost(ctx context.Context, staffID, slug string, cost int64) (tariff.Tariff, error) {
+// lockActivePromotion locks and returns a tariff's active promotion (nil
+// without one). Its place counts are not read (not needed by the checks).
+func lockActivePromotion(ctx context.Context, tx pgx.Tx, tariffID string) (*tariff.Promotion, error) {
+	p, err := scanPromotion(tx.QueryRow(ctx, `
+		SELECT id, slug, title, tariff_id, discount_tenge, starts_at, ends_at, max_orders, is_active, version, 0, 0
+		FROM promotions WHERE tariff_id = $1 AND is_active FOR NO KEY UPDATE`, tariffID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// PriceHistory returns a tariff's price versions, newest first, with the
+// previous price, the reason, the author and how many requests were saved
+// with each.
+func (r *TariffRepository) PriceHistory(ctx context.Context, slug string, limit int) ([]tariff.HistoryEntry, error) {
+	var tariffID string
+	if err := r.pool.QueryRow(ctx, `SELECT id FROM tariffs WHERE slug = $1`, slug).Scan(&tariffID); errors.Is(err, pgx.ErrNoRows) {
+		return nil, tariff.ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT version, price_tenge, previous_price, price_kind, change_reason, author, created_at, is_current, requests
+		FROM (
+			SELECT v.version, v.price_tenge, lag(v.price_tenge) OVER (ORDER BY v.version) AS previous_price,
+			       v.price_kind, v.change_reason, COALESCE(s.display_name, '') AS author, v.created_at, v.is_current,
+			       (SELECT count(*) FROM project_request_tariffs r WHERE r.tariff_version_id = v.id) AS requests
+			FROM tariff_versions v
+			LEFT JOIN staff_users s ON s.id = v.created_by
+			WHERE v.tariff_id = $1
+		) h
+		ORDER BY version DESC
+		LIMIT $2`, tariffID, limit)
+	if err != nil {
+		return nil, err
+	}
+	return collect(rows, func(row pgx.Rows) (tariff.HistoryEntry, error) {
+		var h tariff.HistoryEntry
+		err := row.Scan(&h.Version, &h.PriceTenge, &h.PreviousPriceTenge, &h.PriceKind, &h.Reason, &h.AuthorName,
+			&h.CreatedAt, &h.IsCurrent, &h.Requests)
+		return h, err
+	})
+}
+
+// SetCurrentCost sets the internal cost of a tariff's current version,
+// validated by check (the tariff with the new cost, against its active
+// promotion) with the tariff, the version and the promotion locked.
+func (r *TariffRepository) SetCurrentCost(ctx context.Context, staffID, slug string, cost int64, check tariff.VersionCheck) (tariff.Tariff, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return tariff.Tariff{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	var tariffID, versionID string
-	err = tx.QueryRow(ctx, `
-		SELECT t.id, v.id FROM tariffs t JOIN tariff_versions v ON v.tariff_id = t.id AND v.is_current
-		WHERE t.slug = $1 FOR UPDATE OF t`, slug).Scan(&tariffID, &versionID)
+	cur, err := scanTariff(tx.QueryRow(ctx, tariffSelect(true)+"WHERE t.slug = $1 FOR NO KEY UPDATE OF t, v", slug))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return tariff.Tariff{}, tariff.ErrNotFound
 	}
 	if err != nil {
 		return tariff.Tariff{}, err
 	}
+	proposed := cur
+	proposed.Current.CostTenge = &cost
+	promo, err := lockActivePromotion(ctx, tx, cur.ID)
+	if err != nil {
+		return tariff.Tariff{}, err
+	}
+	if err := check(proposed, promo); err != nil {
+		return tariff.Tariff{}, err
+	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO tariff_version_costs (tariff_version_id, cost_tenge, updated_by) VALUES ($1, $2, NULLIF($3, '')::uuid)
 		ON CONFLICT (tariff_version_id) DO UPDATE SET cost_tenge = EXCLUDED.cost_tenge, updated_by = EXCLUDED.updated_by, updated_at = now()`,
-		versionID, cost, staffID); err != nil {
+		cur.Current.ID, cost, staffID); err != nil {
 		return tariff.Tariff{}, err
 	}
-	if err := audit(ctx, tx, staffID, "tariff_cost", versionID, "set", map[string]any{"tariff": slug}); err != nil {
+	if err := audit(ctx, tx, staffID, "tariff_cost", cur.Current.ID, "set", map[string]any{"tariff": slug}); err != nil {
 		return tariff.Tariff{}, err
 	}
-	t, err := scanTariff(tx.QueryRow(ctx, tariffSelect(true)+"WHERE t.id = $1", tariffID))
+	t, err := scanTariff(tx.QueryRow(ctx, tariffSelect(true)+"WHERE t.id = $1", cur.ID))
 	if err != nil {
 		return tariff.Tariff{}, err
 	}
@@ -304,15 +389,16 @@ func (r *TariffRepository) UpdatePromotion(ctx context.Context, staffID, slug st
 	return p, tx.Commit(ctx)
 }
 
-// reservePromotion takes a promotional place for a request, inside the
-// request's transaction. The promotion row is locked, so concurrent requests
-// take places one after another; the promotion is checked again by the
-// database clock (active, inside its period, still on this tariff, below
-// the tariff's price), expired
-// reservations are released first, and a place is taken only while fewer
-// than max_orders are held. Returns the discount and version in force, or
-// ok=false when the request goes at the regular price.
-func reservePromotion(ctx context.Context, tx pgx.Tx, promotionID, tariffID, requestID string, basePrice int64, ttl time.Duration) (discount int64, version int, ok bool, err error) {
+// holdPromotion decides whether a request gets a promotional place, inside
+// the request's transaction, before the request is stored. The promotion row
+// is locked (until the transaction ends), so concurrent requests take places
+// one after another; the promotion is checked again by the database clock
+// (active, inside its period, still on this tariff, below the tariff's
+// price), expired reservations are released first, and a place is given
+// only while fewer than max_orders are held. Returns the discount and
+// version in force, or ok=false when the request goes at the regular price.
+// The place itself is written by reservePlace once the request exists.
+func holdPromotion(ctx context.Context, tx pgx.Tx, promotionID, tariffID string, basePrice int64, ttl time.Duration) (discount int64, version int, ok bool, err error) {
 	var maxOrders int
 	err = tx.QueryRow(ctx, `
 		SELECT discount_tenge, version, max_orders FROM promotions
@@ -335,11 +421,15 @@ func reservePromotion(ctx context.Context, tx pgx.Tx, promotionID, tariffID, req
 	if taken >= maxOrders {
 		return 0, 0, false, nil
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO promotion_reservations (promotion_id, project_request_id) VALUES ($1, $2)`,
-		promotionID, requestID); err != nil {
-		return 0, 0, false, err
-	}
 	return discount, version, true, nil
+}
+
+// reservePlace writes the place holdPromotion gave (same transaction, the
+// promotion still locked).
+func reservePlace(ctx context.Context, tx pgx.Tx, promotionID, requestID string) error {
+	_, err := tx.Exec(ctx, `INSERT INTO promotion_reservations (promotion_id, project_request_id) VALUES ($1, $2)`,
+		promotionID, requestID)
+	return err
 }
 
 // commandExecer is a pool or a transaction.

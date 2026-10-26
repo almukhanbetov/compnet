@@ -26,6 +26,9 @@ type TariffService interface {
 	AdminList(ctx context.Context) (tariffsvc.AdminView, error)
 	UpdateTariff(ctx context.Context, staffID, slug string, p tariff.TariffPatch) (tariff.Tariff, error)
 	CreateVersion(ctx context.Context, staffID, slug string, in tariffsvc.VersionInput) (tariff.Tariff, error)
+	ChangePrice(ctx context.Context, staffID, slug string, in tariffsvc.PriceChangeInput) (tariff.Tariff, error)
+	PreviewPrice(ctx context.Context, slug string, in tariffsvc.PreviewInput) (tariffsvc.PricePreview, error)
+	PriceHistory(ctx context.Context, slug string) ([]tariff.HistoryEntry, error)
 	SetCost(ctx context.Context, staffID, slug string, cost int64) (tariff.Tariff, error)
 	UpdatePromotion(ctx context.Context, staffID, slug string, p tariff.PromotionPatch) (tariff.Promotion, error)
 }
@@ -185,6 +188,7 @@ type adminTariffResponse struct {
 	SortOrder        int       `json:"sort_order"`
 	AllowedModuleIDs []string  `json:"allowed_module_ids"`
 	VersionCreatedAt time.Time `json:"version_created_at"`
+	ChangeReason     string    `json:"change_reason"`
 	CostTenge        *int64    `json:"cost_tenge"` // internal; administrators only
 }
 
@@ -212,7 +216,7 @@ func newAdminTariff(t tariff.Tariff) adminTariffResponse {
 			DurationLabel: v.DurationLabel, Modules: tariffModules(v.AllowedModuleIDs),
 		},
 		IsActive: t.IsActive, SortOrder: t.SortOrder, AllowedModuleIDs: v.AllowedModuleIDs,
-		VersionCreatedAt: v.CreatedAt, CostTenge: v.CostTenge,
+		VersionCreatedAt: v.CreatedAt, ChangeReason: v.ChangeReason, CostTenge: v.CostTenge,
 	}
 }
 
@@ -305,6 +309,8 @@ func (h *TariffHandler) CreateVersion(c *gin.Context) {
 		AllowedModuleIDs []string `json:"allowed_module_ids"`
 		DurationLabel    string   `json:"duration_label"`
 		CostTenge        *int64   `json:"cost_tenge"`
+		Reason           string   `json:"reason"`
+		ExpectedVersion  int      `json:"expected_version"`
 	}
 	if !bindJSON(c, &body) {
 		return
@@ -374,4 +380,143 @@ func (h *TariffHandler) UpdatePromotion(c *gin.Context) {
 		slugs[t.ID] = t.Slug
 	}
 	response.OK(c, newAdminPromotion(p, slugs))
+}
+
+// ChangePrice handles POST /api/v1/manager/pricing/tariffs/:slug/price: a new
+// price version (everything else kept), with a reason, refused with 409 when
+// expected_version is no longer the current one.
+func (h *TariffHandler) ChangePrice(c *gin.Context) {
+	staffID, ok := requirePricingRole(c)
+	if !ok {
+		return
+	}
+	var body struct {
+		PriceTenge      int64  `json:"price_tenge"`
+		CostTenge       *int64 `json:"cost_tenge"`
+		Reason          string `json:"reason"`
+		ExpectedVersion int    `json:"expected_version"`
+	}
+	if !bindJSON(c, &body) {
+		return
+	}
+	t, err := h.service.ChangePrice(c.Request.Context(), staffID, c.Param("slug"), tariffsvc.PriceChangeInput(body))
+	if err != nil {
+		apierr.Write(c, err)
+		return
+	}
+	response.OK(c, newAdminTariff(t))
+}
+
+type previewPromotionResponse struct {
+	Slug            string     `json:"slug"`
+	Title           string     `json:"title"`
+	IsActive        bool       `json:"is_active"`
+	Live            bool       `json:"live"`
+	DiscountTenge   int64      `json:"discount_tenge"`
+	FinalPriceTenge *int64     `json:"final_price_tenge"` // the selection with the discount; null when it would not apply
+	EndsAt          *time.Time `json:"ends_at"`
+	Remaining       int        `json:"remaining"`
+}
+
+type pricePreviewResponse struct {
+	Slug              string                    `json:"slug"`
+	CurrentVersion    int                       `json:"current_version"`
+	NewVersion        int                       `json:"new_version"`
+	CurrentPriceTenge int64                     `json:"current_price_tenge"`
+	NewPriceTenge     int64                     `json:"new_price_tenge"`
+	PriceKind         string                    `json:"price_kind"`
+	CostTenge         *int64                    `json:"cost_tenge"` // of the new version (kept or entered)
+	MarginTenge       *int64                    `json:"margin_tenge"`
+	PromoMarginTenge  *int64                    `json:"promo_margin_tenge"`
+	Current           quoteResponse             `json:"current"`
+	Proposed          quoteResponse             `json:"proposed"`
+	Promotion         *previewPromotionResponse `json:"promotion"`
+	Problems          map[string]string         `json:"problems"`
+	Warnings          []string                  `json:"warnings"`
+	CanSave           bool                      `json:"can_save"`
+}
+
+// PreviewPrice handles POST /api/v1/manager/pricing/tariffs/:slug/price/preview:
+// what a new price would do (the same rules as saving it), nothing stored.
+func (h *TariffHandler) PreviewPrice(c *gin.Context) {
+	if _, ok := requirePricingRole(c); !ok {
+		return
+	}
+	var body struct {
+		PriceTenge       int64    `json:"price_tenge"`
+		CostTenge        *int64   `json:"cost_tenge"`
+		ModuleIDs        []string `json:"module_ids"`
+		ExternalApiCount int      `json:"external_api_count"`
+	}
+	if !bindJSON(c, &body) {
+		return
+	}
+	if len(body.ModuleIDs) > 20 || body.ExternalApiCount < 0 || body.ExternalApiCount > 50 {
+		apierr.Write(c, apperr.Validation("проверьте модули", map[string]string{"modules": "не больше 20 модулей, интеграций от 0 до 50"}))
+		return
+	}
+	p, err := h.service.PreviewPrice(c.Request.Context(), c.Param("slug"), tariffsvc.PreviewInput(body))
+	if err != nil {
+		apierr.Write(c, err)
+		return
+	}
+	cost := p.Proposed.Current.CostTenge
+	r := pricePreviewResponse{
+		Slug: p.Current.Slug, CurrentVersion: p.Current.Current.Number, NewVersion: p.Proposed.Current.Number,
+		CurrentPriceTenge: p.Current.Current.PriceTenge, NewPriceTenge: p.Proposed.Current.PriceTenge,
+		PriceKind: string(p.Current.Current.PriceKind), CostTenge: cost,
+		Current: newQuoteResponse(p.CurrentQuote), Proposed: newQuoteResponse(p.NewQuote),
+		Problems: p.Problems, Warnings: p.Warnings, CanSave: len(p.Problems) == 0,
+	}
+	r.Proposed.Version = p.Proposed.Current.Number
+	if cost != nil {
+		margin := p.Proposed.Current.PriceTenge - *cost
+		r.MarginTenge = &margin
+	}
+	if pr := p.Promotion; pr != nil {
+		r.Promotion = &previewPromotionResponse{
+			Slug: pr.Slug, Title: pr.Title, IsActive: pr.IsActive, Live: p.PromotionLive, DiscountTenge: pr.DiscountTenge,
+			FinalPriceTenge: p.PromotionFinal, EndsAt: pr.EndsAt, Remaining: pr.Remaining(),
+		}
+		if cost != nil && pr.DiscountTenge < p.Proposed.Current.PriceTenge {
+			margin := p.Proposed.Current.PriceTenge - pr.DiscountTenge - *cost
+			r.PromoMarginTenge = &margin
+		}
+	}
+	c.Header("Cache-Control", "no-store")
+	response.OK(c, r)
+}
+
+type priceHistoryResponse struct {
+	Version            int       `json:"version"`
+	PriceTenge         int64     `json:"price_tenge"`
+	PreviousPriceTenge *int64    `json:"previous_price_tenge"`
+	PriceKind          string    `json:"price_kind"`
+	Reason             string    `json:"reason"`
+	Author             string    `json:"author"` // "" for the seeded versions
+	CreatedAt          time.Time `json:"created_at"`
+	IsCurrent          bool      `json:"is_current"`
+	Requests           int       `json:"requests"`
+}
+
+// PriceHistory handles GET /api/v1/manager/pricing/tariffs/:slug/history.
+func (h *TariffHandler) PriceHistory(c *gin.Context) {
+	if _, ok := requirePricingRole(c); !ok {
+		return
+	}
+	items, err := h.service.PriceHistory(c.Request.Context(), c.Param("slug"))
+	if err != nil {
+		apierr.Write(c, err)
+		return
+	}
+	out := make([]priceHistoryResponse, 0, len(items))
+	for _, it := range items {
+		out = append(out, priceHistoryResponse{
+			Version: it.Version, PriceTenge: it.PriceTenge, PreviousPriceTenge: it.PreviousPriceTenge,
+			PriceKind: string(it.PriceKind), Reason: it.Reason, Author: it.AuthorName, CreatedAt: it.CreatedAt,
+			IsCurrent: it.IsCurrent, Requests: it.Requests,
+		})
+	}
+	c.Header("Cache-Control", "no-store")
+	response.OK(c, out)
 }

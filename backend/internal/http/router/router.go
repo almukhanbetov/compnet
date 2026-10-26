@@ -151,6 +151,9 @@ func New(deps Deps) (*gin.Engine, error) {
 	staffOnly.GET("/pricing", deps.Tariffs.AdminList)
 	staffOnly.PATCH("/pricing/tariffs/:slug", deps.Tariffs.UpdateTariff)
 	staffOnly.POST("/pricing/tariffs/:slug/versions", deps.Tariffs.CreateVersion)
+	staffOnly.POST("/pricing/tariffs/:slug/price", deps.Tariffs.ChangePrice)
+	staffOnly.POST("/pricing/tariffs/:slug/price/preview", deps.Tariffs.PreviewPrice)
+	staffOnly.GET("/pricing/tariffs/:slug/history", deps.Tariffs.PriceHistory)
 	staffOnly.PUT("/pricing/tariffs/:slug/cost", deps.Tariffs.SetCost)
 	staffOnly.PATCH("/pricing/promotions/:slug", deps.Tariffs.UpdatePromotion)
 

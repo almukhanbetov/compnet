@@ -147,6 +147,10 @@ export interface ContactPageTranslations {
       descriptionTooLong: string;
       /** The server answered 429: too many requests from this IP. */
       rateLimited: string;
+      /** A tariff request refused because its price changed since it was shown. */
+      priceChanged: string;
+      /** A tariff request sent before its price was calculated. */
+      quotePending: string;
       /** Shown for a backend validation error without a specific translation. */
       invalid: string;
     };
