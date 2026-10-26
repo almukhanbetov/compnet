@@ -62,15 +62,16 @@ function load(): boolean {
   return true;
 }
 
-/** Forwards an agreed event to GA4 if it is configured and consented. */
-export function ga4Event(type: string, path: string): void {
+/** Forwards an agreed event to GA4 if it is configured and consented. The
+ * only extra parameter is a tariff's slug (never contacts or ids). */
+export function ga4Event(type: string, path: string, params: { tariff?: string } = {}): void {
   if (window.location.pathname.startsWith("/manager") || !load()) return;
   if (type === "page_view") {
     window.gtag?.("event", "page_view", { page_path: path, page_location: window.location.origin + path });
     return;
   }
   const name = EVENT_NAMES[type];
-  if (name) window.gtag?.("event", name, { page_path: path });
+  if (name) window.gtag?.("event", name, { page_path: path, ...(params.tariff ? { tariff: params.tariff } : {}) });
 }
 
 /** Consent withdrawn: tell GA4 to stop storing analytics cookies. */

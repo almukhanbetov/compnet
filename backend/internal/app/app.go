@@ -27,6 +27,7 @@ import (
 	projectrequestsvc "github.com/almukha/compnet-backend/internal/service/projectrequest"
 	"github.com/almukha/compnet-backend/internal/service/requestevents"
 	"github.com/almukha/compnet-backend/internal/service/staffauth"
+	tariffsvc "github.com/almukha/compnet-backend/internal/service/tariffs"
 )
 
 // Limiters are the anti-spam limits (in-memory, per backend process).
@@ -78,6 +79,9 @@ type App struct {
 	// Analytics owns the retention cleanup (Analytics.Purge), run by the
 	// caller as a periodic job.
 	Analytics *analyticssvc.Service
+	// Tariffs gives back expired promotional places (Tariffs.ReleaseExpired),
+	// run by the caller as a periodic job.
+	Tariffs *tariffsvc.Service
 }
 
 // NewStaffAuthService builds the staff authentication service (also used
@@ -117,6 +121,8 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 	projectRequestService.SetConversionRecorder(analyticsService)
 	projectRequestService.SetNotifier(requestEvents)
 	projectRequestService.SetAttributionEnabled(cfg.Analytics.Enabled)
+	tariffService := tariffsvc.NewService(postgres.NewTariffRepository(pool))
+	projectRequestService.SetTariffs(tariffService)
 	projectRequestHandler := handler.NewProjectRequestHandler(projectRequestService)
 	contentHandler := handler.NewContentHandler(contentsvc.NewService(postgres.NewContentRepository(pool)))
 
@@ -166,6 +172,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 		ManagerRequests:         handler.NewManagerRequestsHandler(managerRequestsService),
 		Realtime:                realtimeHandler,
 		Analytics:               handler.NewAnalyticsHandler(analyticsService),
+		Tariffs:                 handler.NewTariffHandler(tariffService),
 		AnalyticsIPLimiter:      limiters.AnalyticsIP,
 		StaffAuth:               staffAuthService,
 		ManagerIPLimiter:        limiters.ManagerIP,
@@ -175,5 +182,5 @@ func Build(pool *pgxpool.Pool, cfg config.Config, opts Options) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{Engine: engine, Hub: hub, Analytics: analyticsService}, nil
+	return &App{Engine: engine, Hub: hub, Analytics: analyticsService, Tariffs: tariffService}, nil
 }

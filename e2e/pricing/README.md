@@ -17,3 +17,11 @@ Every request is still recalculated on the server.
 The parity cases cover every project type, every scale tier of its category, every distinct
 modules total (with and without per-unit integrations), every design / complexity / urgency
 level and both multilingual choices, plus 50 000 random cases with invalid input.
+
+    # Tariffs and the launch promotion end to end (isolated stack; needs staff.env with a
+    # manager and admin.env with an administrator; sends two artificial requests and
+    # switches everything off again at the end)
+    node e2e/pricing/tariffs-ui.cjs <playwright>
+
+The tariff rules themselves (prices, places under concurrency, release, versions, access) are
+covered by the Go integration tests `TestTariffs_*` (backend/internal/app). See docs/TARIFFS.md.

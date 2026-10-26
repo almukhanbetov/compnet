@@ -50,6 +50,15 @@ func (r Role) CanManageRequests() bool {
 	return requestRoles[r]
 }
 
+// pricingRoles may change tariffs, their prices and costs, and promotions.
+// Administrators only: managers see the prices, not the costs.
+var pricingRoles = map[Role]bool{RoleAdmin: true}
+
+// CanManagePricing reports whether the role may manage tariffs and promotions.
+func (r Role) CanManagePricing() bool {
+	return pricingRoles[r]
+}
+
 // Limits shared by validation and the database CHECK constraints.
 const (
 	MaxEmailLength       = 254

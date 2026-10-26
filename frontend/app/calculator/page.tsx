@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CalculatorHero from "@/components/calculator/CalculatorHero";
-import CalculatorForm from "@/components/calculator/CalculatorForm";
+import CalculatorModes from "@/components/calculator/CalculatorModes";
 import { getServerTranslations } from "@/lib/i18n.server";
 import { withCanonical } from "@/lib/seo";
 
@@ -17,7 +17,7 @@ export default function CalculatorPage() {
 
       <main>
         <CalculatorHero />
-        <CalculatorForm />
+        <CalculatorModes />
       </main>
 
       <Footer />

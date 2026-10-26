@@ -46,6 +46,28 @@ type CalculatorSelectionInput struct {
 	UrgencyID         string   `json:"urgency_id"`
 }
 
+// TariffSelectionInput is a tariff with its extra modules.
+type TariffSelectionInput struct {
+	Slug             string   `json:"slug"`
+	ModuleIDs        []string `json:"module_ids"`
+	ExternalApiCount int      `json:"external_api_count"`
+}
+
+// Validate checks the shape only; the tariff service checks the content.
+func (t TariffSelectionInput) Validate(fields map[string]string) {
+	if !tariffSlug.MatchString(t.Slug) {
+		fields["tariff.slug"] = "выберите тариф"
+	}
+	if len(t.ModuleIDs) > 20 {
+		fields["tariff.module_ids"] = "не больше 20 модулей"
+	}
+	if t.ExternalApiCount < 0 || t.ExternalApiCount > 50 {
+		fields["tariff.external_api_count"] = "от 0 до 50"
+	}
+}
+
+var tariffSlug = regexp.MustCompile(`^[a-z][a-z0-9-]{1,40}$`)
+
 // CreateProjectRequestRequest is the POST /api/v1/project-requests body.
 type CreateProjectRequestRequest struct {
 	Name            string                   `json:"name"`
@@ -59,6 +81,10 @@ type CreateProjectRequestRequest struct {
 	ContactMethod   string                   `json:"contact_method"`
 	Consent         bool                     `json:"consent"`
 	Calculator      CalculatorSelectionInput `json:"calculator"`
+	// Tariff: a request for a tariff instead of an individual estimate
+	// (optional). Only the tariff and its extra modules are taken from the
+	// client; the price, the promotion and the project type are the server's.
+	Tariff *TariffSelectionInput `json:"tariff,omitempty"`
 	// AnalyticsSessionID links the saved request to the visit (only sent
 	// after analytics consent; optional, ignored when unknown).
 	AnalyticsSessionID string `json:"analytics_session_id,omitempty"`
@@ -141,7 +167,9 @@ func (r CreateProjectRequestRequest) Validate() map[string]string {
 		fields["company"] = "слишком длинное название компании"
 	}
 
-	if strings.TrimSpace(r.ProjectType) == "" {
+	if r.Tariff != nil {
+		r.Tariff.Validate(fields)
+	} else if strings.TrimSpace(r.ProjectType) == "" {
 		fields["project_type"] = "выберите тип проекта"
 	}
 
@@ -166,6 +194,14 @@ func (r CreateProjectRequestRequest) Validate() map[string]string {
 
 	if !r.Consent {
 		fields["consent"] = "нужно согласие на обработку данных"
+	}
+
+	// A tariff request carries no individual calculator selection.
+	if r.Tariff != nil {
+		if r.Tariff.ExternalApiCount < 1 && containsString(r.Tariff.ModuleIDs, "external-api") {
+			fields["tariff.external_api_count"] = "укажите количество вызовов внешнего API"
+		}
+		return fields
 	}
 
 	if strings.TrimSpace(r.Calculator.DesignLevelID) == "" {
@@ -205,11 +241,25 @@ type EstimateResponse struct {
 	PricingRulesVersion string `json:"pricing_rules_version"`
 }
 
+// TariffResponse: the tariff terms the request was saved with (requests
+// sent with a tariff). PromotionApplied is false when the promotion had no
+// place left (or had ended) by the time the request was saved.
+type TariffResponse struct {
+	Slug             string `json:"slug"`
+	Version          int    `json:"version"`
+	PriceKind        string `json:"price_kind"`
+	BasePriceTenge   int64  `json:"base_price_tenge"`
+	DiscountTenge    int64  `json:"discount_tenge"`
+	PromotionApplied bool   `json:"promotion_applied"`
+	FinalPriceTenge  int64  `json:"final_price_tenge"`
+}
+
 // ProjectRequestResponse is the 201 response body.
 type ProjectRequestResponse struct {
 	ID        string           `json:"id"`
 	Status    string           `json:"status"`
 	Estimate  EstimateResponse `json:"estimate"`
+	Tariff    *TariffResponse  `json:"tariff,omitempty"`
 	CreatedAt time.Time        `json:"created_at"`
 }
 
@@ -225,6 +275,17 @@ func NewProjectRequestResponse(r projectrequest.ProjectRequest, e projectrequest
 			DurationLabel:       e.DurationLabel,
 			PricingRulesVersion: e.PricingVersion,
 		},
+		Tariff:    newTariffResponse(e.Breakdown.Tariff),
 		CreatedAt: r.CreatedAt,
+	}
+}
+
+func newTariffResponse(t *projectrequest.TariffBreakdown) *TariffResponse {
+	if t == nil {
+		return nil
+	}
+	return &TariffResponse{
+		Slug: t.Slug, Version: t.Version, PriceKind: t.PriceKind, BasePriceTenge: t.BasePriceTenge,
+		DiscountTenge: t.DiscountTenge, PromotionApplied: t.PromotionApplied, FinalPriceTenge: t.FinalPriceTenge,
 	}
 }

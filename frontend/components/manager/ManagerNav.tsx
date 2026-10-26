@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, ClipboardList, MessagesSquare } from "lucide-react";
+import { BarChart3, ClipboardList, MessagesSquare, Tags } from "lucide-react";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { useNewRequestCount } from "@/components/manager/requests/useNewRequestCount";
 
-export type ManagerSection = "inbox" | "requests" | "analytics";
+export type ManagerSection = "inbox" | "requests" | "analytics" | "pricing";
 
-/** Dialogs ↔ Requests ↔ Statistics, with the "new requests" badge. */
-export function ManagerNav({ current }: { current: ManagerSection }) {
+/** Dialogs ↔ Requests ↔ Statistics (↔ Tariffs for administrators), with the "new requests" badge. */
+export function ManagerNav({ current, role }: { current: ManagerSection; role?: string }) {
   const { t } = useLocale();
   const n = t.manager.analytics.nav;
   const newRequests = useNewRequestCount();
@@ -38,6 +38,7 @@ export function ManagerNav({ current }: { current: ManagerSection }) {
       {item("/manager", "inbox", n.inbox, MessagesSquare)}
       {item("/manager/requests", "requests", n.requests, ClipboardList, newRequests)}
       {item("/manager/analytics", "analytics", n.analytics, BarChart3)}
+      {role === "admin" ? item("/manager/pricing", "pricing", n.pricing, Tags) : null}
     </nav>
   );
 }

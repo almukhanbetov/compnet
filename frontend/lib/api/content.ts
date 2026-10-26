@@ -6,6 +6,7 @@ import type {
   ApiServiceOverview,
   ApiTestimonial,
 } from "@/types/api/content";
+import type { ApiTariff } from "@/types/api/tariffs";
 import type { ServiceOverview, ServiceOverviewIcon } from "@/types/serviceOverview";
 import type { ServiceDetail, ServiceDetailIcon } from "@/types/serviceDetail";
 import type { PricingCardItem } from "@/types/pricingPage";
@@ -147,6 +148,12 @@ export async function fetchPricingCards(locale: Locale): Promise<PricingCardItem
       serviceHref: websiteProjectTypes.has(item.project_type) ? "/services/website-development" : item.service_href,
     };
   });
+}
+
+/** The active tariffs (none until an administrator activates them); [] when
+ * the API is unavailable, so the page renders without them. */
+export async function fetchTariffs(): Promise<ApiTariff[]> {
+  return getJSONOrDefault<ApiTariff[]>("/api/v1/tariffs", []);
 }
 
 /** `category` stays the canonical (Russian) value: the portfolio filter

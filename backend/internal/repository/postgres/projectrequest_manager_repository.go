@@ -206,6 +206,21 @@ func (r *ProjectRequestRepository) Detail(ctx context.Context, id string) (proje
 	default:
 		d.Attribution = &at
 	}
+
+	var place projectrequest.PromotionPlace
+	err = r.pool.QueryRow(ctx, `
+		SELECT p.slug, p.title, r.status, COALESCE(r.release_reason, ''), r.reserved_at, r.confirmed_at, r.released_at
+		FROM promotion_reservations r JOIN promotions p ON p.id = r.promotion_id
+		WHERE r.project_request_id = $1`, id).Scan(
+		&place.PromotionSlug, &place.PromotionTitle, &place.Status, &place.ReleaseReason,
+		&place.ReservedAt, &place.ConfirmedAt, &place.ReleasedAt)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+	case err != nil:
+		return d, err
+	default:
+		d.PromotionPlace = &place
+	}
 	return d, nil
 }
 
@@ -238,6 +253,11 @@ func (r *ProjectRequestRepository) UpdateByManager(ctx context.Context, id, staf
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO project_request_status_changes (project_request_id, old_status, new_status, staff_user_id)
 			VALUES ($1, $2, $3, $4)`, id, string(current), string(*u.Status), staffID); err != nil {
+			return false, err
+		}
+		// A promotional place follows the status: taken into work confirms
+		// it, rejected or archived gives it back.
+		if err := applyReservationStatus(ctx, tx, id, string(*u.Status)); err != nil {
 			return false, err
 		}
 		changed = true

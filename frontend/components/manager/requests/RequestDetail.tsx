@@ -418,6 +418,9 @@ function EstimateSection({ detail }: { detail: ApiRequestDetail }) {
       <p className="text-xs text-slate-400 light:text-slate-600">
         {d.duration}: {translateDuration(c, e.duration_label)}
       </p>
+      {b.tariff ? <TariffTerms detail={detail} /> : null}
+      {b.tariff ? null : (
+      <>
       <h4 className="mt-4 text-xs font-semibold text-slate-400 light:text-slate-600">{d.params}</h4>
       {usesBaseParameters(b) ? (
         <p className="mt-1 flex items-start gap-1.5 text-xs text-slate-500">
@@ -449,8 +452,60 @@ function EstimateSection({ detail }: { detail: ApiRequestDetail }) {
         <Fact label={d.urgency}>{byId(c.urgency, b.urgency_id) ?? b.urgency_id}</Fact>
         <Fact label={d.multilingual}>{b.multilingual ? d.yes : d.no}</Fact>
       </dl>
+      </>
+      )}
       <p className="mt-3 text-[11px] text-slate-500">{fill(d.pricingVersion, { version: e.pricing_version })}</p>
     </section>
+  );
+}
+
+/** A tariff request's terms (as the server priced them) and its promotional place. */
+function TariffTerms({ detail }: { detail: ApiRequestDetail }) {
+  const { t } = useLocale();
+  const d = t.manager.requests.detail;
+  const tr = d.tariff;
+  const c = t.catalog;
+  const terms = detail.estimate?.breakdown.tariff;
+  if (!terms) return null;
+  const modules = detail.estimate?.breakdown.modules ?? [];
+  const place = detail.promotion_place;
+  return (
+    <div data-testid="tariff-terms">
+      <h4 className="mt-4 text-xs font-semibold text-slate-400 light:text-slate-600">
+        {fill(tr.title, { slug: terms.slug, version: String(terms.version) })}
+      </h4>
+      <dl className="mt-2 space-y-2">
+        <Fact label={tr.base}>{formatTenge(terms.base_price_tenge)}</Fact>
+        {terms.discount_tenge > 0 ? <Fact label={tr.discount}>−{formatTenge(terms.discount_tenge)}</Fact> : null}
+        <Fact label={tr.modules}>
+          {modules.length === 0 ? (
+            d.noModules
+          ) : (
+            <ul className="space-y-0.5">
+              {modules.map((m) => (
+                <li key={m.module_id} className="flex justify-between gap-3">
+                  <span>
+                    {byId(c.modules, m.module_id) ?? m.module_id}
+                    {m.quantity > 1 ? ` ×${m.quantity}` : ""}
+                  </span>
+                  <span className="tabular-nums text-slate-400">{formatTenge(m.total_tenge)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Fact>
+        <Fact label={tr.total}>
+          {terms.price_kind === "from" ? fill(tr.from, { price: formatTenge(terms.final_price_tenge) }) : formatTenge(terms.final_price_tenge)}
+        </Fact>
+        {place ? (
+          <Fact label={fill(tr.promotion, { title: place.promotion_title })}>
+            {tr.place[place.status]}
+            {place.release_reason ? ` (${tr.reasons[place.release_reason]})` : ""}
+          </Fact>
+        ) : null}
+      </dl>
+      {place ? <p className="mt-2 text-[11px] text-slate-500">{tr.placeHint}</p> : null}
+    </div>
   );
 }
 

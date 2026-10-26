@@ -537,6 +537,10 @@ func (r *AnalyticsRepository) LeadsReport(ctx context.Context, from, to time.Tim
 	if rep.ProjectTypes, err = counts(`SELECT project_type, count(*) FROM r GROUP BY 1 ORDER BY 2 DESC, 1`); err != nil {
 		return rep, err
 	}
+	if rep.Tariffs, err = counts(`SELECT COALESCE(t.tariff_slug, ''), count(*) FROM r
+		LEFT JOIN project_request_tariffs t ON t.project_request_id = r.id GROUP BY 1 ORDER BY 2 DESC, 1`); err != nil {
+		return rep, err
+	}
 	if rep.Days, err = counts(`,
 		days AS (SELECT d::date AS day FROM generate_series($6::date, $7::date, interval '1 day') d),
 		rd AS (SELECT (created_at AT TIME ZONE 'Asia/Almaty')::date AS day, count(*) AS n FROM r GROUP BY 1)

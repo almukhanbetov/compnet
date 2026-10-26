@@ -208,6 +208,10 @@ export default function LeadsReport({
             <Bars title={l.servicePages} rows={data.service_pages} total={data.totals.requests} labelOf={(k) => k} />
             <Bars title={l.pages} rows={data.pages} total={data.totals.requests} labelOf={(k) => k || l.pageUnknown} ranked />
             <Bars title={l.projectTypes} rows={data.project_types} total={data.totals.requests} labelOf={(k) => projectTypeLabel(t, k)} />
+            {/* Only once tariff requests exist in the period. */}
+            {(data.tariffs ?? []).some((row) => row.key !== "") ? (
+              <Bars title={l.tariffs} rows={data.tariffs} total={data.totals.requests} labelOf={(k) => k || l.noTariff} />
+            ) : null}
           </div>
         </div>
       ) : null}
