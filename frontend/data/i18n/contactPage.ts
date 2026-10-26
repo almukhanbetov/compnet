@@ -105,6 +105,8 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
       choose: "Выберите тип проекта в форме, чтобы увидеть ориентировочную стоимость.",
       from: "от {price}",
       individual: "Индивидуальная оценка",
+      loading: "Загружаем цены…",
+      unavailable: "Стоимость уточним после обсуждения — сейчас не удалось загрузить цены.",
       disclaimer:
         "Расчёт предварительный. Точная стоимость определяется после обсуждения проекта и подготовки технического задания.",
     },
@@ -258,6 +260,8 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
       choose: "Болжамды құнын көру үшін формада жоба түрін таңдаңыз.",
       from: "{price} бастап",
       individual: "Жеке бағалау",
+      loading: "Бағаларды жүктеп жатырмыз…",
+      unavailable: "Құнын талқылағаннан кейін нақтылаймыз — қазір бағаларды жүктеу мүмкін болмады.",
       disclaimer:
         "Есеп алдын ала жасалған. Нақты құны жобаны талқылап, техникалық тапсырманы дайындағаннан кейін анықталады.",
     },
@@ -411,6 +415,8 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
       choose: "Choose a project type in the form to see the estimated cost.",
       from: "from {price}",
       individual: "Individual estimate",
+      loading: "Loading prices…",
+      unavailable: "We will confirm the price after discussing the project — prices could not be loaded right now.",
       disclaimer:
         "This is a preliminary estimate. The exact cost is determined after discussing the project and preparing the technical specification.",
     },

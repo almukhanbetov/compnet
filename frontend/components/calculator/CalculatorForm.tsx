@@ -17,6 +17,7 @@ import {
   appScaleTiers,
 } from "@/data/projectPricing";
 import { calculateProjectEstimate } from "@/lib/pricingCalculator";
+import { usePricingCatalog } from "@/lib/api/pricingCatalog";
 import { track } from "@/lib/analytics/tracker";
 import type {
   ProjectPricingLabel,
@@ -71,6 +72,10 @@ export default function CalculatorForm() {
   const { t } = useLocale();
   const c = t.catalog;
   const [form, setForm] = useState<CalculatorFormState>(initialState);
+  // Prices come only from the server's catalog: no number is shown before
+  // it loads or when it cannot.
+  const pricing = usePricingCatalog();
+  const catalog = pricing.status === "ready" ? pricing.catalog : null;
   // Analytics, once per page view each: the first action in the form and
   // the first estimate shown (only that it happened, never the choices).
   const started = useRef(false);
@@ -85,12 +90,6 @@ export default function CalculatorForm() {
     (item) => item.label === form.projectType,
   );
   const scaleTiers = scaleTiersFor(entry?.category);
-  const scaleTier = scaleTiers.find((tier) => tier.id === form.scaleTierId);
-  const scalePrice = !entry
-    ? null
-    : entry.category === "none"
-      ? 0
-      : (scaleTier?.addPrice ?? null);
 
   const handleProjectTypeChange = (label: ProjectPricingLabel | "") => {
     const nextEntry = projectPricingList.find((item) => item.label === label);
@@ -113,20 +112,32 @@ export default function CalculatorForm() {
 
   const hasExternalApi = form.selectedModules.includes("external-api");
 
-  const result = entry
-    ? calculateProjectEstimate({
-        basePrice: entry.basePrice,
-        scalePrice,
-        selectedModuleIds: form.selectedModules,
-        externalApiCount: hasExternalApi ? form.externalApiCount : 0,
-        multilingual: form.multilingual,
-        designLevelId: form.designLevelId,
-        complexityId: form.complexityId,
-        urgencyId: form.urgencyId,
-      })
-    : null;
+  const outcome =
+    entry && catalog
+      ? calculateProjectEstimate(catalog, {
+          projectType: entry.projectType,
+          scaleTierId: form.scaleTierId,
+          selectedModuleIds: form.selectedModules,
+          externalApiCount: hasExternalApi ? form.externalApiCount : 0,
+          multilingual: form.multilingual,
+          designLevelId: form.designLevelId,
+          complexityId: form.complexityId,
+          urgencyId: form.urgencyId,
+        })
+      : null;
+  const result =
+    outcome?.kind === "estimate"
+      ? { minimum: outcome.minimum, maximum: outcome.maximum, durationLabel: outcome.durationLabel }
+      : null;
+  const isIndividual = outcome !== null && outcome.kind !== "estimate";
 
-  const isIndividual = Boolean(entry) && (entry?.basePrice === null || scalePrice === null);
+  // Catalog numbers for the options' hints ("+80 000 ₸", "+15%", "×1.10").
+  const modulePrice = (id: string) => catalog?.modules.find((m) => m.id === id)?.price_tenge;
+  const percentText = (share: number | undefined) => (share ? ` +${Math.round(share * 1000) / 10}%` : "");
+  const multiplierText = (list: { id: string; multiplier: number }[] | undefined, id: string) => {
+    const multiplier = list?.find((level) => level.id === id)?.multiplier;
+    return multiplier === undefined ? "" : ` ×${multiplier.toFixed(2)}`;
+  };
 
   const hasResult = result !== null;
   useEffect(() => {
@@ -207,10 +218,12 @@ export default function CalculatorForm() {
                         {byId(c.modules, module.id) ?? module.label}
                       </span>
                     </span>
-                    <span className="shrink-0 text-xs text-slate-400 light:text-slate-600">
-                      +{module.price.toLocaleString("ru-RU")} ₸
-                      {module.perUnit ? c.form.perIntegration : ""}
-                    </span>
+                    {modulePrice(module.id) !== undefined ? (
+                      <span className="shrink-0 text-xs text-slate-400 light:text-slate-600">
+                        +{modulePrice(module.id)?.toLocaleString("ru-RU")} ₸
+                        {module.perUnit ? c.form.perIntegration : ""}
+                      </span>
+                    ) : null}
                   </label>
                 );
               })}
@@ -268,10 +281,12 @@ export default function CalculatorForm() {
                 className="h-4 w-4 shrink-0 accent-violet-500"
               />
               <span className="text-sm text-slate-200 light:text-slate-800">
-                {c.form.multilingual}{" "}
-                <span className="text-slate-400 light:text-slate-600">
-                  (+10%)
-                </span>
+                {c.form.multilingual}
+                {catalog ? (
+                  <span className="text-slate-400 light:text-slate-600">
+                    {" "}(+{Math.round(catalog.multilingual_percent * 1000) / 10}%)
+                  </span>
+                ) : null}
               </span>
             </label>
           </div>
@@ -290,7 +305,7 @@ export default function CalculatorForm() {
                   className={pillClass(level.id === form.designLevelId)}
                 >
                   {byId(c.design, level.id) ?? level.label}
-                  {level.percent > 0 ? ` +${level.percent * 100}%` : ""}
+                  {percentText(catalog?.design_levels.find((d) => d.id === level.id)?.percent)}
                 </button>
               ))}
             </div>
@@ -309,7 +324,8 @@ export default function CalculatorForm() {
                   aria-pressed={level.id === form.complexityId}
                   className={pillClass(level.id === form.complexityId)}
                 >
-                  {byId(c.complexity, level.id) ?? level.label} ×{level.multiplier.toFixed(2)}
+                  {byId(c.complexity, level.id) ?? level.label}
+                  {multiplierText(catalog?.complexity_levels, level.id)}
                 </button>
               ))}
             </div>
@@ -328,7 +344,8 @@ export default function CalculatorForm() {
                   aria-pressed={level.id === form.urgencyId}
                   className={pillClass(level.id === form.urgencyId)}
                 >
-                  {byId(c.urgency, level.id) ?? level.label} ×{level.multiplier.toFixed(2)}
+                  {byId(c.urgency, level.id) ?? level.label}
+                  {multiplierText(catalog?.urgency_levels, level.id)}
                 </button>
               ))}
             </div>
@@ -339,6 +356,8 @@ export default function CalculatorForm() {
           hasProjectType={Boolean(entry)}
           isIndividual={isIndividual}
           result={result}
+          pricing={pricing.status}
+          onRetry={pricing.status === "error" ? pricing.retry : undefined}
         />
       </div>
     </section>

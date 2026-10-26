@@ -1,8 +1,8 @@
 // Package pricing owns the server-side price catalog and calculator. It is
 // the single source of truth for cost estimates — clients may only choose
 // from these catalog entries, never supply a price directly. The catalog
-// mirrors frontend/data/projectPricing.ts; keep the two in sync by hand
-// until pricing is served from the database.
+// is published read-only at GET /api/v1/pricing/catalog, which the browser's
+// calculator and estimate preview use — the frontend keeps no prices.
 package pricing
 
 // RulesVersion tags every estimate with the pricing-rule revision that
@@ -16,6 +16,10 @@ const RoundStepTenge = 10000
 // MultilingualPercent is the flat surcharge applied to the subtotal when the
 // client requests a multilingual build.
 const MultilingualPercent = 0.10
+
+// MaximumRatio gives the upper bound of an estimate: the minimum times this,
+// rounded like the minimum.
+const MaximumRatio = 1.2
 
 // ScaleCategory groups project types that share the same scale-tier ladder.
 type ScaleCategory string

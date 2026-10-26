@@ -3,6 +3,7 @@
 import { Wallet, Info } from "lucide-react";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { projectPricingList } from "@/data/projectPricing";
+import { usePricingCatalog } from "@/lib/api/pricingCatalog";
 import { fill } from "@/lib/i18n";
 import type { ProjectType } from "@/types/contactPage";
 
@@ -14,6 +15,11 @@ export default function EstimatePreview({ projectType }: EstimatePreviewProps) {
   const { t } = useLocale();
   const e = t.contactPage.estimate;
   const entry = projectPricingList.find((item) => item.label === projectType);
+  // The starting price comes only from the server's catalog; none is shown
+  // while it loads or when it cannot be loaded.
+  const pricing = usePricingCatalog();
+  const catalogType =
+    pricing.status === "ready" && entry ? pricing.catalog.project_types.find((p) => p.id === entry.projectType) : undefined;
 
   return (
     <div className="rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl lg:sticky lg:top-24">
@@ -30,11 +36,17 @@ export default function EstimatePreview({ projectType }: EstimatePreviewProps) {
           <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
             {t.contactPage.form.options.projectType[entry.label]}
           </p>
-          <p className="mt-3 bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-3xl font-bold text-transparent light:from-violet-600 light:via-blue-600 light:to-cyan-600">
-            {entry.basePrice === null
-              ? e.individual
-              : fill(e.from, { price: `${entry.basePrice.toLocaleString("ru-RU")} ₸` })}
-          </p>
+          {pricing.status === "loading" ? (
+            <p className="mt-3 text-sm text-slate-400 light:text-slate-600" role="status">{e.loading}</p>
+          ) : pricing.status === "error" ? (
+            <p className="mt-3 text-sm leading-6 text-slate-300 light:text-slate-700">{e.unavailable}</p>
+          ) : (
+            <p className="mt-3 bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-300 bg-clip-text text-3xl font-bold text-transparent light:from-violet-600 light:via-blue-600 light:to-cyan-600">
+              {!catalogType || catalogType.base_price_tenge === null
+                ? e.individual
+                : fill(e.from, { price: `${catalogType.base_price_tenge.toLocaleString("ru-RU")} ₸` })}
+            </p>
+          )}
         </>
       ) : (
         <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600">
