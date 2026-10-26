@@ -6,20 +6,20 @@ import { projectPricingList } from "@/data/projectPricing";
 import { usePricingCatalog } from "@/lib/api/pricingCatalog";
 import { fill } from "@/lib/i18n";
 import type { ProjectType } from "@/types/contactPage";
-import type { ApiTariff, TariffChoice } from "@/types/api/tariffs";
-import { useTariffQuote } from "@/lib/api/tariffs";
+import type { ApiTariff, ApiTariffQuote } from "@/types/api/tariffs";
 import { tariffTexts, tariffTranslations } from "@/data/i18n/tariffs";
 import { tenge } from "@/components/tariffs/format";
 
 interface EstimatePreviewProps {
   projectType: ProjectType | "";
-  /** A request for a tariff: its server quote replaces the project type's price. */
-  tariff?: { tariff: ApiTariff; choice: TariffChoice };
+  /** A request for a tariff: its server quote (the form's, the amount it
+   * sends) replaces the project type's price. */
+  tariff?: { tariff: ApiTariff; quote: { status: "idle" | "loading" | "ready" | "error"; quote: ApiTariffQuote | null } };
 }
 
 export default function EstimatePreview({ projectType, tariff }: EstimatePreviewProps) {
   const { t, locale } = useLocale();
-  const quote = useTariffQuote(tariff ? tariff.choice : null);
+  const quote = tariff?.quote ?? { status: "idle", quote: null };
   const e = t.contactPage.estimate;
   const entry = projectPricingList.find((item) => item.label === projectType);
   // The starting price comes only from the server's catalog; none is shown

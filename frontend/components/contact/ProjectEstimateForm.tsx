@@ -28,7 +28,7 @@ import type {
   ContactMethod,
 } from "@/types/contactPage";
 import { buildProjectRequestPayload, buildTariffRequestPayload } from "@/lib/api/projectRequestMapping";
-import { tariffChoiceFromUrl, tariffHref, useTariffs } from "@/lib/api/tariffs";
+import { tariffChoiceFromUrl, tariffHref, useTariffQuote, useTariffs } from "@/lib/api/tariffs";
 import { tariffTexts, tariffTranslations } from "@/data/i18n/tariffs";
 import { tenge } from "@/components/tariffs/format";
 import type { TariffChoice } from "@/types/api/tariffs";
@@ -172,7 +172,9 @@ export default function ProjectEstimateForm({
   const initialType = initialProjectType ?? "";
   // Tariffs (only once an administrator activated some): a request for a
   // tariff replaces the project type; a link (?tariff=…&modules=…) can preselect one.
-  const { tariffs } = useTariffs();
+  // Reloaded (past the caches) when a request was refused because its price changed.
+  const [quoteRefresh, setQuoteRefresh] = useState(0);
+  const { tariffs } = useTariffs(quoteRefresh);
   // From the route's own parameters: right after a client-side navigation
   // window.location may still show the previous page.
   const searchParams = useSearchParams();
@@ -181,6 +183,24 @@ export default function ProjectEstimateForm({
   const wanted = tariffPick === undefined ? fromUrl : tariffPick;
   const selectedTariff = wanted ? tariffs.find((item) => item.slug === wanted.slug) : undefined;
   const tariffChoice = selectedTariff && wanted ? wanted : null;
+  // The server's price of the choice: shown under the tariff field (and in
+  // the preview) and sent as the amount the visitor agreed to — the server
+  // refuses the request when its price has changed meanwhile; the quote is
+  // then asked again and the visitor confirms the new amount.
+  const tariffQuote = useTariffQuote(tariffChoice, quoteRefresh);
+  const choiceKey = tariffChoice ? `${tariffChoice.slug}|${tariffChoice.moduleIds.join(",")}|${tariffChoice.externalApiCount}` : "";
+  // The amount a refused request was sent with, for the same choice only.
+  const [refusedAt, setRefusedAt] = useState<{ key: string; amount: number } | null>(null);
+  const priceChange = refusedAt && refusedAt.key === choiceKey ? refusedAt : null;
+  // The notice is at the top of the form, the visitor at its button: bring it into view.
+  const priceChangeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!refusedAt) return;
+    priceChangeRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    priceChangeRef.current?.focus({ preventScroll: true });
+  }, [refusedAt]);
+  const quoteText = (amount: number) =>
+    tariffQuote.quote?.price_kind === "from" ? fill(tt.from, { price: tenge(amount) }) : tenge(amount);
   const [form, setForm] = useState<EstimateFormState>(() => initialFormState(initialType));
   const [errors, setErrors] = useState<EstimateFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -264,9 +284,16 @@ export default function ProjectEstimateForm({
       return;
     }
 
+    if (tariffChoice && !tariffQuote.quote) {
+      setApiError(tariffQuote.status === "error" ? f.errors.unexpected : f.errors.quotePending);
+      return;
+    }
+    // The amount on screen (the quote rendered under the tariff field), never
+    // one computed here.
+    const shownAmount = tariffQuote.quote?.final_price_tenge ?? 0;
     const payload =
-      tariffChoice && selectedTariff
-        ? buildTariffRequestPayload(form, selectedTariff, tariffChoice)
+      tariffChoice && selectedTariff && tariffQuote.quote
+        ? buildTariffRequestPayload(form, selectedTariff, tariffChoice, shownAmount)
         : buildProjectRequestPayload(form);
     if (!payload) {
       setApiError(f.errors.chooseFromList);
@@ -288,6 +315,7 @@ export default function ProjectEstimateForm({
     setIsSubmitting(false);
 
     if (result.kind === "success") {
+      setRefusedAt(null);
       setSubmitResult(result.data);
       pendingFocus.current = "success";
       // GA4 (if configured and consented) learns only that a request was
@@ -317,10 +345,19 @@ export default function ProjectEstimateForm({
       return;
     }
 
+    if (result.reason === "priceChanged") {
+      // Nothing was saved: load the new amount, show old → new and let the
+      // visitor confirm it by sending again.
+      setRefusedAt({ key: choiceKey, amount: shownAmount });
+      setQuoteRefresh((n) => n + 1);
+      setApiError(null);
+      return;
+    }
     setApiError(f.errors[result.reason]);
   };
 
   const handleReset = () => {
+    setRefusedAt(null);
     setForm(initialFormState(initialType));
     setErrors({});
     setApiError(null);
@@ -410,6 +447,23 @@ export default function ProjectEstimateForm({
               aria-labelledby={heading ? FORM_TITLE_ID : undefined}
               className="space-y-6"
             >
+              {priceChange ? (
+                <div
+                  ref={priceChangeRef}
+                  tabIndex={-1}
+                  role="alert"
+                  data-testid="tariff-price-changed"
+                  className="flex items-start gap-2.5 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 light:border-amber-500/30 light:bg-amber-500/10 light:text-amber-800"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    {tariffQuote.quote
+                      ? fill(tt.form.priceChanged, { from: quoteText(priceChange.amount), to: quoteText(tariffQuote.quote.final_price_tenge) })
+                      : f.errors.priceChanged}
+                  </span>
+                </div>
+              ) : null}
+
               {apiError ? (
                 <div
                   role="alert"
@@ -516,6 +570,15 @@ export default function ProjectEstimateForm({
                         return `${tariffTexts(item, locale).title} — ${price}`;
                       }}
                     />
+                    {tariffChoice ? (
+                      <p className="mt-2 text-sm font-semibold text-slate-100 light:text-slate-900" data-testid="tariff-total" aria-live="polite">
+                        {tariffQuote.quote
+                          ? fill(tt.form.total, { price: quoteText(tariffQuote.quote.final_price_tenge) })
+                          : tariffQuote.status === "error"
+                            ? tt.calculator.failed
+                            : tt.calculator.loading}
+                      </p>
+                    ) : null}
                     {tariffChoice && tariffChoice.moduleIds.length > 0 ? (
                       <p className="mt-2 text-xs text-slate-400 light:text-slate-600">
                         {fill(tt.form.modules, {
@@ -639,7 +702,7 @@ export default function ProjectEstimateForm({
                   </>
                 ) : (
                   <>
-                    {f.submit}
+                    {priceChange && tariffQuote.quote ? tt.form.confirmSubmit : f.submit}
                     <Send className="h-4 w-4" aria-hidden="true" />
                   </>
                 )}
@@ -650,7 +713,10 @@ export default function ProjectEstimateForm({
 
         {aside ??
           (showPrices ? (
-            <EstimatePreview projectType={form.projectType} tariff={tariffChoice && selectedTariff ? { tariff: selectedTariff, choice: tariffChoice } : undefined} />
+            <EstimatePreview
+              projectType={form.projectType}
+              tariff={tariffChoice && selectedTariff ? { tariff: selectedTariff, quote: tariffQuote } : undefined}
+            />
           ) : null)}
       </div>
     </section>

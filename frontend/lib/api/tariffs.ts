@@ -32,11 +32,13 @@ function isTariffList(data: unknown): data is ApiTariff[] {
   );
 }
 
-export function loadTariffs(): Promise<ApiTariff[]> {
+/** The active tariffs, loaded once per page; fresh: past every cache (a price changed). */
+export function loadTariffs(fresh = false): Promise<ApiTariff[]> {
+  if (fresh) pending = null;
   if (!pending) {
     pending = (async () => {
       if (!API_BASE_URL) throw new Error("NEXT_PUBLIC_API_URL is not configured");
-      const response = await fetch(`${API_BASE_URL}/api/v1/tariffs`, { credentials: "omit" });
+      const response = await fetch(`${API_BASE_URL}/api/v1/tariffs`, { credentials: "omit", ...(fresh ? { cache: "no-store" as const } : {}) });
       if (!response.ok) throw new Error(`tariffs: HTTP ${response.status}`);
       const body = (await response.json()) as { data?: unknown };
       if (!isTariffList(body.data)) throw new Error("tariffs: unexpected shape");
@@ -49,19 +51,21 @@ export function loadTariffs(): Promise<ApiTariff[]> {
   return pending;
 }
 
-/** The active tariffs; [] while loading, when there are none or on error. */
-export function useTariffs(): { ready: boolean; tariffs: ApiTariff[] } {
+/** The active tariffs; [] while loading, when there are none or on error.
+ * A new refresh value loads them again past the caches (a price changed);
+ * the previous list stays shown meanwhile. */
+export function useTariffs(refresh = 0): { ready: boolean; tariffs: ApiTariff[] } {
   const [state, setState] = useState<{ ready: boolean; tariffs: ApiTariff[] }>({ ready: false, tariffs: [] });
   useEffect(() => {
     let cancelled = false;
-    loadTariffs().then(
+    loadTariffs(refresh > 0).then(
       (tariffs) => !cancelled && setState({ ready: true, tariffs }),
-      () => !cancelled && setState({ ready: true, tariffs: [] }),
+      () => !cancelled && setState((prev) => (refresh > 0 ? prev : { ready: true, tariffs: [] })),
     );
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refresh]);
   return state;
 }
 
@@ -71,6 +75,7 @@ export async function fetchTariffQuote(choice: TariffChoice, signal?: AbortSigna
   if (choice.externalApiCount > 0) params.set("external_api_count", String(choice.externalApiCount));
   const response = await fetch(`${API_BASE_URL}/api/v1/tariffs/${encodeURIComponent(choice.slug)}/quote?${params}`, {
     credentials: "omit",
+    cache: "no-store",
     signal,
   });
   if (!response.ok) throw new Error(`quote: HTTP ${response.status}`);
@@ -79,9 +84,13 @@ export async function fetchTariffQuote(choice: TariffChoice, signal?: AbortSigna
   return body.data;
 }
 
-/** The server's quote of a choice; a newer choice cancels the older request. */
-export function useTariffQuote(choice: TariffChoice | null): { status: "idle" | "loading" | "ready" | "error"; quote: ApiTariffQuote | null } {
-  const key = choice ? `${choice.slug}|${choice.moduleIds.join(",")}|${choice.externalApiCount}` : "";
+/** The server's quote of a choice; a newer choice cancels the older request.
+ * A new refresh value asks again for the same choice (its price changed). */
+export function useTariffQuote(
+  choice: TariffChoice | null,
+  refresh = 0,
+): { status: "idle" | "loading" | "ready" | "error"; quote: ApiTariffQuote | null } {
+  const key = choice ? `${choice.slug}|${choice.moduleIds.join(",")}|${choice.externalApiCount}|${refresh}` : "";
   const [state, setState] = useState<{ key: string; status: "loading" | "ready" | "error"; quote: ApiTariffQuote | null }>({
     key: "",
     status: "loading",

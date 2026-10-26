@@ -10,13 +10,10 @@ import { createTariffVersion, fetchPricingAdmin, setTariffCost, updatePromotion,
 import type { ManagerApiResult } from "@/lib/api/manager";
 import { byId, fill } from "@/lib/i18n";
 import { tenge } from "@/components/tariffs/format";
+import PriceManagement from "@/components/manager/pricing/PriceManagement";
+import { button, card, input, primary } from "@/components/manager/pricing/ui";
 import type { ApiStaffUser } from "@/types/api/manager";
 import type { ApiAdminPromotion, ApiAdminTariff, ApiPricingAdmin, PromotionPatch } from "@/types/api/pricingAdmin";
-
-const card = "rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--surface)]/60 p-4";
-const input = "w-full rounded-lg border border-[var(--text-primary)]/15 bg-[var(--surface)] px-2 py-1.5 text-sm text-slate-200 light:text-slate-800";
-const button = "rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-[var(--text-primary)]/10 disabled:opacity-50 light:text-slate-800";
-const primary = "rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50";
 
 // Promotion dates are entered and shown in Asia/Almaty (UTC+5, no DST).
 const ALMATY_OFFSET = "+05:00";
@@ -31,6 +28,11 @@ function toLocalInput(iso: string | null): string {
 const fromLocalInput = (value: string) => (value ? `${value}:00${ALMATY_OFFSET}` : undefined);
 
 type Outcome = { ok: true } | { ok: false; message: string; fields: Record<string, string> };
+
+type Tab = "tariffs" | "prices";
+const tabs: Tab[] = ["tariffs", "prices"];
+/** The open tab is kept in the address (#prices), so a reload or a link opens it. */
+const tabFromHash = (): Tab => (typeof window !== "undefined" && window.location.hash === "#prices" ? "prices" : "tariffs");
 
 /**
  * Tariffs and promotions for administrators: activity, price versions,
@@ -51,6 +53,12 @@ export default function PricingAdmin({
   const [data, setData] = useState<ApiPricingAdmin | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
+  const [tab, setTab] = useState<Tab>(tabFromHash);
+  const openTab = (next: Tab) => {
+    setTab(next);
+    window.history.replaceState(null, "", next === "prices" ? "#prices" : window.location.pathname + window.location.search);
+  };
+  const reload = useCallback(() => setAttempt((n) => n + 1), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,7 +113,34 @@ export default function PricingAdmin({
           </div>
         ) : null}
         {data ? (
-          <>
+          <div role="tablist" aria-label={p.tabs.label} className="flex gap-1 overflow-x-auto border-b border-[var(--text-primary)]/10">
+            {tabs.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`pricing-tab-${id}`}
+                aria-selected={tab === id}
+                aria-controls={`pricing-panel-${id}`}
+                onClick={() => openTab(id)}
+                className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium ${
+                  tab === id
+                    ? "border-violet-400 text-slate-100 light:text-slate-900"
+                    : "border-transparent text-slate-400 hover:text-slate-200 light:hover:text-slate-800"
+                }`}
+              >
+                {p.tabs[id]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {data && tab === "prices" ? (
+          <div role="tabpanel" id="pricing-panel-prices" aria-labelledby="pricing-tab-prices">
+            <PriceManagement data={data} onChanged={reload} onAuthError={onAuthError} />
+          </div>
+        ) : null}
+        {data && tab === "tariffs" ? (
+          <div role="tabpanel" id="pricing-panel-tariffs" aria-labelledby="pricing-tab-tariffs" className="space-y-5">
             <section aria-labelledby="admin-tariffs" className="space-y-3">
               <h2 id="admin-tariffs" className="text-base font-semibold text-slate-100 light:text-slate-900">{p.tariffs}</h2>
               <div className="grid gap-3 lg:grid-cols-3">
@@ -125,7 +160,7 @@ export default function PricingAdmin({
                 ))}
               </div>
             </section>
-          </>
+          </div>
         ) : null}
       </main>
     </div>
@@ -231,6 +266,7 @@ function TariffCard({ tariff, modules, run }: { tariff: ApiAdminTariff; modules:
                   price_tenge: Number(draft.price), price_kind: draft.kind, project_type: tariff.project_type,
                   features: draft.features.split("\n").map((x) => x.trim()).filter(Boolean),
                   allowed_module_ids: draft.modules, duration_label: draft.duration,
+                  expected_version: tariff.version,
                   ...(cost !== "" ? { cost_tenge: Number(cost) } : {}),
                 }),
               )

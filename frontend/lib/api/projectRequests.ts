@@ -49,6 +49,16 @@ export async function submitProjectRequest(
     };
   }
 
+  // A tariff request whose price changed since it was shown (new price,
+  // promotion changed or its places ran out): nothing was saved.
+  if (response.status === 409) {
+    return {
+      kind: "error",
+      reason: "priceChanged",
+      message: "Стоимость тарифа изменилась. Проверьте новую сумму и отправьте заявку ещё раз.",
+    };
+  }
+
   if (response.status === 429) {
     const retryAfter = Number.parseInt(response.headers.get("Retry-After") ?? "", 10);
     return {

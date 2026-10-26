@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/almukha/compnet-backend/internal/domain/projectrequest"
+	"github.com/almukha/compnet-backend/internal/domain/tariff"
 )
 
 // ProjectRequestRepository persists project requests against PostgreSQL.
@@ -25,9 +26,9 @@ func NewProjectRequestRepository(pool *pgxpool.Pool) *ProjectRequestRepository {
 
 // Create inserts the request, its selected features and its estimate in a
 // single transaction: either all three are stored, or none are. A request
-// sent with a tariff (order != nil) also stores its tariff terms; its
-// promotional place, if any, is reserved in the same transaction — when none
-// is left the request is saved at the regular price. The
+// sent with a tariff (order != nil) also stores its tariff terms; they are
+// fixed first (lockTariffTerms): when the price is no longer the one the
+// visitor was shown, nothing is stored (tariff.ErrPriceChanged). The
 // request's source (attribution) is optional: it is written in the same
 // transaction behind a savepoint, so a failure there drops only the source
 // and never the request itself.
@@ -44,6 +45,14 @@ func (r *ProjectRequestRepository) Create(
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Before the request takes a number, so a refused one leaves no gap.
+	var terms tariff.Quote
+	if order != nil {
+		if terms, err = lockTariffTerms(ctx, tx, order); err != nil {
+			return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
+		}
+	}
 
 	const insertRequest = `
 		INSERT INTO project_requests
@@ -70,7 +79,7 @@ func (r *ProjectRequestRepository) Create(
 	}
 
 	if order != nil {
-		if estimate, err = r.priceTariffOrder(ctx, tx, request.ID, order, estimate); err != nil {
+		if estimate, err = storeTariffTerms(ctx, tx, request.ID, terms, estimate); err != nil {
 			return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
 		}
 	}
@@ -182,16 +191,26 @@ func nullableString(s string) *string {
 	return &s
 }
 
-// priceTariffOrder reserves the order's promotional place (if it has one),
-// stores the tariff terms and returns the estimate with the final price —
-// the discount only when the place was taken.
-func (r *ProjectRequestRepository) priceTariffOrder(ctx context.Context, tx pgx.Tx, requestID string, order *projectrequest.TariffOrder, estimate projectrequest.Estimate) (projectrequest.Estimate, error) {
+// lockTariffTerms fixes the price a tariff request is saved with. The quoted
+// version must still be current — read under a shared lock, so a price
+// change (which locks the version for update) waits for this request, or
+// this request sees the new version. The promotional place is decided under
+// the promotion's lock (holdPromotion). The final price must be the one the
+// visitor was shown, whatever changed it (a new price, the promotion, its
+// last place taken): otherwise tariff.ErrPriceChanged.
+func lockTariffTerms(ctx context.Context, tx pgx.Tx, order *projectrequest.TariffOrder) (tariff.Quote, error) {
 	q := order.Quote
-	promotionSlug := ""
+	var current bool
+	if err := tx.QueryRow(ctx, `SELECT is_current FROM tariff_versions WHERE id = $1 FOR SHARE`, q.VersionID).Scan(&current); err != nil {
+		return q, err
+	}
+	if !current {
+		return q, tariff.ErrPriceChanged
+	}
 	if q.Promotion != nil {
-		discount, version, ok, err := reservePromotion(ctx, tx, q.Promotion.ID, q.TariffID, requestID, q.BasePriceTenge, order.ReservationTTL)
+		discount, version, ok, err := holdPromotion(ctx, tx, q.Promotion.ID, q.TariffID, q.BasePriceTenge, order.ReservationTTL)
 		if err != nil {
-			return estimate, err
+			return q, err
 		}
 		if ok {
 			promo := *q.Promotion
@@ -199,14 +218,28 @@ func (r *ProjectRequestRepository) priceTariffOrder(ctx context.Context, tx pgx.
 			q.Promotion = &promo
 			q.DiscountTenge = discount
 			q.FinalTenge = q.BasePriceTenge - discount + q.ModulesTotalTenge
-			promotionSlug = promo.Slug
 		} else {
 			q = q.WithoutPromotion()
 		}
 	}
+	if q.FinalTenge != order.ExpectedFinalTenge {
+		return q, tariff.ErrPriceChanged
+	}
+	return q, nil
+}
+
+// storeTariffTerms reserves the request's promotional place (when
+// lockTariffTerms gave one), stores the tariff terms and returns the
+// estimate with the final price.
+func storeTariffTerms(ctx context.Context, tx pgx.Tx, requestID string, q tariff.Quote, estimate projectrequest.Estimate) (projectrequest.Estimate, error) {
+	promotionSlug := ""
 	var promotionID *string
 	var promotionVersion *int
 	if q.Promotion != nil {
+		if err := reservePlace(ctx, tx, q.Promotion.ID, requestID); err != nil {
+			return estimate, err
+		}
+		promotionSlug = q.Promotion.Slug
 		promotionID, promotionVersion = &q.Promotion.ID, &q.Promotion.Version
 	}
 	if _, err := tx.Exec(ctx, `

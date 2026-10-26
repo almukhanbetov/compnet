@@ -46,11 +46,15 @@ type CalculatorSelectionInput struct {
 	UrgencyID         string   `json:"urgency_id"`
 }
 
-// TariffSelectionInput is a tariff with its extra modules.
+// TariffSelectionInput is a tariff with its extra modules, and the final
+// price the visitor was shown (the server's quote): never used as the price,
+// only compared with the server's — a request whose price changed meanwhile
+// is refused (409) instead of being saved at an amount nobody saw.
 type TariffSelectionInput struct {
-	Slug             string   `json:"slug"`
-	ModuleIDs        []string `json:"module_ids"`
-	ExternalApiCount int      `json:"external_api_count"`
+	Slug                    string   `json:"slug"`
+	ModuleIDs               []string `json:"module_ids"`
+	ExternalApiCount        int      `json:"external_api_count"`
+	ExpectedFinalPriceTenge int64    `json:"expected_final_price_tenge"`
 }
 
 // Validate checks the shape only; the tariff service checks the content.

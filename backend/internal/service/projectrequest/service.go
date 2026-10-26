@@ -150,6 +150,9 @@ func (s *Service) CreateProjectRequest(
 		source = attributionFrom(req)
 	}
 	savedRequest, savedEstimate, err := s.repo.Create(ctx, request, features, estimate, source, order)
+	if errors.Is(err, tariff.ErrPriceChanged) {
+		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Conflict("стоимость тарифа изменилась — проверьте новую сумму и отправьте заявку ещё раз")
+	}
 	if err != nil {
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Internal(err)
 	}
@@ -165,7 +168,8 @@ func (s *Service) CreateProjectRequest(
 // tariffEstimate prices a request sent with a tariff: the server's quote of
 // the tariff and its extra modules (never a client's amount). The project
 // type is the tariff version's. The promotional place is reserved — or not —
-// when the request is saved (repository), which sets the final price.
+// when the request is saved (repository), which sets the final price and
+// refuses the request when it is not the one the visitor was shown.
 func (s *Service) tariffEstimate(ctx context.Context, sel dto.TariffSelectionInput, fields map[string]string) (string, []projectrequest.Feature, projectrequest.Estimate, *projectrequest.TariffOrder) {
 	if s.tariffs == nil {
 		fields["tariff.slug"] = "тарифы недоступны"
@@ -185,6 +189,12 @@ func (s *Service) tariffEstimate(ctx context.Context, sel dto.TariffSelectionInp
 	case err != nil:
 		log.Printf("projectrequest: tariff quote failed: %v", err)
 		fields["tariff.slug"] = "не удалось рассчитать стоимость тарифа"
+		return "", nil, projectrequest.Estimate{}, nil
+	}
+	// The amount the visitor was shown is compared when the request is saved;
+	// without one (an outdated page) the visitor is asked to check the price.
+	if sel.ExpectedFinalPriceTenge <= 0 {
+		fields["tariff.expected_final_price_tenge"] = "обновите страницу и проверьте стоимость"
 		return "", nil, projectrequest.Estimate{}, nil
 	}
 
@@ -212,7 +222,9 @@ func (s *Service) tariffEstimate(ctx context.Context, sel dto.TariffSelectionInp
 			ModulesTotalTenge: q.ModulesTotalTenge,
 		},
 	}
-	return q.ProjectType, features, estimate, &projectrequest.TariffOrder{Quote: q, ReservationTTL: s.tariffs.ReservationTTL()}
+	return q.ProjectType, features, estimate, &projectrequest.TariffOrder{
+		Quote: q, ExpectedFinalTenge: sel.ExpectedFinalPriceTenge, ReservationTTL: s.tariffs.ReservationTTL(),
+	}
 }
 
 // calculatorEstimate is the individual estimate: the Go catalog's formula

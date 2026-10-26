@@ -17,8 +17,10 @@ export interface CreateProjectRequestPayload {
   desired_timeline: string;
   contact_method: string;
   consent: boolean;
-  /** A request for a tariff: only the tariff and its modules; the server prices it. */
-  tariff?: { slug: string; module_ids: string[]; external_api_count: number };
+  /** A request for a tariff: only the tariff and its modules; the server prices it.
+   * expected_final_price_tenge is the amount the visitor was shown (the server's
+   * quote): the server refuses the request (409) when its price differs. */
+  tariff?: { slug: string; module_ids: string[]; external_api_count: number; expected_final_price_tenge: number };
   calculator: {
     scale_tier_id: string;
     selected_module_ids: string[];
@@ -71,5 +73,5 @@ export interface ApiErrorEnvelope {
 export type SubmitProjectRequestResult =
   | { kind: "success"; data: ProjectRequestData }
   | { kind: "validation_error"; fields: Record<string, string>; message: string }
-  | { kind: "error"; reason: "config" | "network" | "unexpected"; message: string }
+  | { kind: "error"; reason: "config" | "network" | "unexpected" | "priceChanged"; message: string }
   | { kind: "error"; reason: "rateLimited"; message: string; retryAfterSeconds: number | null };

@@ -127,10 +127,12 @@ type TariffBreakdown struct {
 }
 
 // TariffOrder is the tariff part of a request to save: the server's quote,
-// and how long an unconfirmed promotional place is held.
+// the final price the visitor was shown (the request is refused when the
+// server's differs) and how long an unconfirmed promotional place is held.
 type TariffOrder struct {
-	Quote          tariff.Quote
-	ReservationTTL time.Duration
+	Quote              tariff.Quote
+	ExpectedFinalTenge int64
+	ReservationTTL     time.Duration
 }
 
 // BreakdownModule is one line item inside EstimateBreakdown.Modules.

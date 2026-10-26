@@ -89,6 +89,8 @@ export function buildTariffRequestPayload(
   form: EstimateFormState,
   tariff: ApiTariff,
   choice: TariffChoice,
+  /** The server quote's final price the visitor sees. */
+  expectedFinalPriceTenge: number,
 ): CreateProjectRequestPayload {
   const entry = projectPricingList.find((item) => item.projectType === tariff.project_type);
   const scaleTierId = entry && (entry.category === "site" || entry.category === "app") ? firstScaleTierId(entry.category) : "";
@@ -103,7 +105,12 @@ export function buildTariffRequestPayload(
     desired_timeline: form.timeline,
     contact_method: CONTACT_METHOD_TO_SLUG[form.contactMethod],
     consent: form.consent,
-    tariff: { slug: choice.slug, module_ids: choice.moduleIds, external_api_count: choice.externalApiCount },
+    tariff: {
+      slug: choice.slug,
+      module_ids: choice.moduleIds,
+      external_api_count: choice.externalApiCount,
+      expected_final_price_tenge: expectedFinalPriceTenge,
+    },
     calculator: {
       scale_tier_id: scaleTierId,
       selected_module_ids: [],

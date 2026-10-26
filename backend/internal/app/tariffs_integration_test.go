@@ -95,15 +95,38 @@ type tariffReply struct {
 	} `json:"error"`
 }
 
-// orderTariff posts a request for a tariff; extra holds additional body fields.
+// quoteTariff is the public quote's final price (what the site shows).
+func quoteTariff(a *actor, slug string, modules []string, apiCount int) int64 {
+	a.t.Helper()
+	code, raw := a.do("GET", fmt.Sprintf("/api/v1/tariffs/%s/quote?modules=%s&external_api_count=%d", slug, strings.Join(modules, ","), apiCount), nil)
+	var r struct {
+		Data struct {
+			FinalPriceTenge int64 `json:"final_price_tenge"`
+		} `json:"data"`
+	}
+	if code != 200 || json.Unmarshal(raw, &r) != nil {
+		return 0
+	}
+	return r.Data.FinalPriceTenge
+}
+
+// orderTariff posts a request for a tariff as the site does: with the
+// quote's final price as the expected one (extra["expected"] replaces it);
+// extra holds additional body fields.
 func (e *env) orderTariff(a *actor, slug string, modules []string, apiCount int, extra map[string]any) (int, tariffReply) {
+	expected, ok := extra["expected"]
+	if !ok {
+		expected = quoteTariff(a, slug, modules, apiCount)
+	}
 	body := map[string]any{
 		"name": "Тариф " + randomHex(3), "phone": "7011234567", "project_type": "landing",
 		"description": "Тестовая заявка", "contact_method": "phone", "consent": true,
-		"tariff": map[string]any{"slug": slug, "module_ids": modules, "external_api_count": apiCount},
+		"tariff": map[string]any{"slug": slug, "module_ids": modules, "external_api_count": apiCount, "expected_final_price_tenge": expected},
 	}
 	for k, v := range extra {
-		body[k] = v
+		if k != "expected" {
+			body[k] = v
+		}
 	}
 	code, raw := a.do("POST", "/api/v1/project-requests", body)
 	var r tariffReply
@@ -131,6 +154,9 @@ func TestTariffs_AdminAccessAndActivationRules(t *testing.T) {
 		{"PUT", "/api/v1/manager/pricing/tariffs/" + f.slug + "/cost", `{"cost_tenge":1}`},
 		{"PATCH", "/api/v1/manager/pricing/promotions/" + f.promo, `{"is_active":true}`},
 		{"POST", "/api/v1/manager/pricing/tariffs/" + f.slug + "/versions", `{"price_tenge":1}`},
+		{"POST", "/api/v1/manager/pricing/tariffs/" + f.slug + "/price", `{"price_tenge":1,"reason":"тест","expected_version":1}`},
+		{"POST", "/api/v1/manager/pricing/tariffs/" + f.slug + "/price/preview", `{"price_tenge":1}`},
+		{"GET", "/api/v1/manager/pricing/tariffs/" + f.slug + "/history", ""},
 	} {
 		var body any
 		if call[2] != "" {
@@ -219,7 +245,9 @@ func TestTariffs_PromotionPlacesUnderConcurrency(t *testing.T) {
 	admin, _ := e.staffAccount(t, s, staff.RoleAdmin)
 	activate(t, admin, f)
 
-	// 11 requests at once for 10 places: exactly 10 get the promotion, one the regular price.
+	// 11 requests at once for 10 places, all shown the promotional price:
+	// exactly 10 get it; the 11th is refused (its price changed) and, shown
+	// the regular price, goes through at it.
 	var wg sync.WaitGroup
 	replies := make([]tariffReply, 11)
 	codes := make([]int, 11)
@@ -227,10 +255,23 @@ func TestTariffs_PromotionPlacesUnderConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			codes[i], replies[i] = e.orderTariff(s.actor(t), f.slug, nil, 0, nil)
+			codes[i], replies[i] = e.orderTariff(s.actor(t), f.slug, nil, 0, map[string]any{"expected": 49000})
 		}(i)
 	}
 	wg.Wait()
+	refused := 0
+	for i := range replies {
+		if codes[i] == 409 {
+			refused++
+			if quoteTariff(s.actor(t), f.slug, nil, 0) != 59000 {
+				t.Fatalf("re-quote after a full promotion")
+			}
+			codes[i], replies[i] = e.orderTariff(s.actor(t), f.slug, nil, 0, nil)
+		}
+	}
+	if refused != 1 {
+		t.Fatalf("refused: %d (codes %v)", refused, codes)
+	}
 	applied, regular := 0, 0
 	var regularID string
 	for i, r := range replies {
