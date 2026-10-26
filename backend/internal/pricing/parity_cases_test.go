@@ -4,10 +4,42 @@ import (
 	"bufio"
 	"encoding/json"
 	"math/rand/v2"
+	"net/http"
 	"os"
 	"sort"
 	"testing"
 )
+
+// parityCatalog prices the cases: the seed prices, or the base prices a
+// running server publishes ($PRICING_CATALOG_URL), so the parity is checked
+// on the prices in force after administrators changed them.
+var parityCatalog = SeedCatalog()
+
+func loadParityCatalog(t *testing.T, url string) Catalog {
+	t.Helper()
+	res, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var body struct {
+		Data struct {
+			ProjectTypes []struct {
+				ID               string `json:"id"`
+				BasePriceTenge   *int64 `json:"base_price_tenge"`
+				BasePriceVersion int    `json:"base_price_version"`
+			} `json:"project_types"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil || len(body.Data.ProjectTypes) == 0 {
+		t.Fatalf("catalog %s: %v", url, err)
+	}
+	prices := []BasePrice{}
+	for _, p := range body.Data.ProjectTypes {
+		prices = append(prices, BasePrice{ProjectType: p.ID, VersionID: "published", Version: p.BasePriceVersion, PriceTenge: p.BasePriceTenge})
+	}
+	return NewCatalog(prices)
+}
 
 // parityCase is one estimate input with this calculator's outcome, as
 // e2e/pricing/parity.mjs replays it with the browser's calculator.
@@ -27,7 +59,7 @@ type parityCase struct {
 }
 
 func (c *parityCase) calculate() {
-	r, err := Calculate(CalculateInput{c.ProjectType, c.ScaleTier, c.Modules, c.ApiCount, c.Multilingual, c.Design, c.Complexity, c.Urgency})
+	r, err := parityCatalog.Calculate(CalculateInput{c.ProjectType, c.ScaleTier, c.Modules, c.ApiCount, c.Multilingual, c.Design, c.Complexity, c.Urgency})
 	switch {
 	case err != nil:
 		c.Kind = "invalid"
@@ -39,7 +71,8 @@ func (c *parityCase) calculate() {
 }
 
 // TestWriteParityCases writes estimate cases and their results as JSON lines
-// to $PRICING_PARITY_OUT. Skipped unless the variable is set. The grid covers
+// to $PRICING_PARITY_OUT (base prices: the seed, or those published at
+// $PRICING_CATALOG_URL). Skipped unless the variable is set. The grid covers
 // every project type, every scale tier of its category, every distinct
 // modules total (one module set per total, with and without the per-unit
 // integrations), every design / complexity / urgency level and both
@@ -50,6 +83,9 @@ func TestWriteParityCases(t *testing.T) {
 	out := os.Getenv("PRICING_PARITY_OUT")
 	if out == "" {
 		t.Skip("PRICING_PARITY_OUT not set")
+	}
+	if url := os.Getenv("PRICING_CATALOG_URL"); url != "" {
+		parityCatalog = loadParityCatalog(t, url)
 	}
 	f, err := os.Create(out)
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/almukha/compnet-backend/internal/apperr"
 	"github.com/almukha/compnet-backend/internal/attribution"
+	"github.com/almukha/compnet-backend/internal/domain/baseprice"
 	"github.com/almukha/compnet-backend/internal/domain/projectrequest"
 	"github.com/almukha/compnet-backend/internal/domain/tariff"
 	"github.com/almukha/compnet-backend/internal/http/dto"
@@ -66,6 +67,7 @@ type Service struct {
 	conversions ConversionRecorder
 	notifier    Notifier
 	tariffs     TariffQuoter
+	basePrices  CatalogSource
 	// attribution: request sources are stored only while the first-party
 	// visit analytics is on (it is what visitors consent to).
 	attribution bool
@@ -86,6 +88,18 @@ func (s *Service) SetNotifier(n Notifier) {
 // SetAttributionEnabled lets requests keep their source (ANALYTICS_ENABLED).
 func (s *Service) SetAttributionEnabled(enabled bool) {
 	s.attribution = enabled
+}
+
+// CatalogSource gives the pricing catalog with the base prices in force
+// (internal/service/baseprices).
+type CatalogSource interface {
+	Catalog(ctx context.Context) (pricing.Catalog, error)
+}
+
+// SetBasePrices prices individual estimates with the stored base prices;
+// without it the seed prices are used (tests without a database).
+func (s *Service) SetBasePrices(c CatalogSource) {
+	s.basePrices = c
 }
 
 // SetTariffs enables requests sent with a tariff; without it they are refused.
@@ -124,7 +138,10 @@ func (s *Service) CreateProjectRequest(
 	if req.Tariff != nil {
 		projectType, features, estimate, order = s.tariffEstimate(ctx, *req.Tariff, fields)
 	} else {
-		projectType, features, estimate = calculatorEstimate(req, fields)
+		var err error
+		if projectType, features, estimate, err = s.calculatorEstimate(ctx, req, fields); err != nil {
+			return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
+		}
 	}
 
 	if len(fields) > 0 {
@@ -150,6 +167,16 @@ func (s *Service) CreateProjectRequest(
 		source = attributionFrom(req)
 	}
 	savedRequest, savedEstimate, err := s.repo.Create(ctx, request, features, estimate, source, order)
+	if errors.Is(err, baseprice.ErrPriceChanged) && req.ExpectedBasePriceTenge == nil {
+		// The base price changed while saving, and this client was shown no
+		// amount (an older page): priced again with the new one, once.
+		if _, features, estimate, err = s.calculatorEstimate(ctx, req, map[string]string{}); err == nil {
+			savedRequest, savedEstimate, err = s.repo.Create(ctx, request, features, estimate, source, order)
+		}
+	}
+	if errors.Is(err, baseprice.ErrPriceChanged) {
+		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, priceChanged()
+	}
 	if errors.Is(err, tariff.ErrPriceChanged) {
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, apperr.Conflict("стоимость тарифа изменилась — проверьте новую сумму и отправьте заявку ещё раз")
 	}
@@ -227,9 +254,24 @@ func (s *Service) tariffEstimate(ctx context.Context, sel dto.TariffSelectionInp
 	}
 }
 
+func priceChanged() error {
+	return apperr.Conflict("стоимость изменилась — проверьте новую сумму и отправьте заявку ещё раз")
+}
+
 // calculatorEstimate is the individual estimate: the Go catalog's formula
-// on the request's calculator selection.
-func calculatorEstimate(req dto.CreateProjectRequestRequest, fields map[string]string) (string, []projectrequest.Feature, projectrequest.Estimate) {
+// on the request's calculator selection, with the base prices in force. A
+// base price shown to the visitor (ExpectedBasePriceTenge) must be the one
+// in force: otherwise 409. The version used is checked again when the
+// request is saved (repository).
+func (s *Service) calculatorEstimate(ctx context.Context, req dto.CreateProjectRequestRequest, fields map[string]string) (string, []projectrequest.Feature, projectrequest.Estimate, error) {
+	catalog := pricing.SeedCatalog()
+	if s.basePrices != nil {
+		c, err := s.basePrices.Catalog(ctx)
+		if err != nil {
+			return "", nil, projectrequest.Estimate{}, err
+		}
+		catalog = c
+	}
 	calcInput := pricing.CalculateInput{
 		ProjectTypeID:     strings.TrimSpace(req.ProjectType),
 		ScaleTierID:       strings.TrimSpace(req.Calculator.ScaleTierID),
@@ -241,9 +283,14 @@ func calculatorEstimate(req dto.CreateProjectRequestRequest, fields map[string]s
 		UrgencyID:         strings.TrimSpace(req.Calculator.UrgencyID),
 	}
 
-	calcResult, calcErr := pricing.Calculate(calcInput)
+	calcResult, calcErr := catalog.Calculate(calcInput)
 	if calcErr != nil {
 		mergeCalcError(fields, calcErr)
+	}
+	base := catalog.BasePrice(calcInput.ProjectTypeID)
+	if want := req.ExpectedBasePriceTenge; want != nil && calcErr == nil && len(fields) == 0 &&
+		(base.PriceTenge == nil || *base.PriceTenge != *want) {
+		return "", nil, projectrequest.Estimate{}, priceChanged()
 	}
 
 	features := make([]projectrequest.Feature, 0, len(calcResult.Modules))
@@ -269,11 +316,12 @@ func calculatorEstimate(req dto.CreateProjectRequestRequest, fields map[string]s
 	}
 
 	estimate := projectrequest.Estimate{
-		PricingVersion: pricing.RulesVersion,
-		IsIndividual:   calcResult.IsIndividual,
-		MinimumTenge:   calcResult.MinimumTenge,
-		MaximumTenge:   calcResult.MaximumTenge,
-		DurationLabel:  calcResult.DurationLabel,
+		PricingVersion:     pricing.RulesVersion,
+		IsIndividual:       calcResult.IsIndividual,
+		MinimumTenge:       calcResult.MinimumTenge,
+		MaximumTenge:       calcResult.MaximumTenge,
+		DurationLabel:      calcResult.DurationLabel,
+		BasePriceVersionID: base.VersionID,
 		Breakdown: projectrequest.EstimateBreakdown{
 			ProjectType:             calcInput.ProjectTypeID,
 			ScaleTierID:             calcInput.ScaleTierID,
@@ -282,6 +330,7 @@ func calculatorEstimate(req dto.CreateProjectRequestRequest, fields map[string]s
 			UrgencyID:               calcInput.UrgencyID,
 			Multilingual:            calcInput.Multilingual,
 			BasePriceTenge:          calcResult.BasePriceTenge,
+			BasePriceVersion:        base.Version,
 			ScalePriceTenge:         calcResult.ScalePriceTenge,
 			Modules:                 breakdownModules,
 			ModulesTotalTenge:       calcResult.ModulesTotalTenge,
@@ -292,7 +341,7 @@ func calculatorEstimate(req dto.CreateProjectRequestRequest, fields map[string]s
 		},
 	}
 
-	return calcInput.ProjectTypeID, features, estimate
+	return calcInput.ProjectTypeID, features, estimate, nil
 }
 
 // mergeCalcError adds a message for the field responsible for a pricing

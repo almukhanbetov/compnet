@@ -100,7 +100,7 @@ const stored = (name) => sql(`SELECT coalesce(string_agg(t.final_price_tenge || 
     ok(digits(norm(await total.textContent())) === OLD, "S3 the open form still shows 99 000 ₸ (nothing reloaded behind the visitor's back)");
 
     const first = await submit(page, form);
-    const alert = page.locator('[data-testid="tariff-price-changed"]');
+    const alert = page.locator('[data-testid="price-changed"]');
     await alert.waitFor();
     const aText = norm(await alert.textContent());
     const button = norm(await form.locator('button[type="submit"]').textContent());

@@ -144,7 +144,7 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   ok(hText.includes(`${money(b0.price_tenge)} → ${money(newPrice)}`) && hText.includes("E2E: проверка изменения цены") && hText.includes("текущая") &&
     /Заявок с этой ценой: \d+/.test(hText), `P3 history: ${hText.slice(0, 200)}`);
   ok(sql(`SELECT count(*) FROM pricing_audit_log WHERE entity = 'tariff_version' AND details->>'tariff' = 'business'
-          AND details->>'reason' = 'E2E: проверка изменения цены' AND (details->>'previous_price_tenge')::bigint = ${b0.price_tenge} AND staff_user_id IS NOT NULL`) === "1",
+          AND details->>'reason' = 'E2E: проверка изменения цены' AND (details->>'previous_price_tenge')::bigint = ${b0.price_tenge} AND (details->>'version')::int = ${b1.version} AND staff_user_id IS NOT NULL`) === "1",
     "P3 audit log: author, old price, reason");
   ok(sql(`SELECT count(*) || ':' || coalesce(sum(final_price_tenge), 0) FROM project_request_tariffs WHERE tariff_slug = 'business'`) === oldRequests,
     `P3 earlier Business requests unchanged (${oldRequests})`);

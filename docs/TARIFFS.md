@@ -8,7 +8,7 @@ switches it on in `/manager/pricing`.
 
 | What | Source |
 |---|---|
-| Individual estimate (calculator, `/pricing` "from" prices) | Go catalog `backend/internal/pricing`, published at `GET /api/v1/pricing/catalog` (unchanged) |
+| Individual estimate (calculator, `/pricing` "from" prices) | Go catalog `backend/internal/pricing` with the base prices stored in PostgreSQL (see docs/BASE_PRICES.md), published at `GET /api/v1/pricing/catalog` |
 | A tariff's price | PostgreSQL `tariff_versions`: immutable versions, one current per tariff |
 | Extra modules of a tariff | the same Go catalog (`pricing.FindModule`), only those the version allows |
 | A promotion's discount | `promotions`, applied to the tariff's price only |

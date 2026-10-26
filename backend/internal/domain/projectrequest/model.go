@@ -87,7 +87,11 @@ type Estimate struct {
 	MaximumTenge     *int64
 	DurationLabel    string
 	Breakdown        EstimateBreakdown
-	CreatedAt        time.Time
+	// BasePriceVersionID: the base price version (project_type_prices) the
+	// estimate was calculated with; "" for tariffs, individual-only types and
+	// older estimates. Checked to be still current when the request is saved.
+	BasePriceVersionID string
+	CreatedAt          time.Time
 }
 
 // EstimateBreakdown captures every input and intermediate amount that went
@@ -101,6 +105,7 @@ type EstimateBreakdown struct {
 	UrgencyID               string            `json:"urgency_id"`
 	Multilingual            bool              `json:"multilingual"`
 	BasePriceTenge          *int64            `json:"base_price_tenge"`
+	BasePriceVersion        int               `json:"base_price_version,omitempty"` // 0: seed (no stored version)
 	ScalePriceTenge         *int64            `json:"scale_price_tenge"`
 	Modules                 []BreakdownModule `json:"modules"`
 	ModulesTotalTenge       int64             `json:"modules_total_tenge"`

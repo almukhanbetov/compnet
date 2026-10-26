@@ -10,8 +10,10 @@ export interface PricingCatalog {
   project_types: Array<{
     id: string;
     label: string;
-    /** null: individual estimate only. */
+    /** null: individual estimate only. Changed by administrators (PostgreSQL). */
     base_price_tenge: number | null;
+    /** Stored version of the base price in force (0: the seed price). */
+    base_price_version?: number;
     category: "site" | "app" | "none";
     default_duration: string;
   }>;

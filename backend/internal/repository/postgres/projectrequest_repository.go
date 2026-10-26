@@ -47,6 +47,11 @@ func (r *ProjectRequestRepository) Create(
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Before the request takes a number, so a refused one leaves no gap.
+	if estimate.BasePriceVersionID != "" {
+		if err := lockBasePrice(ctx, tx, estimate.BasePriceVersionID); err != nil {
+			return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err
+		}
+	}
 	var terms tariff.Quote
 	if order != nil {
 		if terms, err = lockTariffTerms(ctx, tx, order); err != nil {
@@ -103,8 +108,8 @@ func (r *ProjectRequestRepository) Create(
 	const insertEstimate = `
 		INSERT INTO project_estimates
 			(project_request_id, pricing_version, is_individual, minimum_tenge,
-			 maximum_tenge, duration_label, breakdown)
-		VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+			 maximum_tenge, duration_label, breakdown, base_price_version_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NULLIF($8, '')::uuid)
 		RETURNING id, created_at`
 
 	estimate.ProjectRequestID = request.ID
@@ -116,6 +121,7 @@ func (r *ProjectRequestRepository) Create(
 		estimate.MaximumTenge,
 		estimate.DurationLabel,
 		string(breakdownJSON),
+		estimate.BasePriceVersionID,
 	).Scan(&estimate.ID, &estimate.CreatedAt)
 	if err != nil {
 		return projectrequest.ProjectRequest{}, projectrequest.Estimate{}, err

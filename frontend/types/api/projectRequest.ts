@@ -21,6 +21,9 @@ export interface CreateProjectRequestPayload {
    * expected_final_price_tenge is the amount the visitor was shown (the server's
    * quote): the server refuses the request (409) when its price differs. */
   tariff?: { slug: string; module_ids: string[]; external_api_count: number; expected_final_price_tenge: number };
+  /** Without a tariff: the base price ("от X") the form showed for the project
+   * type; the server refuses the request (409) when it changed meanwhile. */
+  expected_base_price_tenge?: number;
   calculator: {
     scale_tier_id: string;
     selected_module_ids: string[];

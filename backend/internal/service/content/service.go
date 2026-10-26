@@ -38,14 +38,27 @@ type PricingCardView struct {
 	ServiceHref    string
 }
 
+// CatalogSource gives the pricing catalog with the base prices in force
+// (internal/service/baseprices).
+type CatalogSource interface {
+	Catalog(ctx context.Context) (pricing.Catalog, error)
+}
+
 // Service implements the content read use cases.
 type Service struct {
-	repo Repository
+	repo    Repository
+	catalog CatalogSource
 }
 
 // NewService builds a Service backed by the given Repository.
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, catalog CatalogSource) *Service {
+	return &Service{repo: repo, catalog: catalog}
+}
+
+// PricingCatalog is the catalog the calculator and the estimate preview use:
+// the base prices in force, everything else from the Go catalog.
+func (s *Service) PricingCatalog(ctx context.Context) (pricing.Catalog, error) {
+	return s.catalog.Catalog(ctx)
 }
 
 func (s *Service) ListServicesOverview(ctx context.Context) ([]content.ServiceOverview, error) {
@@ -81,6 +94,10 @@ func (s *Service) ListPricing(ctx context.Context) ([]PricingCardView, error) {
 		return nil, apperr.Internal(err)
 	}
 
+	catalog, err := s.catalog.Catalog(ctx)
+	if err != nil {
+		return nil, err
+	}
 	views := make([]PricingCardView, 0, len(cards))
 	for _, card := range cards {
 		projectType, ok := pricing.FindProjectType(card.ProjectType)
@@ -90,11 +107,12 @@ func (s *Service) ListPricing(ctx context.Context) ([]PricingCardView, error) {
 			return nil, apperr.Internal(errors.New("pricing card references unknown project_type: " + card.ProjectType))
 		}
 
+		base := catalog.BasePrice(projectType.ID).PriceTenge
 		views = append(views, PricingCardView{
 			ProjectType:    card.ProjectType,
 			Title:          projectType.Label,
-			PriceFromTenge: projectType.BasePriceTenge,
-			IsIndividual:   projectType.BasePriceTenge == nil,
+			PriceFromTenge: base,
+			IsIndividual:   base == nil,
 			Duration:       projectType.DefaultDuration,
 			Description:    card.Description,
 			Features:       card.Features,
