@@ -1,4 +1,4 @@
-import { Calculator as CalculatorIcon, Clock, Info } from "lucide-react";
+import { Calculator as CalculatorIcon, Clock, Info, RefreshCw } from "lucide-react";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { translateDuration } from "@/data/i18n/catalog";
 import { fill } from "@/lib/i18n";
@@ -8,12 +8,17 @@ interface CalculatorResultProps {
   hasProjectType: boolean;
   isIndividual: boolean;
   result: CalculatorResultData | null;
+  /** State of the server's price catalog: no amount is shown unless "ready". */
+  pricing: "loading" | "ready" | "error";
+  onRetry?: () => void;
 }
 
 export default function CalculatorResult({
   hasProjectType,
   isIndividual,
   result,
+  pricing,
+  onRetry,
 }: CalculatorResultProps) {
   const { t } = useLocale();
   const r = t.catalog.result;
@@ -28,7 +33,25 @@ export default function CalculatorResult({
         {r.title}
       </p>
 
-      {!hasProjectType ? (
+      {pricing === "error" ? (
+        <div role="alert" className="mt-3 space-y-3">
+          <p className="text-sm leading-6 text-slate-300 light:text-slate-700">{r.unavailable}</p>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--text-primary)]/15 px-3 py-1.5 text-xs text-slate-200 light:text-slate-800"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              {r.retry}
+            </button>
+          ) : null}
+        </div>
+      ) : pricing === "loading" && hasProjectType ? (
+        <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600" role="status">
+          {r.loading}
+        </p>
+      ) : !hasProjectType ? (
         <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600">
           {r.choose}
         </p>

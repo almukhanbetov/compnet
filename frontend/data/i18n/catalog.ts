@@ -35,6 +35,9 @@ const ru = {
     range: "от {min} ₸ до {max} ₸",
     duration: "Ориентировочный срок: {duration}",
     note: "Стоимость указана ориентировочно. Итоговая цена зависит от функционала, дизайна, интеграций, сроков и сложности проекта.",
+    loading: "Загружаем актуальные цены…",
+    unavailable: "Не удалось загрузить актуальные цены, поэтому расчёт сейчас не показываем. Попробуйте ещё раз или оставьте заявку — посчитаем стоимость вручную.",
+    retry: "Повторить",
   },
   /** {price} is the formatted amount with ₸. */
   priceFrom: "от {price}",
@@ -122,6 +125,9 @@ export const catalogTranslations: Record<Locale, CatalogTranslations> = {
       range: "{min} ₸ – {max} ₸",
       duration: "Болжамды мерзім: {duration}",
       note: "Құны болжамды түрде көрсетілген. Түпкілікті баға функционалға, дизайнға, интеграцияларға, мерзімдерге және жобаның күрделілігіне байланысты.",
+      loading: "Өзекті бағаларды жүктеп жатырмыз…",
+      unavailable: "Өзекті бағаларды жүктеу мүмкін болмады, сондықтан есептеуді қазір көрсетпейміз. Қайта көріңіз немесе өтінім қалдырыңыз — құнын қолмен есептейміз.",
+      retry: "Қайталау",
     },
     priceFrom: "{price} бастап",
     modules: {
@@ -203,6 +209,9 @@ export const catalogTranslations: Record<Locale, CatalogTranslations> = {
       range: "from {min} ₸ to {max} ₸",
       duration: "Estimated timeline: {duration}",
       note: "Prices are approximate. The final price depends on the features, design, integrations, timeline and complexity of the project.",
+      loading: "Loading current prices…",
+      unavailable: "We could not load current prices, so no estimate is shown right now. Try again or leave a request — we will calculate the price manually.",
+      retry: "Try again",
     },
     priceFrom: "from {price}",
     modules: {

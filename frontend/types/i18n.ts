@@ -173,6 +173,9 @@ export interface ContactPageTranslations {
     /** {price} is the formatted amount. */
     from: string;
     individual: string;
+    /** While the server's price catalog loads / when it cannot be loaded. */
+    loading: string;
+    unavailable: string;
     disclaimer: string;
   };
   methods: {

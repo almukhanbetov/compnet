@@ -55,9 +55,10 @@ type Result struct {
 	DurationLabel           string
 }
 
-// Calculate reproduces frontend/lib/pricingCalculator.ts server-side. It
-// looks up every id against the catalog itself — the caller must not pass
-// pre-resolved prices.
+// Calculate is the estimate formula; frontend/lib/pricingCalculator.ts repeats
+// it in the browser on the published catalog (e2e/pricing/parity.mjs checks
+// that both agree). It looks up every id against the catalog itself — the
+// caller must not pass pre-resolved prices.
 func Calculate(input CalculateInput) (Result, error) {
 	projectType, ok := FindProjectType(input.ProjectTypeID)
 	if !ok {
@@ -147,7 +148,7 @@ func Calculate(input CalculateInput) (Result, error) {
 	estimatedRaw := round(float64(subtotalWithPercents) * complexity.Multiplier * urgency.Multiplier)
 
 	minimum := roundToStep(estimatedRaw)
-	maximum := roundToStep(round(float64(minimum) * 1.2))
+	maximum := roundToStep(round(float64(minimum) * MaximumRatio))
 
 	result.SubtotalTenge = &subtotal
 	result.DesignAmountTenge = designAmount

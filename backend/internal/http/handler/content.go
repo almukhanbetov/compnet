@@ -61,6 +61,14 @@ func (h *ContentHandler) ListPricing(c *gin.Context) {
 	response.OK(c, dto.NewPricingCardListResponse(items))
 }
 
+// PricingCatalog handles GET /api/v1/pricing/catalog: the prices and
+// parameters of the estimate formula, for the browser's calculator and
+// preview. Static per build, so it may be cached briefly.
+func (h *ContentHandler) PricingCatalog(c *gin.Context) {
+	c.Header("Cache-Control", "public, max-age=300")
+	response.OK(c, dto.NewPricingCatalogResponse())
+}
+
 func (h *ContentHandler) ListPortfolio(c *gin.Context) {
 	items, err := h.service.ListPortfolioCases(c.Request.Context())
 	if err != nil {

@@ -83,6 +83,7 @@ func New(deps Deps) (*gin.Engine, error) {
 	v1.GET("/services", deps.Content.ListServices)
 	v1.GET("/services/:slug", deps.Content.GetService)
 	v1.GET("/pricing", deps.Content.ListPricing)
+	v1.GET("/pricing/catalog", deps.Content.PricingCatalog)
 	v1.GET("/portfolio", deps.Content.ListPortfolio)
 	v1.GET("/portfolio/:slug", deps.Content.GetPortfolioCase)
 	v1.GET("/testimonials", deps.Content.ListTestimonials)
