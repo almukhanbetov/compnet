@@ -15,6 +15,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
+import PageHeroVisual from "@/components/ui/PageHeroVisual";
+import { heroVisuals } from "@/data/heroVisuals";
 import { aboutDirectionIds, type AboutDirectionId, type AboutTranslations } from "@/data/i18n/about";
 import { companyEmail, companyPhone, whatsappLink } from "@/data/contacts";
 
@@ -32,6 +34,8 @@ interface AboutPageProps {
   /** "Almaty, Kazakhstan" from the shared contact texts. */
   city: string;
   examples: AboutWorkExample[];
+  /** What the hero image shows, in the page's language. */
+  heroVisualAlt: string;
 }
 
 const directionIcons: Record<AboutDirectionId, LucideIcon> = {
@@ -55,7 +59,7 @@ const secondaryButtonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--text-primary)]/15 bg-[var(--text-primary)]/5 px-6 py-3.5 font-semibold transition hover:bg-[var(--text-primary)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60";
 const crumbClass = "inline-block -my-1.5 py-1.5 transition hover:text-cyan-300 light:hover:text-cyan-700";
 
-export default function AboutPage({ t, city, examples }: AboutPageProps) {
+export default function AboutPage({ t, city, examples, heroVisualAlt }: AboutPageProps) {
   const facts = [
     { label: t.facts.company, value: "Complex Services" },
     { label: t.facts.brand, value: "COMPNET" },
@@ -81,64 +85,60 @@ export default function AboutPage({ t, city, examples }: AboutPageProps) {
       />
 
       {/* Who we are */}
-      <section className="relative px-6 pb-16 pt-20 md:pb-20 md:pt-28">
-        <div className="mx-auto max-w-[1280px]">
-          <nav aria-label={t.breadcrumb.label} className="text-sm text-slate-400 light:text-slate-600">
-            <ol className="flex flex-wrap items-center gap-2">
-              <li>
-                <Link href="/" className={crumbClass}>
-                  {t.breadcrumb.home}
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li aria-current="page" className="text-slate-300 light:text-slate-700">
-                {t.breadcrumb.current}
-              </li>
-            </ol>
-          </nav>
+      <PageHeroVisual
+        before={
+            <nav aria-label={t.breadcrumb.label} className="text-sm text-slate-400 light:text-slate-600">
+              <ol className="flex flex-wrap items-center gap-2">
+                <li>
+                  <Link href="/" className={crumbClass}>
+                    {t.breadcrumb.home}
+                  </Link>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page" className="text-slate-300 light:text-slate-700">
+                  {t.breadcrumb.current}
+                </li>
+              </ol>
+            </nav>
+        }
+        badge={t.hero.badge}
+        title={t.hero.title}
+        titleClassName="mt-6 text-4xl font-bold leading-tight md:text-5xl"
+        description={t.hero.intro}
+        image={heroVisuals.about}
+        alt={heroVisualAlt}
+        primaryCTA={{ label: t.hero.discuss, href: "/contact", icon: <ArrowRight className="h-4 w-4" aria-hidden="true" /> }}
+        secondaryCTA={{ label: t.hero.works, href: "#works" }}
+      />
 
-          <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
-            <div>
-              <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-cyan-300 light:border-cyan-600/30 light:bg-cyan-500/10 light:text-cyan-700">
-                {t.hero.badge}
-              </span>
-              <h1 className="mt-6 text-4xl font-bold leading-tight md:text-5xl">{t.hero.title}</h1>
-              <p className="mt-6 text-lg leading-8 text-slate-400 light:text-slate-600">{t.hero.intro}</p>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-                <Link href="/contact" className={primaryButtonClass}>
-                  {t.hero.discuss}
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-                <Link href="#works" className={secondaryButtonClass}>
-                  {t.hero.works}
-                </Link>
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-[var(--text-primary)]/10 bg-gradient-to-br from-violet-700/20 via-blue-700/10 to-cyan-500/10 p-7 backdrop-blur-xl md:p-8">
-              <h2 className="text-lg font-semibold text-slate-100 light:text-slate-900">{t.facts.title}</h2>
-              <dl className="mt-5 divide-y divide-[var(--text-primary)]/10">
-                {facts.map((fact) => (
-                  // 640–1023px: label | value columns, so values stay clear of the
-                  // chat launcher in the bottom-right corner of tablet screens.
-                  <div key={fact.label} className="flex items-baseline justify-between gap-4 py-3 sm:justify-start lg:justify-between">
-                    <dt className="text-sm text-slate-400 sm:w-40 sm:shrink-0 lg:w-auto light:text-slate-600">{fact.label}</dt>
-                    <dd className="text-right font-semibold text-slate-100 sm:text-left lg:text-right light:text-slate-900">{fact.value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <h3 className="mt-6 text-sm font-semibold text-slate-300 light:text-slate-700">{t.scope.title}</h3>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {t.scope.items.map((item) => (
-                  <li
-                    key={item}
-                    className="rounded-full border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/5 px-3 py-1.5 text-sm text-slate-200 light:text-slate-800"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+      {/* Company facts, under the hero */}
+      <section className="relative px-6 pb-16 md:pb-20">
+        <div className="mx-auto max-w-[1280px] rounded-[28px] border border-[var(--text-primary)]/10 bg-gradient-to-br from-violet-700/20 via-blue-700/10 to-cyan-500/10 p-7 backdrop-blur-xl md:p-8 lg:grid lg:grid-cols-2 lg:gap-14">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-100 light:text-slate-900">{t.facts.title}</h2>
+            <dl className="mt-5 divide-y divide-[var(--text-primary)]/10">
+              {facts.map((fact) => (
+                // 640–1023px: label | value columns, so values stay clear of the
+                // chat launcher in the bottom-right corner of tablet screens.
+                <div key={fact.label} className="flex items-baseline justify-between gap-4 py-3 sm:justify-start lg:justify-between">
+                  <dt className="text-sm text-slate-400 sm:w-40 sm:shrink-0 lg:w-auto light:text-slate-600">{fact.label}</dt>
+                  <dd className="text-right font-semibold text-slate-100 sm:text-left lg:text-right light:text-slate-900">{fact.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div>
+            <h3 className="mt-6 text-sm font-semibold text-slate-300 lg:mt-0 light:text-slate-700">{t.scope.title}</h3>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {t.scope.items.map((item) => (
+                <li
+                  key={item}
+                  className="rounded-full border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/5 px-3 py-1.5 text-sm text-slate-200 light:text-slate-800"
+                >
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>

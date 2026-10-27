@@ -14,6 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
+import PageHeroVisual from "@/components/ui/PageHeroVisual";
+import { heroVisuals } from "@/data/heroVisuals";
 import ProjectEstimateForm from "@/components/contact/ProjectEstimateForm";
 import { ESTIMATE_FORM_ID } from "@/data/contactPage";
 import { projectPricingList } from "@/data/projectPricing";
@@ -44,6 +46,8 @@ interface WebsiteDevelopmentPageProps {
   pricing: PricingCardItem[];
   /** Confirmed website cases from the portfolio API; empty when it is unavailable. */
   examples: WebsiteExample[];
+  /** What the hero image shows, in the page's language. */
+  heroVisualAlt: string;
 }
 
 const includedIcons: LucideIcon[] = [Palette, Smartphone, Code2, Search, Rocket];
@@ -66,7 +70,7 @@ const textLinkClass =
   "inline-flex min-h-11 items-center gap-2 py-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 light:text-cyan-700 light:hover:text-cyan-800";
 const crumbClass = "inline-block -my-1.5 py-1.5 transition hover:text-cyan-300 light:hover:text-cyan-700";
 
-export default function WebsiteDevelopmentPage({ t, factors, pricing, examples }: WebsiteDevelopmentPageProps) {
+export default function WebsiteDevelopmentPage({ t, factors, pricing, examples, heroVisualAlt }: WebsiteDevelopmentPageProps) {
   const prices = websiteTypeIds
     .map((id) => ({ id, card: pricing.find((item) => item.id === `price-${id}`) }))
     .filter((item): item is { id: (typeof websiteTypeIds)[number]; card: PricingCardItem } => Boolean(item.card));
@@ -96,46 +100,36 @@ export default function WebsiteDevelopmentPage({ t, factors, pricing, examples }
       />
 
       {/* Hero */}
-      <section className="relative px-6 pb-16 pt-20 md:pb-20 md:pt-28">
-        <div className="mx-auto max-w-[1280px]">
-          <nav aria-label={t.breadcrumb.label} className="text-sm text-slate-400 light:text-slate-600">
-            <ol className="flex flex-wrap items-center gap-2">
-              <li>
-                <Link href="/" className={crumbClass}>
-                  {t.breadcrumb.home}
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li>
-                <Link href="/services" className={crumbClass}>
-                  {t.breadcrumb.services}
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li aria-current="page" className="text-slate-300 light:text-slate-700">
-                {t.breadcrumb.current}
-              </li>
-            </ol>
-          </nav>
-
-          <div className="mt-8 max-w-3xl">
-            <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-cyan-300 light:border-cyan-600/30 light:bg-cyan-500/10 light:text-cyan-700">
-              {t.hero.badge}
-            </span>
-            <h1 className="mt-6 text-4xl font-bold leading-tight md:text-6xl">{t.hero.title}</h1>
-            <p className="mt-6 text-lg leading-8 text-slate-400 light:text-slate-600">{t.hero.description}</p>
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-              <a href={`#${ESTIMATE_FORM_ID}`} className={primaryButtonClass}>
-                {t.hero.discuss}
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-              <Link href="/portfolio" className={secondaryButtonClass}>
-                {t.hero.portfolio}
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PageHeroVisual
+        before={
+            <nav aria-label={t.breadcrumb.label} className="text-sm text-slate-400 light:text-slate-600">
+              <ol className="flex flex-wrap items-center gap-2">
+                <li>
+                  <Link href="/" className={crumbClass}>
+                    {t.breadcrumb.home}
+                  </Link>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li>
+                  <Link href="/services" className={crumbClass}>
+                    {t.breadcrumb.services}
+                  </Link>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page" className="text-slate-300 light:text-slate-700">
+                  {t.breadcrumb.current}
+                </li>
+              </ol>
+            </nav>
+        }
+        badge={t.hero.badge}
+        title={t.hero.title}
+        description={t.hero.description}
+        image={heroVisuals.websiteDevelopment}
+        alt={heroVisualAlt}
+        primaryCTA={{ label: t.hero.discuss, href: `#${ESTIMATE_FORM_ID}`, icon: <ArrowRight className="h-4 w-4" aria-hidden="true" /> }}
+        secondaryCTA={{ label: t.hero.portfolio, href: "/portfolio" }}
+      />
 
       {/* Website types */}
       <section className="relative px-6 py-16 md:py-20">

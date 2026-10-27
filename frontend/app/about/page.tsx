@@ -4,6 +4,7 @@ import Footer from "@/components/layout/Footer";
 import AboutPage, { type AboutWorkExample } from "@/components/about/AboutPage";
 import { caseStudyPages } from "@/data/caseStudyPages";
 import { aboutTranslations } from "@/data/i18n/about";
+import { heroVisualAlts } from "@/data/i18n/heroVisuals";
 import { websiteDevelopmentTranslations, websiteExampleSlugs } from "@/data/i18n/websiteDevelopment";
 import { fetchPortfolioCases } from "@/lib/api/content";
 import { byId, fill } from "@/lib/i18n";
@@ -56,7 +57,7 @@ export default async function AboutRoutePage() {
   return (
     <>
       <Header />
-      <AboutPage t={aboutTranslations[locale]} city={homeContacts.city} examples={examples} />
+      <AboutPage t={aboutTranslations[locale]} city={homeContacts.city} examples={examples} heroVisualAlt={heroVisualAlts[locale].about} />
       <Footer />
     </>
   );
