@@ -5,6 +5,7 @@ import WebsiteDevelopmentPage, { type WebsiteExample } from "@/components/servic
 import { caseStudyPages } from "@/data/caseStudyPages";
 import { websiteDevelopmentTranslations, websiteExampleSlugs } from "@/data/i18n/websiteDevelopment";
 import { fetchPortfolioCases, fetchPricingCards } from "@/lib/api/content";
+import { heroVisualAlts } from "@/data/i18n/heroVisuals";
 import { byId, fill } from "@/lib/i18n";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 
@@ -65,6 +66,7 @@ export default async function WebsiteDevelopmentServicePage() {
         factors={pricingTexts.factors.items}
         pricing={pricing}
         examples={examples}
+        heroVisualAlt={heroVisualAlts[locale].websiteDevelopment}
       />
       <Footer />
     </>

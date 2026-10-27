@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import PlaceholderPage from "@/components/layout/PlaceholderPage";
-import { getServerTranslations } from "@/lib/i18n.server";
+import { heroVisuals } from "@/data/heroVisuals";
+import { heroVisualAlts } from "@/data/i18n/heroVisuals";
+import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 import { placeholderRobots } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -8,7 +10,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SolutionsPage() {
-  const { common } = await getServerTranslations();
+  const [{ common }, locale] = await Promise.all([getServerTranslations(), getRequestLocale()]);
 
-  return <PlaceholderPage {...common.placeholders.solutions} showDiscussCta />;
+  return (
+    <PlaceholderPage
+      {...common.placeholders.solutions}
+      showDiscussCta
+      visual={{ image: heroVisuals.solutions, alt: heroVisualAlts[locale].solutions }}
+    />
+  );
 }
