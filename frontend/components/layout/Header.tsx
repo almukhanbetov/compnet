@@ -8,6 +8,7 @@ import MobileNav from "@/components/layout/MobileNav";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { companyPhone } from "@/data/contacts";
+import { TRAINING_PATH } from "@/data/training";
 
 export default function Header() {
   const { t } = useLocale();
@@ -69,10 +70,10 @@ export default function Header() {
           </a>
 
           <Link
-            href="/contact"
+            href={TRAINING_PATH}
             className="hidden rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(124,58,237,0.35)] transition hover:scale-105 hover:shadow-[0_0_28px_rgba(124,58,237,0.5)] sm:inline-flex"
           >
-            {t.header.actions.discuss}
+            {t.header.actions.training}
           </Link>
 
           <button

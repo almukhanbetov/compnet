@@ -16,6 +16,8 @@ export interface HeaderNavTranslations {
 export interface HeaderActionsTranslations {
   login: string;
   discuss: string;
+  /** The header's call-to-action button, leading to /training. */
+  training: string;
   /** Accessible label prefix for the phone link, e.g. "Позвонить". */
   call: string;
   whatsapp: string;

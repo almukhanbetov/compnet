@@ -38,6 +38,7 @@ export const translations: Record<Locale, Translations> = {
       actions: {
         login: "Кіру",
         discuss: "Жобаны талқылау",
+        training: "Оқыту",
         call: "Қоңырау шалу",
         whatsapp: "WhatsApp-қа жазу",
         opensInNewTab: "(жаңа қойындыда ашылады)",
@@ -131,6 +132,7 @@ export const translations: Record<Locale, Translations> = {
       actions: {
         login: "Войти",
         discuss: "Обсудить проект",
+        training: "Обучение",
         call: "Позвонить",
         whatsapp: "Написать в WhatsApp",
         opensInNewTab: "(откроется в новой вкладке)",
@@ -224,6 +226,7 @@ export const translations: Record<Locale, Translations> = {
       actions: {
         login: "Log In",
         discuss: "Discuss a project",
+        training: "Training",
         call: "Call",
         whatsapp: "Message us on WhatsApp",
         opensInNewTab: "(opens in a new tab)",

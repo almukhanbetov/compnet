@@ -178,6 +178,26 @@ pages["website-development"] = svg(
     + circle_icon(70, 430, 32, '<circle cx="66" cy="426" r="11" stroke="#22D3EE" stroke-width="2.6"/><path d="M74 434l9 9" stroke="#A78BFA" stroke-width="3" stroke-linecap="round"/>')
 )
 
+# Training: an assignment's code with a mistake and its fix, the mentor's
+# review comment, the steps of the practice and the demonstrated result.
+code_lines = [(0, 130), (1, 170), (2, 120), (2, 150), (2, 150), (1, 90), (0, 60), (0, 140)]
+pages["training"] = svg(
+    glows((300, 230, 160, "v", .42), (540, 140, 110, "c", .3), (120, 400, 110, "b", .3))
+    + browser(40, 50, 370, 290, True)
+    + '<rect x="52" y="160" width="346" height="22" rx="6" fill="#F43F5E" fill-opacity=".14"/><rect x="52" y="184" width="346" height="22" rx="6" fill="#22C55E" fill-opacity=".14"/>'
+    + '<rect x="52" y="160" width="3" height="22" rx="1.5" fill="#F43F5E"/><rect x="52" y="184" width="3" height="22" rx="1.5" fill="#22C55E"/>'
+    + "".join(bar(66, 98 + i * 24, 14, 7, .18) + (gbar(90 + ind * 18, 98 + i * 24, w, 7, o=.85) if i in (0, 5) else bar(90 + ind * 18, 98 + i * 24, w, 7, .45 if i in (3, 4) else .22)) for i, (ind, w) in enumerate(code_lines))
+    + panel(300, 250, 240, 104, 18)
+    + '<circle cx="330" cy="280" r="14" fill="url(#g)"/>' + bar(354, 274, 80, 8, .45) + bar(320, 304, 196, 7, .22) + bar(320, 322, 150, 7, .22)
+    + '<path d="M300 300h-46" stroke="url(#gh)" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="4 5"/>'
+    + panel(446, 40, 164, 194, 18, True)
+    + "".join(check(466, 66 + i * 26, on=i < 4) + bar(490, 70 + i * 26, 96 - (i % 3) * 14, 7, .3 if i < 4 else .16) for i in range(6))
+    + panel(70, 382, 210, 92, 18)
+    + circle_icon(114, 428, 24, '<path d="M108 418l18 10-18 10z" fill="#22D3EE"/>')
+    + bar(152, 412, 100, 8, .4) + bar(152, 430, 80, 6, .2) + gbar(152, 448, 104, 6)
+    + '<path d="M175 340v38M528 234v12" stroke="url(#gh)" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="4 6"/>'
+)
+
 for name, body in pages.items():
     with open(os.path.join(OUT, f"{name}.svg"), "w") as f:
         f.write(body)
