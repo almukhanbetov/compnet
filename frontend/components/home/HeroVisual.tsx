@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "motion/react";
 import {
+  ArrowRight,
   Globe,
   Smartphone,
   Bot,
@@ -14,7 +16,11 @@ import { useLocale } from "@/components/providers/LocaleProvider";
 import HeroImage from "@/components/ui/HeroImage";
 import { heroVisuals } from "@/data/heroVisuals";
 import { heroVisualAlts } from "@/data/i18n/heroVisuals";
+import { DEVOPS_PATH } from "@/data/devops";
 import type { HeroDirectionIcon } from "@/types/i18n";
+
+const chipClass =
+  "flex items-center gap-2.5 rounded-xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] px-3 py-3";
 
 const directionIcons: Record<HeroDirectionIcon, LucideIcon> = {
   Globe,
@@ -56,22 +62,41 @@ export default function HeroVisual() {
           <div className="mt-6 grid grid-cols-2 gap-3">
             {gridDirections.map((direction) => {
               const Icon = directionIcons[direction.icon];
-
-              return (
-                <div
-                  key={direction.label}
-                  className="flex items-center gap-2.5 rounded-xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] px-3 py-3"
-                >
+              const content = (
+                <>
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600/30 to-cyan-400/20 text-cyan-300 light:text-cyan-700">
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </span>
                   <span className="text-sm font-medium text-slate-200 light:text-slate-800">
                     {direction.label}
                   </span>
+                </>
+              );
+
+              // DevOps & CI/CD has its own service page.
+              return direction === devOps ? (
+                <Link
+                  key={direction.label}
+                  href={DEVOPS_PATH}
+                  className={`${chipClass} transition hover:border-cyan-400/40 hover:bg-[var(--text-primary)]/[0.06]`}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div key={direction.label} className={chipClass}>
+                  {content}
                 </div>
               );
             })}
           </div>
+
+          <Link
+            href={DEVOPS_PATH}
+            className="mt-4 flex items-start gap-2 text-xs leading-5 text-slate-400 transition hover:text-cyan-300 light:text-slate-600 light:hover:text-cyan-700"
+          >
+            {t.home.heroVisual.devops}
+            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          </Link>
         </motion.div>
 
         {webDevelopment ? (

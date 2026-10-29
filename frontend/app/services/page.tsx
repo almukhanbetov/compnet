@@ -6,6 +6,8 @@ import WebAppsSection from "@/components/home/WebAppsSection";
 import MobileAppsSection from "@/components/home/MobileAppsSection";
 import AiAutomationSection from "@/components/home/AiAutomationSection";
 import CtaSection from "@/components/home/CtaSection";
+import DevOpsServiceCard from "@/components/services/DevOpsServiceCard";
+import { devopsTranslations } from "@/data/i18n/devops";
 import PageHeroVisual from "@/components/ui/PageHeroVisual";
 import { heroVisuals } from "@/data/heroVisuals";
 import { heroVisualAlts } from "@/data/i18n/heroVisuals";
@@ -57,6 +59,7 @@ export default async function ServicesPage() {
         {details["ai-automation"] && (
           <AiAutomationSection detail={details["ai-automation"]} />
         )}
+        <DevOpsServiceCard t={devopsTranslations[locale]} />
         <CtaSection />
       </main>
 

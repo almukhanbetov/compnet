@@ -18,6 +18,7 @@ import { translations } from "@/data/translations";
 import { contentTranslations } from "@/data/i18n/content";
 import { translateDuration } from "@/data/i18n/catalog";
 import { byId, fill } from "@/lib/i18n";
+import { withDeliveryStack } from "@/data/portfolioDelivery";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -170,7 +171,7 @@ function mapPortfolioCase(item: ApiPortfolioCase, locale: Locale): PortfolioCase
     task: text?.task ?? item.task,
     process: text?.process ?? item.process,
     solution: text?.solution ?? item.solution,
-    technologies: text?.technologies ?? item.technologies,
+    technologies: withDeliveryStack(item.slug, text?.technologies ?? item.technologies),
     result: text?.result ?? item.result,
     duration: text?.duration ?? item.duration,
     gradientFrom: item.gradient_from,

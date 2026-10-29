@@ -14,6 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import SectionHeading from "@/components/ui/SectionHeading";
+import DeliveryStageSection from "@/components/services/DeliveryStageSection";
+import type { DevOpsTranslations } from "@/data/i18n/devops";
 import PageHeroVisual from "@/components/ui/PageHeroVisual";
 import { heroVisuals } from "@/data/heroVisuals";
 import ProjectEstimateForm from "@/components/contact/ProjectEstimateForm";
@@ -41,6 +43,8 @@ export interface WebsiteExample {
 
 interface WebsiteDevelopmentPageProps {
   t: WebsiteDevelopmentTranslations;
+  /** The "build, deployment and updates" stage. */
+  devops: DevOpsTranslations;
   factors: PricingTranslations["factors"]["items"];
   /** Pricing cards from the API; looked up by `price-<type>`. */
   pricing: PricingCardItem[];
@@ -70,7 +74,7 @@ const textLinkClass =
   "inline-flex min-h-11 items-center gap-2 py-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 light:text-cyan-700 light:hover:text-cyan-800";
 const crumbClass = "inline-block -my-1.5 py-1.5 transition hover:text-cyan-300 light:hover:text-cyan-700";
 
-export default function WebsiteDevelopmentPage({ t, factors, pricing, examples, heroVisualAlt }: WebsiteDevelopmentPageProps) {
+export default function WebsiteDevelopmentPage({ t, devops, factors, pricing, examples, heroVisualAlt }: WebsiteDevelopmentPageProps) {
   const prices = websiteTypeIds
     .map((id) => ({ id, card: pricing.find((item) => item.id === `price-${id}`) }))
     .filter((item): item is { id: (typeof websiteTypeIds)[number]; card: PricingCardItem } => Boolean(item.card));
@@ -308,6 +312,9 @@ export default function WebsiteDevelopmentPage({ t, factors, pricing, examples, 
           </ol>
         </div>
       </section>
+
+      {/* Build, deployment and updates */}
+      <DeliveryStageSection t={devops} variant="website" />
 
       {/* FAQ */}
       <section className="relative px-6 py-16 md:py-20">

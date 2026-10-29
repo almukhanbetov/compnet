@@ -14,6 +14,7 @@ export const heroVisualAlts: Record<Locale, Record<HeroVisualKey, string>> = {
     contact: "Переписка с менеджером, звонок, письмо и выбор времени консультации",
     websiteDevelopment: "Сайт-каталог в браузере и его мобильная версия, скорость загрузки и поиск",
     training: "Учебное задание: код с ошибкой и её исправлением, комментарий наставника, этапы практики и демонстрация результата",
+    devops: "Путь обновления: ветка в репозитории, шаги workflow, сборка образа и сервер, на который он развёртывается",
   },
   kk: {
     home: "Цифрлық экожүйе: сайт, мобильді қосымша, сервер және аналитика бір әзірлеу ядросының айналасында",
@@ -26,6 +27,7 @@ export const heroVisualAlts: Record<Locale, Record<HeroVisualKey, string>> = {
     contact: "Менеджермен хат алмасу, қоңырау, хат және кеңес уақытын таңдау",
     websiteDevelopment: "Браузердегі каталог сайт және оның мобильді нұсқасы, жүктелу жылдамдығы мен іздеу",
     training: "Оқу тапсырмасы: қатесі мен оның түзетуі бар код, тәлімгердің пікірі, практика кезеңдері және нәтижені көрсету",
+    devops: "Жаңарту жолы: репозиторийдегі тармақ, workflow қадамдары, бейнені құрастыру және ол орналастырылатын сервер",
   },
   en: {
     home: "A digital ecosystem: website, mobile app, server and analytics around one development core",
@@ -38,5 +40,6 @@ export const heroVisualAlts: Record<Locale, Record<HeroVisualKey, string>> = {
     contact: "A chat with a manager, a call, an email and picking a consultation time",
     websiteDevelopment: "A catalog website in a browser and its mobile version, load speed and search",
     training: "A training assignment: code with a mistake and its fix, the mentor's review comment, the practice steps and a demo of the result",
+    devops: "An update's path: a branch in the repository, the workflow steps, the image build and the server it is deployed to",
   },
 };

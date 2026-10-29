@@ -3,6 +3,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import MobileAppDevelopmentPage from "@/components/services/MobileAppDevelopmentPage";
 import { MOBILE_APP_DEVELOPMENT_PATH, mobileAppDevelopmentTranslations } from "@/data/i18n/mobileAppDevelopment";
+import { devopsTranslations } from "@/data/i18n/devops";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 
 const ogLocales = { ru: "ru_RU", kk: "kk_KZ", en: "en_US" } as const;
@@ -36,7 +37,7 @@ export default async function MobileAppDevelopmentServicePage() {
   return (
     <>
       <Header />
-      <MobileAppDevelopmentPage t={mobileAppDevelopmentTranslations[locale]} factors={pricing.factors.items} />
+      <MobileAppDevelopmentPage t={mobileAppDevelopmentTranslations[locale]} devops={devopsTranslations[locale]} factors={pricing.factors.items} />
       <Footer />
     </>
   );

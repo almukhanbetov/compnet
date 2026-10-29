@@ -153,7 +153,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         {
           question: "Можно ли заказать поддержку после запуска?",
           answer:
-            "Да, предлагаем отдельный формат технической поддержки: мониторинг, обновления и доработки после релиза.",
+            "Да, предлагаем отдельный формат технической поддержки: исправление ошибок, обновления и доработки после релиза.",
         },
       ],
     },
@@ -310,7 +310,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         {
           question: "Іске қосылғаннан кейін қолдауға тапсырыс беруге бола ма?",
           answer:
-            "Иә, техникалық қолдаудың жеке форматын ұсынамыз: мониторинг, жаңартулар және релизден кейінгі жетілдірулер.",
+            "Иә, техникалық қолдаудың жеке форматын ұсынамыз: қателерді түзету, жаңартулар және релизден кейінгі жетілдірулер.",
         },
       ],
     },
@@ -465,7 +465,7 @@ export const contactPageTranslations: Record<Locale, ContactPageTranslations> = 
         },
         {
           question: "Can I order support after launch?",
-          answer: "Yes, we offer a separate technical support format: monitoring, updates and improvements after release.",
+          answer: "Yes, we offer a separate technical support format: bug fixes, updates and improvements after release.",
         },
       ],
     },

@@ -57,7 +57,15 @@ export const contentTranslations: Record<Locale, ContentTranslations> = {
   ru: {
     services: {},
     serviceDetails: {},
-    pricing: {},
+    // The seed's "Мониторинг и бэкапы" is not part of the service (monitoring
+    // is not offered; a backup before migrations is optional work, see
+    // data/i18n/devops.ts): shown corrected without changing the database.
+    pricing: {
+      "devops-vps": {
+        description: "Настройка серверной инфраструктуры, CI/CD и сопровождение проекта после запуска.",
+        features: ["Настройка VPS и окружения", "CI/CD пайплайны", "Развёртывание через Docker", "Техническая поддержка"],
+      },
+    },
     portfolio: {},
     testimonials: {
       "Elena Volkova": {
@@ -235,7 +243,7 @@ export const contentTranslations: Record<Locale, ContentTranslations> = {
       },
       "devops-vps": {
         description: "Серверлік инфрақұрылымды, CI/CD баптау және іске қосқаннан кейін жобаны сүйемелдеу.",
-        features: ["VPS пен ортаны баптау", "CI/CD пайплайндары", "Мониторинг және бэкаптар", "Техникалық қолдау"],
+        features: ["VPS пен ортаны баптау", "CI/CD пайплайндары", "Docker арқылы орналастыру", "Техникалық қолдау"],
       },
     },
     portfolio: {
@@ -555,7 +563,7 @@ export const contentTranslations: Record<Locale, ContentTranslations> = {
       },
       "devops-vps": {
         description: "Server infrastructure setup, CI/CD and project maintenance after launch.",
-        features: ["VPS and environment setup", "CI/CD pipelines", "Monitoring and backups", "Technical support"],
+        features: ["VPS and environment setup", "CI/CD pipelines", "Deployment with Docker", "Technical support"],
       },
     },
     portfolio: {

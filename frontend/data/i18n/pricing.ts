@@ -45,7 +45,7 @@ const ru = {
       },
       "format-support": {
         title: "Техническая поддержка",
-        description: "Ежемесячное сопровождение после запуска — обновления, мониторинг и доработки.",
+        description: "Ежемесячное сопровождение после запуска — обновления, исправление ошибок и доработки.",
       },
     },
   },
@@ -147,7 +147,7 @@ export const pricingTranslations: Record<Locale, PricingTranslations> = {
         },
         "format-support": {
           title: "Техникалық қолдау",
-          description: "Іске қосқаннан кейінгі ай сайынғы сүйемелдеу — жаңартулар, мониторинг және жетілдірулер.",
+          description: "Іске қосқаннан кейінгі ай сайынғы сүйемелдеу — жаңартулар, қателерді түзету және жетілдірулер.",
         },
       },
     },
@@ -244,7 +244,7 @@ export const pricingTranslations: Record<Locale, PricingTranslations> = {
         },
         "format-support": {
           title: "Technical support",
-          description: "Monthly maintenance after launch — updates, monitoring and improvements.",
+          description: "Monthly maintenance after launch — updates, bug fixes and improvements.",
         },
       },
     },
