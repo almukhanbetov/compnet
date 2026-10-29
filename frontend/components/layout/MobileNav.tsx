@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { MessageCircle, Phone } from "lucide-react";
 import { companyPhone, whatsappLink } from "@/data/contacts";
+import { TRAINING_PATH } from "@/data/training";
 import { localeOptions } from "@/data/translations";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import ThemeToggle from "@/components/layout/ThemeToggle";
@@ -125,11 +126,11 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
           {t.header.actions.login}
         </Link>
         <Link
-          href="/contact"
+          href={TRAINING_PATH}
           onClick={onClose}
           className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:scale-[1.02]"
         >
-          {t.header.actions.discuss}
+          {t.header.actions.training}
         </Link>
       </div>
     </div>

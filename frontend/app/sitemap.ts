@@ -20,6 +20,7 @@ const staticPaths = [
   "/calculator",
   "/portfolio",
   ...Object.values(caseStudyPages),
+  "/training",
   "/about",
   "/contact",
   "/privacy",

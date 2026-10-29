@@ -13,6 +13,7 @@ export const heroVisualAlts: Record<Locale, Record<HeroVisualKey, string>> = {
     about: "Процесс разработки: команда, код и этапы от анализа до запуска",
     contact: "Переписка с менеджером, звонок, письмо и выбор времени консультации",
     websiteDevelopment: "Сайт-каталог в браузере и его мобильная версия, скорость загрузки и поиск",
+    training: "Учебное задание: код с ошибкой и её исправлением, комментарий наставника, этапы практики и демонстрация результата",
   },
   kk: {
     home: "Цифрлық экожүйе: сайт, мобильді қосымша, сервер және аналитика бір әзірлеу ядросының айналасында",
@@ -24,6 +25,7 @@ export const heroVisualAlts: Record<Locale, Record<HeroVisualKey, string>> = {
     about: "Әзірлеу процесі: команда, код және талдаудан іске қосуға дейінгі кезеңдер",
     contact: "Менеджермен хат алмасу, қоңырау, хат және кеңес уақытын таңдау",
     websiteDevelopment: "Браузердегі каталог сайт және оның мобильді нұсқасы, жүктелу жылдамдығы мен іздеу",
+    training: "Оқу тапсырмасы: қатесі мен оның түзетуі бар код, тәлімгердің пікірі, практика кезеңдері және нәтижені көрсету",
   },
   en: {
     home: "A digital ecosystem: website, mobile app, server and analytics around one development core",
@@ -35,5 +37,6 @@ export const heroVisualAlts: Record<Locale, Record<HeroVisualKey, string>> = {
     about: "The development process: the team, the code and the stages from analysis to launch",
     contact: "A chat with a manager, a call, an email and picking a consultation time",
     websiteDevelopment: "A catalog website in a browser and its mobile version, load speed and search",
+    training: "A training assignment: code with a mistake and its fix, the mentor's review comment, the practice steps and a demo of the result",
   },
 };

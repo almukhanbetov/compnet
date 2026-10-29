@@ -17,7 +17,8 @@ export type HeroVisualKey =
   | "portfolio"
   | "about"
   | "contact"
-  | "websiteDevelopment";
+  | "websiteDevelopment"
+  | "training";
 
 export interface HeroVisual {
   src: string;
@@ -40,4 +41,5 @@ export const heroVisuals: Record<HeroVisualKey, HeroVisual> = {
   about: mockup("about", "left"),
   contact: mockup("contact", "right"),
   websiteDevelopment: mockup("website-development", "right"),
+  training: mockup("training", "left"),
 };
