@@ -32,6 +32,7 @@ illustrations below.
 | `/contact` Контакты | right | a chat with a manager, a call, an email, picking a consultation time | `contact` |
 | `/services/website-development` | right | a catalog website, its mobile version, speed and search | `website-development` |
 | `/training` Обучение | left | an assignment's code with a mistake (red) and its fix (green), the mentor's review comment, the steps of the practice, a demo of the result; no people | `training` |
+| `/services/devops-ci-cd` DevOps и CI/CD | right | an update's path: a branch merging in the repository, the workflow's steps, the image's layers, the server; no text (the pipeline diagram with text is HTML on the page) | `devops` |
 | `/services/mobile-app-development` | — | unchanged: the page already has its own phone mockups | — |
 
 On phones the text, the buttons and the extras (contact advantages,

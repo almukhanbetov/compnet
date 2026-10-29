@@ -7,9 +7,11 @@ import {
   GraduationCap,
   Handshake,
   Info,
+  ListChecks,
   Smartphone,
   Sprout,
   Wallet,
+  Workflow,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -26,7 +28,7 @@ interface TrainingPageProps {
 }
 
 const audienceIcons: LucideIcon[] = [Sprout, GraduationCap, Wrench];
-const directionIcons: LucideIcon[] = [Code2, Smartphone, Database, GitBranch];
+const directionIcons: LucideIcon[] = [Code2, Smartphone, Database, GitBranch, Workflow];
 
 const cardClass =
   "rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-7 backdrop-blur-xl";
@@ -120,7 +122,7 @@ export default function TrainingPage({ t, heroAlt }: TrainingPageProps) {
       <section className="relative border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-16 md:py-20">
         <div className="mx-auto max-w-[1280px]">
           <SectionHeading align="left" eyebrow={t.directions.eyebrow} title={t.directions.title} description={t.directions.description} />
-          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {t.directions.items.map((item, index) => {
               const Icon = directionIcons[index] ?? Code2;
               return (
@@ -137,8 +139,42 @@ export default function TrainingPage({ t, heroAlt }: TrainingPageProps) {
         </div>
       </section>
 
-      {/* Training project examples (not students' work) */}
+      {/* DevOps and CI/CD practice: a proposed programme, not students' results */}
       <section className="relative px-6 py-16 md:py-20">
+        <div className="mx-auto max-w-[1280px]">
+          <SectionHeading align="left" eyebrow={t.devopsPractice.eyebrow} title={t.devopsPractice.title} description={t.devopsPractice.description} />
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400 light:text-slate-600">{t.devopsPractice.beginners}</p>
+          <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {t.devopsPractice.steps.map((step, index) => (
+              <li key={step} className="flex items-start gap-3 rounded-2xl border border-[var(--text-primary)]/10 bg-[var(--text-primary)]/[0.03] p-5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--text-primary)]/10 bg-[var(--surface)] text-sm font-semibold text-cyan-300 light:text-cyan-700">
+                  {index + 1}
+                </span>
+                <span className="pt-1 text-sm font-medium leading-6 text-slate-200 light:text-slate-800">{step}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <div className={noteClass}>
+              <span className={iconClass}>
+                <ListChecks className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <h3 className={`mt-4 ${cardTitleClass}`}>{t.devopsPractice.resultTitle}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300 light:text-slate-700">{t.devopsPractice.result}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400 light:text-slate-600">{t.devopsPractice.resultNote}</p>
+            </div>
+            <div className={cardClass}>
+              <span className={iconClass}>
+                <Wallet className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <p className="mt-4 text-sm leading-6 text-slate-300 light:text-slate-700">{t.devopsPractice.costs}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Training project examples (not students' work) */}
+      <section className="relative border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-16 md:py-20">
         <div className="mx-auto max-w-[1280px]">
           <SectionHeading align="left" eyebrow={t.examples.eyebrow} title={t.examples.title} description={t.examples.description} />
           <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -154,7 +190,7 @@ export default function TrainingPage({ t, heroAlt }: TrainingPageProps) {
       </section>
 
       {/* Paid cooperation and the terms */}
-      <section className="relative border-y border-[var(--text-primary)]/5 bg-[var(--text-primary)]/[0.02] px-6 py-16 md:py-20">
+      <section className="relative px-6 py-16 md:py-20">
         <div className="mx-auto grid max-w-[1280px] gap-6 lg:grid-cols-2">
           <div className={noteClass}>
             <span className={iconClass}>

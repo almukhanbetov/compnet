@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import MobileAppMockups from "@/components/services/MobileAppMockups";
 import SectionHeading from "@/components/ui/SectionHeading";
+import DeliveryStageSection from "@/components/services/DeliveryStageSection";
+import type { DevOpsTranslations } from "@/data/i18n/devops";
 import ProjectEstimateForm from "@/components/contact/ProjectEstimateForm";
 import { companyPhone, whatsappLink } from "@/data/contacts";
 import { ESTIMATE_FORM_ID } from "@/data/contactPage";
@@ -32,6 +34,8 @@ import type { PricingTranslations } from "@/data/i18n/pricing";
 
 interface MobileAppDevelopmentPageProps {
   t: MobileAppDevelopmentTranslations;
+  /** The "build, deployment and updates" stage. */
+  devops: DevOpsTranslations;
   factors: PricingTranslations["factors"]["items"];
 }
 
@@ -57,7 +61,7 @@ const crumbClass = "inline-block -my-1.5 py-1.5 transition hover:text-cyan-300 l
 const cardTitleClass = "font-semibold text-slate-100 light:text-slate-900";
 const cardTextClass = "mt-2 text-sm leading-6 text-slate-400 light:text-slate-600";
 
-export default function MobileAppDevelopmentPage({ t, factors }: MobileAppDevelopmentPageProps) {
+export default function MobileAppDevelopmentPage({ t, devops, factors }: MobileAppDevelopmentPageProps) {
   // tel: and wa.me clicks are counted by the existing analytics (AnalyticsProvider).
   const whatsappHref = whatsappLink(t.hero.whatsappMessage);
 
@@ -211,6 +215,9 @@ export default function MobileAppDevelopmentPage({ t, factors }: MobileAppDevelo
           </ol>
         </div>
       </section>
+
+      {/* Build, deployment and updates: the backend and the app's own release apart */}
+      <DeliveryStageSection t={devops} variant="mobile" />
 
       {/* Advantages */}
       <section className="relative px-6 py-16 md:py-20">

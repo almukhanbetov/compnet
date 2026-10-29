@@ -10,7 +10,7 @@ import type { Locale } from "@/types/i18n";
 export const trainingLevelIds = ["beginner", "basics", "developer"] as const;
 export type TrainingLevelId = (typeof trainingLevelIds)[number];
 
-export const trainingDirectionIds = ["web", "mobile", "apiDb", "gitReview", "undecided"] as const;
+export const trainingDirectionIds = ["web", "mobile", "apiDb", "gitReview", "devops", "undecided"] as const;
 export type TrainingDirectionId = (typeof trainingDirectionIds)[number];
 
 interface Card {
@@ -25,6 +25,19 @@ export interface TrainingTranslations {
   audience: { eyebrow: string; title: string; description: string; items: Card[] };
   format: { eyebrow: string; title: string; description: string; steps: Card[] };
   directions: { eyebrow: string; title: string; description: string; items: Card[] };
+  /** A proposed practice programme, not students' results; VPS, domain and
+   * third-party costs are agreed before the sessions, never said to be included. */
+  devopsPractice: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    beginners: string;
+    steps: string[];
+    resultTitle: string;
+    result: string;
+    resultNote: string;
+    costs: string;
+  };
   examples: { eyebrow: string; title: string; description: string; label: string; items: Card[] };
   cooperation: { eyebrow: string; title: string; text: string };
   terms: { eyebrow: string; title: string; description: string; items: string[] };
@@ -62,6 +75,7 @@ export const trainingRequestTexts = {
     mobile: "Разработка мобильных приложений",
     apiDb: "Работа с API и базами данных",
     gitReview: "Git, отладка и проверка кода",
+    devops: "Практика DevOps и CI/CD",
     undecided: "Пока не определено",
   } satisfies Record<TrainingDirectionId, string>,
 };
@@ -124,7 +138,26 @@ export const trainingTranslations: Record<Locale, TrainingTranslations> = {
         { title: "Разработка мобильных приложений", description: "Приложения для смартфонов и их связь с серверной частью." },
         { title: "Работа с API и базами данных", description: "Серверная часть: API, хранение данных и интеграции." },
         { title: "Git, отладка и проверка кода", description: "Работа с репозиторием, поиск ошибок и проверка кода." },
+        { title: "Практика DevOps и CI/CD", description: "Пройдите путь от изменения кода до запуска приложения на сервере: GitHub, GitHub Actions, Docker и VPS." },
       ],
+    },
+    devopsPractice: {
+      eyebrow: "Программа практики",
+      title: "Практика DevOps и CI/CD",
+      description: "Предлагаемая программа практики — план занятий, а не результаты учеников.",
+      beginners: "Начинающим объясняем необходимые основы, сложность заданий согласуем по уровню.",
+      steps: [
+        "Работа с репозиторием и веткой",
+        "Подготовка Dockerfile",
+        "Настройка workflow GitHub Actions",
+        "Сборка приложения и Docker-образа",
+        "Развёртывание учебного приложения на VPS",
+        "Просмотр логов и разбор ошибки сборки или запуска",
+      ],
+      resultTitle: "Результат практики",
+      result: "Учебный проект с настроенным процессом сборки и развёртывания и описанием выполненной работы.",
+      resultNote: "Это учебная практика, а не коммерческий опыт.",
+      costs: "Расходы на VPS, домен и сторонние сервисы согласуются до начала занятий.",
     },
     examples: {
       eyebrow: "Примеры задач",
@@ -169,6 +202,7 @@ export const trainingTranslations: Record<Locale, TrainingTranslations> = {
         mobile: "Разработка мобильных приложений",
         apiDb: "Работа с API и базами данных",
         gitReview: "Git, отладка и проверка кода",
+        devops: "Практика DevOps и CI/CD",
         undecided: "Пока не определился(-ась)",
       },
       errors: {
@@ -235,7 +269,26 @@ export const trainingTranslations: Record<Locale, TrainingTranslations> = {
         { title: "Мобильді қосымшаларды әзірлеу", description: "Смартфонға арналған қосымшалар және олардың серверлік бөлікпен байланысы." },
         { title: "API және дерекқорлармен жұмыс", description: "Серверлік бөлік: API, деректерді сақтау және интеграциялар." },
         { title: "Git, жөндеу және кодты тексеру", description: "Репозиториймен жұмыс, қателерді іздеу және кодты тексеру." },
+        { title: "DevOps және CI/CD практикасы", description: "Код өзгерісінен қосымшаны серверде іске қосуға дейінгі жолдан өтіңіз: GitHub, GitHub Actions, Docker және VPS." },
       ],
+    },
+    devopsPractice: {
+      eyebrow: "Практика бағдарламасы",
+      title: "DevOps және CI/CD практикасы",
+      description: "Ұсынылатын практика бағдарламасы — оқушылардың нәтижесі емес, сабақтардың жоспары.",
+      beginners: "Жаңадан бастаушыларға қажетті негіздерді түсіндіреміз, тапсырмалардың күрделілігін деңгейге қарай келісеміз.",
+      steps: [
+        "Репозиторий мен тармақпен жұмыс",
+        "Dockerfile дайындау",
+        "GitHub Actions workflow баптау",
+        "Қосымша мен Docker-бейнені құрастыру",
+        "Оқу қосымшасын VPS-ке орналастыру",
+        "Логтарды қарау және құрастыру немесе іске қосу қатесін талдау",
+      ],
+      resultTitle: "Практиканың нәтижесі",
+      result: "Құрастыру мен орналастыру процесі бапталған және орындалған жұмыстың сипаттамасы бар оқу жобасы.",
+      resultNote: "Бұл — коммерциялық тәжірибе емес, оқу практикасы.",
+      costs: "VPS, домен және үшінші тарап сервистерінің шығындары сабақ басталғанға дейін келісіледі.",
     },
     examples: {
       eyebrow: "Тапсырма мысалдары",
@@ -280,6 +333,7 @@ export const trainingTranslations: Record<Locale, TrainingTranslations> = {
         mobile: "Мобильді қосымшаларды әзірлеу",
         apiDb: "API және дерекқорлармен жұмыс",
         gitReview: "Git, жөндеу және кодты тексеру",
+        devops: "DevOps және CI/CD практикасы",
         undecided: "Әзірге шешпедім",
       },
       errors: {
@@ -346,7 +400,26 @@ export const trainingTranslations: Record<Locale, TrainingTranslations> = {
         { title: "Mobile apps", description: "Smartphone apps and how they connect to the server side." },
         { title: "APIs and databases", description: "The server side: APIs, data storage and integrations." },
         { title: "Git, debugging and code review", description: "Working with a repository, finding bugs and reviewing code." },
+        { title: "DevOps and CI/CD practice", description: "Go from a code change to the app running on a server: GitHub, GitHub Actions, Docker and a VPS." },
       ],
+    },
+    devopsPractice: {
+      eyebrow: "Practice programme",
+      title: "DevOps and CI/CD practice",
+      description: "A proposed practice programme — a plan for the sessions, not students' results.",
+      beginners: "For beginners we explain the basics needed; the difficulty of the assignments is agreed by level.",
+      steps: [
+        "Working with a repository and a branch",
+        "Writing a Dockerfile",
+        "Setting up a GitHub Actions workflow",
+        "Building the app and a Docker image",
+        "Deploying a training app to a VPS",
+        "Reading the logs and going through a build or start-up error",
+      ],
+      resultTitle: "Result of the practice",
+      result: "A training project with a configured build and deployment process and a description of the work done.",
+      resultNote: "This is training practice, not commercial experience.",
+      costs: "Costs of the VPS, domain and third-party services are agreed before the sessions start.",
     },
     examples: {
       eyebrow: "Sample tasks",
@@ -391,6 +464,7 @@ export const trainingTranslations: Record<Locale, TrainingTranslations> = {
         mobile: "Mobile apps",
         apiDb: "APIs and databases",
         gitReview: "Git, debugging and code review",
+        devops: "DevOps and CI/CD practice",
         undecided: "Not decided yet",
       },
       errors: {

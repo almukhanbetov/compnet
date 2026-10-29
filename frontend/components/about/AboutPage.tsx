@@ -17,6 +17,7 @@ import {
 import SectionHeading from "@/components/ui/SectionHeading";
 import PageHeroVisual from "@/components/ui/PageHeroVisual";
 import { heroVisuals } from "@/data/heroVisuals";
+import { DEVOPS_PATH } from "@/data/devops";
 import { aboutDirectionIds, type AboutDirectionId, type AboutTranslations } from "@/data/i18n/about";
 import { companyEmail, companyPhone, whatsappLink } from "@/data/contacts";
 
@@ -194,6 +195,16 @@ export default function AboutPage({ t, city, examples, heroVisualAlt }: AboutPag
               </li>
             ))}
           </ol>
+          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-6 py-4 light:border-cyan-600/30 light:bg-cyan-500/10">
+            <p className="text-sm leading-6 text-slate-200 light:text-slate-800">{t.process.delivery}</p>
+            <Link
+              href={DEVOPS_PATH}
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-cyan-300 transition hover:text-cyan-200 light:text-cyan-700 light:hover:text-cyan-800"
+            >
+              {t.process.deliveryLink}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       </section>
 

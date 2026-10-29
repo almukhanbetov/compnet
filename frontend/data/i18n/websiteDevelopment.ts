@@ -206,7 +206,7 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
         {
           question: "Что входит в поддержку?",
           answer:
-            "Базовый гарантийный период входит в разработку. Дальнейшее сопровождение — мониторинг, исправление ошибок, обновления безопасности и доработки по запросу — оформляется отдельно, на условиях, которые обсуждаем индивидуально.",
+            "Базовый гарантийный период входит в разработку. Дальнейшее сопровождение — исправление ошибок, обновления безопасности и доработки по запросу — оформляется отдельно, на условиях, которые обсуждаем индивидуально.",
         },
       ],
     },
@@ -348,7 +348,7 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
         {
           question: "Қолдауға не кіреді?",
           answer:
-            "Негізгі кепілдік кезеңі әзірлеуге кіреді. Әрі қарайғы сүйемелдеу — мониторинг, қателерді түзету, қауіпсіздік жаңартулары және сұраныс бойынша жетілдірулер — бөлек, жеке талқыланатын шарттармен рәсімделеді.",
+            "Негізгі кепілдік кезеңі әзірлеуге кіреді. Әрі қарайғы сүйемелдеу — қателерді түзету, қауіпсіздік жаңартулары және сұраныс бойынша жетілдірулер — бөлек, жеке талқыланатын шарттармен рәсімделеді.",
         },
       ],
     },
@@ -490,7 +490,7 @@ export const websiteDevelopmentTranslations: Record<Locale, WebsiteDevelopmentTr
         {
           question: "What does support include?",
           answer:
-            "A basic warranty period is included in development. Further maintenance — monitoring, bug fixes, security updates and changes on request — is arranged separately on terms we discuss individually.",
+            "A basic warranty period is included in development. Further maintenance — bug fixes, security updates and changes on request — is arranged separately on terms we discuss individually.",
         },
       ],
     },

@@ -4,6 +4,7 @@ import Footer from "@/components/layout/Footer";
 import BastasCaseStudy, { BASTAS_SCREENSHOT } from "@/components/portfolio/BastasCaseStudy";
 import { bastasCaseTranslations } from "@/data/i18n/bastasCase";
 import { getRequestLocale } from "@/lib/i18n.server";
+import { deliveryStack, deliveryText, portfolioDeliveryTitle } from "@/data/portfolioDelivery";
 
 const PATH = "/portfolio/bastas";
 const ogLocales = { ru: "ru_RU", kk: "kk_KZ", en: "en_US" } as const;
@@ -37,12 +38,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function BastasCasePage() {
-  const t = bastasCaseTranslations[await getRequestLocale()];
+  const locale = await getRequestLocale();
+  const t = bastasCaseTranslations[locale];
 
   return (
     <>
       <Header />
-      <BastasCaseStudy t={t} />
+      <BastasCaseStudy
+        t={t}
+        delivery={{ title: portfolioDeliveryTitle[locale], text: deliveryText("bastas-stone-catalog", locale) ?? "", stack: deliveryStack }}
+      />
       <Footer />
     </>
   );

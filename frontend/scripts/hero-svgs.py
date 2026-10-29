@@ -198,6 +198,41 @@ pages["training"] = svg(
     + '<path d="M175 340v38M528 234v12" stroke="url(#gh)" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="4 6"/>'
 )
 
+# DevOps and CI/CD: a branch in the repository, the workflow's steps, the
+# image being built and the server it is deployed to, left to right.
+def arrow(x1, y1, x2, y2):
+    return (f'<path d="M{x1} {y1}H{x2 - 8}" stroke="url(#gh)" stroke-opacity=".7" stroke-width="2" stroke-dasharray="5 5"/>'
+            f'<path d="M{x2 - 10} {y2 - 6}l8 6-8 6" stroke="#22D3EE" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+
+pages["devops"] = svg(
+    glows((320, 240, 160, "v", .42), (540, 160, 110, "c", .3), (110, 380, 110, "b", .3))
+    # repository: a main line and a branch merging back
+    + panel(30, 150, 130, 170, 18)
+    + '<path d="M62 290V180" stroke="#CBD5E1" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>'
+    + '<path d="M62 270c0-22 44-22 44-44v-10c0-16-44-16-44-30" stroke="url(#gh)" stroke-width="3" fill="none" stroke-linecap="round"/>'
+    + "".join(f'<circle cx="{x}" cy="{y}" r="7" fill="{c}" stroke="#0B1222" stroke-width="2"/>' for x, y, c in [(62, 290, "#94A3B8"), (106, 238, "#A78BFA"), (106, 214, "#A78BFA"), (62, 186, "#22D3EE")])
+    + bar(120, 186, 26, 6, .3) + bar(120, 290, 20, 6, .2)
+    + arrow(160, 235, 196, 235)
+    # workflow: steps with checks, the last one running
+    + panel(196, 110, 170, 250, 18, True)
+    + bar(216, 132, 90, 9, .45)
+    + "".join(check(216, 166 + i * 38, on=i < 3) + bar(240, 170 + i * 38, 100 - (i % 2) * 22, 7, .3 if i < 3 else .18) for i in range(4))
+    + '<circle cx="223" cy="320" r="7" stroke="#22D3EE" stroke-width="2.4" stroke-dasharray="22 12"/>' + bar(240, 316, 70, 7, .18)
+    + arrow(366, 235, 400, 235)
+    # image: stacked container layers
+    + "".join(f'<g filter="url(#shadow)"><path d="M{400} {214 + i * 26}l52-24 52 24-52 24z" fill="{["#1A2440", "#1E2A4A", "#232F55"][i]}" stroke="url(#g)" stroke-opacity="{.4 + i * .25}"/></g>' for i in (2, 1, 0))
+    + '<path d="M400 214v52l52 24 52-24v-52" stroke="url(#g)" stroke-opacity=".35" fill="none"/>'
+    + arrow(504, 235, 532, 235)
+    # server: a rack with status lights
+    + panel(532, 140, 84, 190, 16)
+    + "".join(f'<rect x="546" y="{160 + i * 40}" width="56" height="28" rx="7" fill="#fff" fill-opacity=".05" stroke="#fff" stroke-opacity=".1"/><circle cx="560" cy="{174 + i * 40}" r="4" fill="{"#22C55E" if i < 3 else "#22D3EE"}"/>' + bar(570, 171 + i * 40, 24, 6, .25) for i in range(4))
+    # below: the release, done
+    + panel(196, 400, 248, 70, 18)
+    + circle_icon(232, 435, 20, '<path d="M224 435l6 6 11-12" stroke="#22D3EE" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+    + bar(264, 424, 120, 8, .4) + gbar(264, 442, 150, 6)
+    + '<path d="M574 330v70H444" stroke="url(#gh)" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="4 6" fill="none"/>'
+)
+
 for name, body in pages.items():
     with open(os.path.join(OUT, f"{name}.svg"), "w") as f:
         f.write(body)

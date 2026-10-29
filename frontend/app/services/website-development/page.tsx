@@ -7,6 +7,7 @@ import { websiteDevelopmentTranslations, websiteExampleSlugs } from "@/data/i18n
 import { fetchPortfolioCases, fetchPricingCards } from "@/lib/api/content";
 import { heroVisualAlts } from "@/data/i18n/heroVisuals";
 import { byId, fill } from "@/lib/i18n";
+import { devopsTranslations } from "@/data/i18n/devops";
 import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
 
 const PATH = "/services/website-development";
@@ -63,6 +64,7 @@ export default async function WebsiteDevelopmentServicePage() {
       <Header />
       <WebsiteDevelopmentPage
         t={websiteDevelopmentTranslations[locale]}
+        devops={devopsTranslations[locale]}
         factors={pricingTexts.factors.items}
         pricing={pricing}
         examples={examples}

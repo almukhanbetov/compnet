@@ -59,7 +59,7 @@ export const translations: Record<Locale, Translations> = {
       stats: [
         { value: "50+", label: "жүзеге асырылған жоба" },
         { value: "7+", label: "әзірлеу бағыты" },
-        { value: "24/7", label: "Қолдау" },
+        { value: "≤ 1 күн", label: "жұмыс күндері өтінімге жауап" },
       ],
       directions: [
         { icon: "Globe", label: "Web Development" },
@@ -67,7 +67,7 @@ export const translations: Record<Locale, Translations> = {
         { icon: "Bot", label: "AI Solutions" },
         { icon: "Server", label: "Backend & API" },
         { icon: "Palette", label: "UI/UX Design" },
-        { icon: "Settings2", label: "DevOps" },
+        { icon: "Settings2", label: "DevOps & CI/CD" },
       ],
     },
     promo: {
@@ -153,7 +153,7 @@ export const translations: Record<Locale, Translations> = {
       stats: [
         { value: "50+", label: "реализованных проектов" },
         { value: "7+", label: "направлений разработки" },
-        { value: "24/7", label: "Поддержка" },
+        { value: "≤ 1 дня", label: "ответ на заявку в рабочие дни" },
       ],
       directions: [
         { icon: "Globe", label: "Web Development" },
@@ -161,7 +161,7 @@ export const translations: Record<Locale, Translations> = {
         { icon: "Bot", label: "AI Solutions" },
         { icon: "Server", label: "Backend & API" },
         { icon: "Palette", label: "UI/UX Design" },
-        { icon: "Settings2", label: "DevOps" },
+        { icon: "Settings2", label: "DevOps & CI/CD" },
       ],
     },
     promo: {
@@ -247,7 +247,7 @@ export const translations: Record<Locale, Translations> = {
       stats: [
         { value: "50+", label: "projects delivered" },
         { value: "7+", label: "development directions" },
-        { value: "24/7", label: "Support" },
+        { value: "≤ 1 day", label: "reply to a request on business days" },
       ],
       directions: [
         { icon: "Globe", label: "Web Development" },
@@ -255,7 +255,7 @@ export const translations: Record<Locale, Translations> = {
         { icon: "Bot", label: "AI Solutions" },
         { icon: "Server", label: "Backend & API" },
         { icon: "Palette", label: "UI/UX Design" },
-        { icon: "Settings2", label: "DevOps" },
+        { icon: "Settings2", label: "DevOps & CI/CD" },
       ],
     },
     promo: {

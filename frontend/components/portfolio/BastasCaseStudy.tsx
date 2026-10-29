@@ -17,6 +17,8 @@ export const BASTAS_SCREENSHOT = { src: "/portfolio/bastas-stone-catalog.jpg", w
 
 interface BastasCaseStudyProps {
   t: BastasCaseTranslations;
+  /** How the site is released (checked workflow), when known. */
+  delivery?: { title: string; text: string; stack: string[] };
 }
 
 const cardClass =
@@ -40,7 +42,7 @@ function OpenSiteLink({ t, className }: { t: BastasCaseTranslations; className: 
   );
 }
 
-export default function BastasCaseStudy({ t }: BastasCaseStudyProps) {
+export default function BastasCaseStudy({ t, delivery }: BastasCaseStudyProps) {
   return (
     <main className="relative overflow-hidden px-6 py-20 md:py-28">
       <div
@@ -147,6 +149,20 @@ export default function BastasCaseStudy({ t }: BastasCaseStudyProps) {
             <p className="mt-2 text-sm leading-6 text-slate-300 light:text-slate-700">{t.result.text}</p>
           </section>
         </div>
+
+        {delivery ? (
+          <section className={`mt-6 ${cardClass}`}>
+            <h2 className="text-lg font-semibold text-slate-100 light:text-slate-900">{delivery.title}</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {delivery.stack.map((tech) => (
+                <span key={tech} className="rounded-full bg-[var(--text-primary)]/5 px-3 py-1.5 text-sm text-slate-300 light:text-slate-700">
+                  {tech}
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600">{delivery.text}</p>
+          </section>
+        ) : null}
 
         <div className="mt-14 flex flex-wrap items-center justify-between gap-6 rounded-[28px] border border-[var(--text-primary)]/10 bg-gradient-to-br from-violet-700/30 via-blue-700/25 to-cyan-500/20 p-8 backdrop-blur-xl md:p-10">
           <div>

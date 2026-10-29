@@ -5,6 +5,7 @@ const ru = {
   heroVisual: {
     title: "Направления разработки",
     subtitle: "От идеи и дизайна до запуска и поддержки",
+    devops: "Настраиваем сборку и развёртывание приложений через GitHub Actions, Docker и VPS",
   },
   whatWeCreate: {
     eyebrow: "Что мы делаем",
@@ -128,8 +129,8 @@ const ru = {
         description: "Используем актуальные технологии и AI-инструменты для быстрой и надёжной разработки.",
       },
       "feat-6": {
-        title: "Поддержка 24/7",
-        description: "Сопровождение и оперативные доработки после запуска проекта.",
+        title: "Поддержка после запуска",
+        description: "Сопровождение и доработки после запуска проекта — на согласованных условиях.",
       },
     },
   },
@@ -162,7 +163,7 @@ const ru = {
       "faq-4": {
         question: "Что входит в поддержку после запуска?",
         answer:
-          "Мониторинг, исправление ошибок, обновления безопасности и доработки по запросу — на условиях, которые обсуждаем индивидуально.",
+          "Исправление ошибок, обновления безопасности и доработки по запросу — на условиях, которые обсуждаем индивидуально.",
       },
       "faq-5": {
         question: "Можно ли заказать только мобильное приложение без сайта?",
@@ -199,6 +200,7 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
     heroVisual: {
       title: "Әзірлеу бағыттары",
       subtitle: "Идея мен дизайннан бастап іске қосу мен қолдауға дейін",
+      devops: "Қосымшаларды GitHub Actions, Docker және VPS арқылы құрастыру мен орналастыруды баптаймыз",
     },
     whatWeCreate: {
       eyebrow: "Не істейміз",
@@ -322,8 +324,8 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           description: "Жылдам әрі сенімді әзірлеу үшін өзекті технологиялар мен ЖИ-құралдарды пайдаланамыз.",
         },
         "feat-6": {
-          title: "24/7 қолдау",
-          description: "Жоба іске қосылғаннан кейін сүйемелдеу және жедел жетілдірулер.",
+          title: "Іске қосқаннан кейінгі қолдау",
+          description: "Жоба іске қосылғаннан кейін сүйемелдеу және жетілдірулер — келісілген шарттармен.",
         },
       },
     },
@@ -356,7 +358,7 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
         "faq-4": {
           question: "Іске қосқаннан кейінгі қолдауға не кіреді?",
           answer:
-            "Мониторинг, қателерді түзету, қауіпсіздік жаңартулары және сұраныс бойынша жетілдірулер — жеке талқыланатын шарттармен.",
+            "Қателерді түзету, қауіпсіздік жаңартулары және сұраныс бойынша жетілдірулер — жеке талқыланатын шарттармен.",
         },
         "faq-5": {
           question: "Сайтсыз тек мобильді қосымшаға тапсырыс беруге бола ма?",
@@ -388,6 +390,7 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
     heroVisual: {
       title: "What we develop",
       subtitle: "From idea and design to launch and support",
+      devops: "We set up building and deploying apps with GitHub Actions, Docker and a VPS",
     },
     whatWeCreate: {
       eyebrow: "What we do",
@@ -511,8 +514,8 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           description: "We use up-to-date technologies and AI tools for fast and reliable development.",
         },
         "feat-6": {
-          title: "24/7 support",
-          description: "Maintenance and quick improvements after the project launches.",
+          title: "Support after launch",
+          description: "Maintenance and improvements after the project launches, on agreed terms.",
         },
       },
     },
@@ -545,7 +548,7 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
         "faq-4": {
           question: "What does support after launch include?",
           answer:
-            "Monitoring, bug fixes, security updates and improvements on request, on terms we agree individually.",
+            "Bug fixes, security updates and improvements on request, on terms we agree individually.",
         },
         "faq-5": {
           question: "Can I order only a mobile app without a website?",

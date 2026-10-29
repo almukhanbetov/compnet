@@ -33,7 +33,8 @@ export interface AboutTranslations {
     items: Record<AboutDirectionId, { title: string; description: string }>;
     websitesLink: string;
   };
-  process: { eyebrow: string; title: string; items: { title: string; description: string }[] };
+  /** delivery: how the app is handed over and released (link to the DevOps and CI/CD page). */
+  process: { eyebrow: string; title: string; items: { title: string; description: string }[]; delivery: string; deliveryLink: string };
   works: { eyebrow: string; title: string; description: string; caseLink: string; allWorks: string };
   contacts: {
     eyebrow: string;
@@ -119,6 +120,8 @@ export const aboutTranslations: Record<Locale, AboutTranslations> = {
         { title: "Проверка", description: "Проверяем работу проекта на разных устройствах и сценариях." },
         { title: "Запуск и поддержка", description: "Запускаем проект и сопровождаем его после запуска." },
       ],
+      delivery: "Передаём приложение и настраиваем процесс его сборки и развёртывания. Используем GitHub Actions, Docker и VPS.",
+      deliveryLink: "Подробнее о DevOps и CI/CD",
     },
     works: {
       eyebrow: "Работы",
@@ -210,6 +213,8 @@ export const aboutTranslations: Record<Locale, AboutTranslations> = {
         { title: "Тексеру", description: "Жобаның әртүрлі құрылғылар мен сценарийлерде жұмысын тексереміз." },
         { title: "Іске қосу және қолдау", description: "Жобаны іске қосып, кейін сүйемелдейміз." },
       ],
+      delivery: "Қосымшаны тапсырып, оны құрастыру мен орналастыру процесін баптаймыз. GitHub Actions, Docker және VPS қолданамыз.",
+      deliveryLink: "DevOps және CI/CD туралы толығырақ",
     },
     works: {
       eyebrow: "Жұмыстар",
@@ -301,6 +306,8 @@ export const aboutTranslations: Record<Locale, AboutTranslations> = {
         { title: "Testing", description: "We check how the project works on different devices and scenarios." },
         { title: "Launch and support", description: "We launch the project and support it afterwards." },
       ],
+      delivery: "We hand over the app and set up how it is built and deployed. We use GitHub Actions, Docker and a VPS.",
+      deliveryLink: "More about DevOps and CI/CD",
     },
     works: {
       eyebrow: "Our work",

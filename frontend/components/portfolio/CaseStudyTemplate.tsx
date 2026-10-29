@@ -10,7 +10,8 @@ import {
   Tag,
 } from "lucide-react";
 import { fill } from "@/lib/i18n";
-import { getServerTranslations } from "@/lib/i18n.server";
+import { getRequestLocale, getServerTranslations } from "@/lib/i18n.server";
+import { deliveryText, portfolioDeliveryTitle } from "@/data/portfolioDelivery";
 import type { PortfolioCaseStudy } from "@/types/portfolioPage";
 
 interface CaseStudyTemplateProps {
@@ -20,6 +21,8 @@ interface CaseStudyTemplateProps {
 export default async function CaseStudyTemplate({ project }: CaseStudyTemplateProps) {
   const { portfolio } = await getServerTranslations();
   const c = portfolio.caseStudy;
+  const locale = await getRequestLocale();
+  const delivery = deliveryText(project.slug, locale);
 
   return (
     <main className="relative overflow-hidden px-6 py-20 md:py-28">
@@ -124,6 +127,12 @@ export default async function CaseStudyTemplate({ project }: CaseStudyTemplatePr
                 </span>
               ))}
             </div>
+            {delivery ? (
+              <>
+                <p className="mt-6 text-sm font-semibold text-slate-100 light:text-slate-900">{portfolioDeliveryTitle[locale]}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-400 light:text-slate-600">{delivery}</p>
+              </>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-7 light:border-cyan-600/30 light:bg-cyan-500/10">
